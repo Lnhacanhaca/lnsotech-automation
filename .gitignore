@@ -10,3 +10,6 @@ bot/.wwebjs_auth/
 
 # Docker logs
 *.log
+
+#Base de dados
+postgres_data/
