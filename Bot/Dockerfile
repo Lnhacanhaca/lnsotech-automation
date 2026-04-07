@@ -3,7 +3,7 @@ FROM node:20-slim
 
 # Instalar dependências necessárias para Chromium rodar em ambiente headless
 RUN apt-get update && apt-get install -y \
-    chromium-browser \
+    chromium \
     fonts-freefont-ttf \
     libnss3 \
     libatk-bridge2.0-0 \
@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
+
 
 # Definir diretório de trabalho
 WORKDIR /app
