@@ -1,10 +1,7 @@
 require('dotenv').config();
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
-const { Pool } = require('pg');
 const cron = require('node-cron');
 
-// Configuração do Banco de Dados usando Variáveis de Ambiente
+// Configuração do Banco de Dados
 const pool = new Pool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER,
@@ -25,19 +22,35 @@ client.on('qr', qr => qrcode.generate(qr, { small: true }));
 
 client.on('ready', async () => {
     console.log('🚀 LNSOTECH Bot Online!');
-    // Listar IDs de grupos no log para facilitar o deploy
-    const chats = await client.getChats();
-    chats.filter(c => c.isGroup).forEach(g => console.log(`Grupo: ${g.name} | ID: ${g.id._serialized}`));
+    try {
+        const chats = await client.getChats();
+        const grupos = chats.filter(c => c.isGroup);
+        console.log('--- LISTA DE GRUPOS ---');
+        grupos.forEach(g => {
+            console.log(`Grupo: ${g.name} | ID: ${g.id._serialized}`);
+        });
+        console.log('-----------------------');
+    } catch (err) {
+        console.error('Erro ao listar chats:', err);
+    }
 });
 
 // Lógica de Registro via WhatsApp
 client.on('message', async msg => {
     if (msg.body.startsWith('!reg ')) {
-        const [nomes, data] = msg.body.slice(5).split(',');
+        const partes = msg.body.slice(5).split(',');
+        if (partes.length < 2) return msg.reply('❌ Use: !reg Casal, AAAA-MM-DD');
+
+        const nomes = partes[0].trim();
+        const data = partes[1].trim();
+
         try {
-            await pool.query('INSERT INTO aniversarios (nomes, data_casamento) VALUES ($1, $2)', [nomes.trim(), data.trim()]);
-            msg.reply('✅ Registado com sucesso!');
-        } catch (e) { msg.reply('❌ Erro no formato! Use: !reg Casal, AAAA-MM-DD'); }
+            await pool.query('INSERT INTO aniversarios (nomes, data_casamento) VALUES ($1, $2)', [nomes, data]);
+            msg.reply(`✅ Registado: ${nomes} - ${data}`);
+        } catch (e) {
+            console.error(e);
+            msg.reply('❌ Erro ao salvar no banco. Verifique a data!');
+        }
     }
 });
 
