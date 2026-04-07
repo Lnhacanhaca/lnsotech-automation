@@ -27,7 +27,7 @@ const pool = new Pool({
 const client = new Client({
     authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
     puppeteer: {
-        executablePath: process.env.CHROME_PATH || '/usr/bin/chromium',
+        executablePath:'/usr/bin/chromium',
         args: ['--no-sandbox', '--disable-setuid-sandbox']
     }
 });
