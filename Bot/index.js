@@ -38,16 +38,27 @@ client.on('qr', qr => qrcode.generate(qr, { small: true }));
 
 client.on('ready', () => {
   console.log("🚀 LNSOTECH Bot Online!");
-  setTimeout(async () => {
+
+  const tentarListarGrupos = async () => {
     try {
       const chats = await client.getChats();
       const groups = chats.filter(c => c.isGroup);
-      console.log("Grupos carregados:", groups.map(g => g.name));
+
+      if (groups.length > 0) {
+        console.log("Grupos carregados:", groups.map(g => g.name));
+      } else {
+        console.log("Ainda sem grupos, tentando novamente...");
+        setTimeout(tentarListarGrupos, 10000); // tenta de novo em 10s
+      }
     } catch (err) {
-      console.error("Erro ao listar chats:", err);
+      console.error("Erro ao listar chats:", err.message);
+      setTimeout(tentarListarGrupos, 10000);
     }
-  }, 10000); // espera 10 segundos
+  };
+
+  setTimeout(tentarListarGrupos, 15000); // primeira tentativa após 15s
 });
+
 
 
 // 6. Lógica de Registro via WhatsApp
