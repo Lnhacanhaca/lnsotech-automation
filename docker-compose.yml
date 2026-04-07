@@ -8,7 +8,8 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - nginx_network # Conecta o banco à rede existente
 
@@ -25,8 +26,6 @@ services:
       - DB_NAME=${DB_NAME}
     volumes:
       - ./bot/.wwebjs_auth:/app/.wwebjs_auth
-      - ./postgres_data:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - nginx_network # Conecta o bot à rede existente
 
