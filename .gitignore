@@ -13,3 +13,19 @@ bot/.wwebjs_auth/
 
 #Base de dados
 postgres_data/
+
+# Build e cache
+dist/
+build/
+.cache/
+
+# Docker
+docker-compose.override.yml
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
