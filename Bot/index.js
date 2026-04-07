@@ -28,27 +28,27 @@ const client = new Client({
     authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
     puppeteer: {
         executablePath:'/usr/bin/chromium',
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        protocolTimeout: 60000 // 60 segundos
     }
 });
 
 // 5. Eventos do WhatsApp
 client.on('qr', qr => qrcode.generate(qr, { small: true }));
 
-client.on('ready', async () => {
-    console.log('🚀 LNSOTECH Bot Online!');
+client.on('ready', () => {
+  console.log("🚀 LNSOTECH Bot Online!");
+  setTimeout(async () => {
     try {
-        const chats = await client.getChats();
-        const grupos = chats.filter(c => c.isGroup);
-        console.log('--- LISTA DE GRUPOS ---');
-        grupos.forEach(g => {
-            console.log(`Grupo: ${g.name} | ID: ${g.id._serialized}`);
-        });
-        console.log('-----------------------');
+      const chats = await client.getChats();
+      const groups = chats.filter(c => c.isGroup);
+      console.log("Grupos carregados:", groups.map(g => g.name));
     } catch (err) {
-        console.error('Erro ao listar chats:', err);
+      console.error("Erro ao listar chats:", err);
     }
+  }, 10000); // espera 10 segundos
 });
+
 
 // 6. Lógica de Registro via WhatsApp
 client.on('message', async msg => {
