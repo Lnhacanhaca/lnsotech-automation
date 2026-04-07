@@ -1,0 +1,12 @@
+{
+  "name": "lnsotech-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "whatsapp-web.js": "^1.34.6",
+    "qrcode-terminal": "^0.12.0",
+    "pg": "^8.11.0",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.4.5"
+  }
+}

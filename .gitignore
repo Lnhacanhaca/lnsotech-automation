@@ -1,0 +1,12 @@
+# Node
+node_modules/
+npm-debug.log
+
+# WhatsApp Auth (CRÍTICO: não partilhar sessões)
+bot/.wwebjs_auth/
+
+# Ambiente e Segredos
+.env
+
+# Docker logs
+*.log

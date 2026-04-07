@@ -1,0 +1,33 @@
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: lnsotech-db
+    restart: always
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - nginx_network # Conecta o banco à rede existente
+
+  bot:
+    build: ./bot
+    container_name: lnsotech-bot
+    restart: always
+    depends_on:
+      - database
+    environment:
+      - DB_HOST=database
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+    volumes:
+      - ./bot/.wwebjs_auth:/app/.wwebjs_auth
+    networks:
+      - nginx_network # Conecta o bot à rede existente
+
+networks:
+  nginx_network:
+    external: true # DIZ AO DOCKER: "Não cries, ela já existe!"
