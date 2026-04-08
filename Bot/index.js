@@ -25,11 +25,11 @@ const pool = new Pool({
 
 // 4. Configuração do Cliente WhatsApp
 const client = new Client({
-    authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
+    authStrategy: new LocalAuth({ dataPath: './sessions/lnsotech'  }),
     puppeteer: {
         executablePath:'/usr/bin/chromium',
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        protocolTimeout: 60000 // 60 segundos
+        protocolTimeout: 120000 // 2 minutos
     }
 });
 
@@ -47,16 +47,17 @@ client.on('ready', () => {
       if (groups.length > 0) {
         console.log("Grupos carregados:", groups.map(g => g.name));
       } else {
-        console.log("Ainda sem grupos, tentando novamente...");
-        setTimeout(tentarListarGrupos, 10000); // tenta de novo em 10s
+        console.log("Ainda sem grupos, tentando novamente em 15s...");
+        setTimeout(tentarListarGrupos, 15000);
       }
     } catch (err) {
       console.error("Erro ao listar chats:", err.message);
-      setTimeout(tentarListarGrupos, 10000);
+      setTimeout(tentarListarGrupos, 15000);
     }
   };
 
-  setTimeout(tentarListarGrupos, 15000); // primeira tentativa após 15s
+  // primeira tentativa após 20 segundos
+  setTimeout(tentarListarGrupos, 20000);
 });
 
 
