@@ -1,34 +1,34 @@
 services:
   database:
     image: postgres:15-alpine
-    container_name: lnsotech-db
-    restart: always
+    container_name: lnsotech-db-bot # Mudei o nome para não conflitar com o do WordPress
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
     volumes:
-      - ./postgres_data:/var/lib/postgresql/
+      - ./postgres_data:/var/lib/postgresql/data # Ajuste do caminho interno do Postgres
+      # Garante que o ficheiro init.sql existe na pasta ./postgres/ antes de subir
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - nginx_network # Conecta o banco à rede existente
+      - lnso_network 
 
   bot:
     build: ./bot
     container_name: lnsotech-bot
-    restart: always
+    restart: unless-stopped
     depends_on:
       - database
+    env_file: .env
     environment:
-      - DB_HOST=database
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
+      - TZ=Africa/Maputo
     volumes:
-      - ./bot/.wwebjs_auth:/app/.wwebjs_auth
+      - ./.wwebjs_auth:/app/.wwebjs_auth
+      - ./sessions:/app/sessions
     networks:
-      - nginx_network # Conecta o bot à rede existente
+      - lnso_network
 
 networks:
-  nginx_network:
-    external: true # DIZ AO DOCKER: "Não cries, ela já existe!"
+  lnso_network: # Nome da rede que criámos para o Nginx e WordPress
+    external: true

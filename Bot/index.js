@@ -14,12 +14,12 @@ const listaBodas = {
     45: "Rubi", 50: "Ouro", 60: "Diamante"
 };
 
-// 3. Configuração do Banco de Dados
+// 3. Configuração do Banco de Dados (Valores Fixos para Teste)
 const pool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    host: 'database',           // Nome do serviço no docker-compose
+    user: 'lnso_admin',         // O user que está no seu init.sql
+    password: 'luis@nhaca',     // A sua senha
+    database: 'lnsotech_db',    // O nome da base de dados
     port: 5432,
 });
 
@@ -47,6 +47,15 @@ client.on('qr', qr => qrcode.generate(qr, { small: true }));
 client.on('ready', () => {
   console.log("🚀 LNSOTECH Bot Online!");
 
+  // Envia mensagem de teste imediata para o grupo configurado no .env
+  if (process.env.GRUPO_ID && process.env.GRUPO_ID !== 'pendente') {
+      client.sendMessage(process.env.GRUPO_ID, "🤖 Teste de conexão: O bot está ativo e configurado para este grupo!")
+          .then(() => console.log("✅ Mensagem de teste enviada com sucesso!"))
+          .catch(err => console.error("❌ Erro ao enviar mensagem de teste:", err.message));
+  } else {
+      console.log("⚠️ GRUPO_ID não configurado no .env. Pulando mensagem de teste.");
+  }
+
   const tentarListarGrupos = async () => {
     try {
       const chats = await client.getChats();
@@ -54,7 +63,6 @@ client.on('ready', () => {
 
       if (groups.length > 0) {
         console.log("📋 LISTA DE GRUPOS (NOME | ID):");
-        // Modificado para mostrar o ID necessário para o .env
         groups.forEach(g => {
           console.log(`${g.name} | ID: ${g.id._serialized}`);
         });
@@ -68,26 +76,39 @@ client.on('ready', () => {
     }
   };
 
-  // Primeira tentativa após 20 segundos
+  // Primeira tentativa de listar grupos após 20 segundos
   setTimeout(tentarListarGrupos, 20000);
 });
 
 
-// 6. Lógica de Registro via WhatsApp
-client.on('message', async msg => {
-    if (msg.body.startsWith('!reg ')) {
-        const partes = msg.body.slice(5).split(',');
-        if (partes.length < 2) return msg.reply('❌ Use: !reg Casal, AAAA-MM-DD');
+// 6. Ouvir mensagens (Usando message_create para máxima compatibilidade)
+client.on('message_create', async (msg) => {
+    // Log para ver se o bot está "a ouvir" qualquer coisa
+    // console.log(`Mensagem detectada: ${msg.body} | De: ${msg.from}`);
 
-        const nomes = partes[0].trim();
-        const data = partes[1].trim();
+    // Comando para registrar: !reg Nome do Casal, AAAA-MM-DD
+    if (msg.body.startsWith('!reg ')) {
+        console.log("🎯 Comando !reg identificado!");
+
+        const dados = msg.body.slice(5).split(',');
+
+        if (dados.length !== 2) {
+            console.log("⚠️ Formato de comando errado.");
+            return msg.reply('❌ Formato inválido! Use: !reg Nome, AAAA-MM-DD');
+        }
+
+        const nomes = dados[0].trim();
+        const dataCasamento = dados[1].trim();
 
         try {
-            await pool.query('INSERT INTO aniversarios (nomes, data_casamento) VALUES ($1, $2)', [nomes, data]);
-            msg.reply(`✅ Registado: ${nomes} - ${data}`);
-        } catch (e) {
-            console.error(e);
-            msg.reply('❌ Erro ao salvar no banco. Verifique a data!');
+            const query = 'INSERT INTO aniversarios (nomes, data_casamento) VALUES ($1, $2)';
+            await pool.query(query, [nomes, dataCasamento]);
+            
+            console.log(`✅ Sucesso: ${nomes} inserido no banco.`);
+            msg.reply(`✅ Registado com sucesso: ${nomes} - ${dataCasamento}`);
+        } catch (err) {
+            console.error('❌ Erro no Banco de Dados:', err.message);
+            msg.reply('❌ Erve um erro ao salvar no banco de dados. Verifique a data (AAAA-MM-DD).');
         }
     }
 });
