@@ -45,7 +45,11 @@ client.on('ready', () => {
       const groups = chats.filter(c => c.isGroup);
 
       if (groups.length > 0) {
-        console.log("Grupos carregados:", groups.map(g => g.name));
+        console.log("📋 LISTA DE GRUPOS (NOME | ID):");
+        // Modificado para mostrar o ID necessário para o .env
+        groups.forEach(g => {
+          console.log(`${g.name} | ID: ${g.id._serialized}`);
+        });
       } else {
         console.log("Ainda sem grupos, tentando novamente em 15s...");
         setTimeout(tentarListarGrupos, 15000);
@@ -56,10 +60,9 @@ client.on('ready', () => {
     }
   };
 
-  // primeira tentativa após 20 segundos
+  // Primeira tentativa após 20 segundos
   setTimeout(tentarListarGrupos, 20000);
 });
-
 
 
 // 6. Lógica de Registro via WhatsApp
