@@ -27,9 +27,17 @@ const pool = new Pool({
 const client = new Client({
     authStrategy: new LocalAuth({ dataPath: './sessions/lnsotech'  }),
     puppeteer: {
-        executablePath:'/usr/bin/chromium',
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        protocolTimeout: 120000 // 2 minutos
+        executablePath: '/usr/bin/chromium',
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-zygote',
+            '--single-process' // Isto ajuda a não criar múltiplos processos de perfil
+        ],
+        protocolTimeout: 120000
     }
 });
 
