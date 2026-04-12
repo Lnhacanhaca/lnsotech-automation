@@ -22,6 +22,8 @@ services:
     env_file: .env
     environment:
       - TZ=Africa/Maputo
+    ports:
+      - "3000:3000"
     volumes:
       # O Baileys guarda as sessões na pasta auth_info_baileys. Mapeamos para persistir
       - ./auth_info_baileys:/app/auth_info_baileys 
