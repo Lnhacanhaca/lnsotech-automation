@@ -9,6 +9,7 @@ const pino = require('pino');
 const cron = require('node-cron');
 const { Pool } = require('pg');
 const path = require('path');
+const qrcode = require('qrcode-terminal');
 
 // 1. Objeto de Bodas
 const listaBodas = {
@@ -49,6 +50,8 @@ async function connectToWhatsApp() {
 
         if (qr) {
             console.log('[QR Code] Novo QR gerado! Faça a leitura com o WhatsApp.');
+            // O Baileys depreciou a opção nativa, portanto usamos o qrcode-terminal
+            qrcode.generate(qr, { small: true });
         }
 
         if (connection === 'close') {
