@@ -27,7 +27,7 @@ RUN npm install --production
 COPY . .
 
 # Definir variável de ambiente para Puppeteer usar o Chromium instalado
-ENV CHROME_PATH=/usr/bin/chromium-browser
+ENV CHROME_PATH=/usr/bin/chromium
 
 # Expor porta (caso uses Express para página web)
 EXPOSE 3000

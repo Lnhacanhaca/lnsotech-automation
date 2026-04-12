@@ -1,22 +1,21 @@
 services:
   database:
     image: postgres:15-alpine
-    container_name: lnsotech-db-bot # Mudei o nome para não conflitar com o do WordPress
+    container_name: lnsotech-db-bot-v2 # Atualizado para a v2
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data # Ajuste do caminho interno do Postgres
-      # Garante que o ficheiro init.sql existe na pasta ./postgres/ antes de subir
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./postgres_data_v2:/var/lib/postgresql/data # Nova pasta para não misturar dados velhos
+      - ./postgres/v2_update.sql:/docker-entrypoint-initdb.d/init.sql # Puxa a nossa base de dados nova (eventos)
     networks:
       - lnso_network 
 
   bot:
-    build: ./bot
-    container_name: lnsotech-bot
+    build: ./lnsotech-events-v2/backend # Aponta para o diretório da nossa nova v2
+    container_name: lnsotech-bot-v2
     restart: unless-stopped
     depends_on:
       - database
@@ -24,11 +23,11 @@ services:
     environment:
       - TZ=Africa/Maputo
     volumes:
-      - ./.wwebjs_auth:/app/.wwebjs_auth
-      - ./sessions:/app/sessions
+      # O Baileys guarda as sessões na pasta auth_info_baileys. Mapeamos para persistir
+      - ./auth_info_baileys:/app/auth_info_baileys 
     networks:
       - lnso_network
 
 networks:
-  lnso_network: # Nome da rede que criámos para o Nginx e WordPress
+  lnso_network: 
     external: true

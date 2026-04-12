@@ -1,9 +1,10 @@
 # Node
 node_modules/
+lnsotech-events-v2/backend/node_modules/
 npm-debug.log
 
 # WhatsApp Auth (CRÍTICO: não partilhar sessões)
-bot/.wwebjs_auth/
+auth_info_baileys/
 
 # Ambiente e Segredos
 .env
@@ -11,8 +12,12 @@ bot/.wwebjs_auth/
 # Docker logs
 *.log
 
-#Base de dados
+# Base de Dados (Diferentes Versões)
 postgres_data/
+postgres_data_v2/
+
+# Uploads (fotos dos eventos não devem ir para o github)
+lnsotech-events-v2/backend/src/uploads/
 
 # Build e cache
 dist/
