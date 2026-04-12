@@ -12,7 +12,7 @@ export default function Login({ onLogin }) {
     setError('');
 
     try {
-      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const apiBase = import.meta.env.VITE_API_URL || 'http://167.86.89.208:3000';
       const res = await fetch(`${apiBase}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
