@@ -12,7 +12,8 @@ export default function Login({ onLogin }) {
     setError('');
 
     try {
-      const apiBase = import.meta.env.VITE_API_URL || 'http://167.86.89.208:3000';
+      // Usar rota relativa para o Nginx processar sem conflito HTTPS
+      const apiBase = '';
       const res = await fetch(`${apiBase}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

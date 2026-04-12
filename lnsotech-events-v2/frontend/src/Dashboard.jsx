@@ -4,7 +4,7 @@ export default function Dashboard({ token, user, onLogout }) {
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const apiBase = import.meta.env.VITE_API_URL || 'http://167.86.89.208:3000';
+  const apiBase = '';
 
   const fetchEventos = async () => {
     try {
