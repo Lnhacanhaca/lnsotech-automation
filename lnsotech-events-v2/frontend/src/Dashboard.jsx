@@ -99,25 +99,48 @@ export default function Dashboard({ token, user, onLogout }) {
       </div>
       <div className="middle-grid">
         <div className="panel-card" style={{ gap: '1rem' }}>
-          <div className="panel-title">Últimos Lançamentos</div>
+          <div className="panel-title">Novo Registo (Manual)</div>
+          {(user?.nivel_acesso === 'admin' || user?.nivel_acesso === 'editor') ? (
+              <form className="inline-form" onSubmit={handleCreateEvento}>
+                <input type="text" className="inline-input" placeholder="Nomes (Ex: João e Maria)" value={formNomes} onChange={e => setFormNomes(e.target.value)} required />
+                <input type="date" className="inline-input" style={{flex: '0.4'}} value={formData} onChange={e => setFormData(e.target.value)} required />
+                <button type="submit" className="btn-submit" disabled={loading}>+ Adicionar</button>
+              </form>
+          ) : (
+              <div style={{color: '#94a3b8', fontSize: '0.9rem', fontStyle: 'italic'}}>Apenas admins/editores podem fazer isto.</div>
+          )}
+
+          <div className="panel-title" style={{ marginTop: '1.5rem', marginBottom: '0.5rem' }}>Últimos Registos</div>
           <table className="table-minimal">
-            <thead><tr><th>Nomes</th><th>Tipo</th><th style={{textAlign: 'right'}}>Data Origem</th></tr></thead>
+            <thead><tr><th>Nomes / Casal</th><th style={{textAlign: 'right'}}>Data Origem</th></tr></thead>
             <tbody>
-              {eventos.slice(0, 5).map(ev => (
-                <tr key={ev.id}>
-                  <td className="fw-bold">{ev.nomes_principais}</td>
-                  <td><span className={ev.tipo_evento === 'casamento' ? 'badge-casamento' : ''} style={{padding:'2px 8px', borderRadius:'4px', fontSize:'0.7rem'}}>{ev.tipo_evento?.toUpperCase()}</span></td>
-                  <td style={{textAlign: 'right'}}>{new Date(ev.data_evento).toLocaleDateString()}</td>
-                </tr>
-              ))}
+              {loading ? ( <tr><td colSpan="2">A carregar banco de dados...</td></tr> ) : eventos.length === 0 ? ( <tr><td colSpan="2">Sem eventos na V2. O Bot aguarda o uso de !reg.</td></tr> ) : (
+                eventos.slice(0, 5).map(ev => (
+                  <tr key={ev.id}>
+                    <td className="fw-bold">{ev.nomes_principais} 
+                      <span className={ev.tipo_evento === 'casamento' ? 'badge-casamento' : ''} style={{marginLeft: '8px', fontSize:'0.7rem', fontWeight:'normal', color:'#64748b'}}>{ev.grupo_id?.substring(0, 8)}...</span>
+                    </td>
+                    <td style={{textAlign: 'right'}}>{new Date(ev.data_evento).toLocaleDateString()}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+
         <div className="panel-card">
-               <div className="panel-title">Notificações</div>
-               <div style={{color: '#64748b', fontSize: '0.9rem', marginTop: '1rem'}}>
-                   🔔 0 falhas no motor HOJE.<br/><br/>
-                   🎂 {stats.totalEventos} Registos Totais Ativos a aguardar aniversários!
+               <div className="panel-title">Distribuição de Eventos</div>
+               <div className="pie-container">
+                  <div className="pie-chart">
+                     <div className="pie-inner">
+                        {percBodas}%<span style={{fontSize: '0.6rem', color: '#64748b', fontWeight: 400}}>Bodas</span>
+                     </div>
+                  </div>
+                  <div className="pie-legend">
+                     <div className="legend-item"><div className="dot blue"></div> Aniversários ({stats.totalAniversarios})</div>
+                     <div className="legend-item"><div className="dot green"></div> Bodas ({stats.totalBodas})</div>
+                     <div className="legend-item"><div className="dot yellow"></div> Outros (0)</div>
+                  </div>
                </div>
         </div>
       </div>
@@ -163,11 +186,11 @@ export default function Dashboard({ token, user, onLogout }) {
   );
 
   const renderConfig = () => (
-      user.nivel_acesso !== 'admin' ? <div>Sem permissões para configurações.</div> :
+      (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'editor') ? <div>Sem permissões para configurações.</div> :
       <>
         <div className="panel-card" style={{marginBottom: '1.5rem'}}>
             <div className="panel-title">Templates de Mensagens (Editor Dinâmico)</div>
-            {templates.map(t => (
+            {templates.length > 0 ? templates.map(t => (
                 <div key={t.id} style={{marginBottom: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px'}}>
                     <div style={{fontWeight: 600, marginBottom: '0.5rem', color: 'var(--primary)'}}>{t.tipo_evento.toUpperCase()}</div>
                     <textarea 
@@ -177,8 +200,10 @@ export default function Dashboard({ token, user, onLogout }) {
                     />
                     <div style={{fontSize: '0.7rem', color: '#94a3b8'}}>Dica: O sistema substitui automaticament `&#123;nomes&#125;` pelos clientes. Sai do campo para Guardar!</div>
                 </div>
-            ))}
+            )) : <p style={{fontSize: '0.9rem', color: '#64748b'}}>Nenhum template encontrado (Admin: Reabra esta janela após migração).</p>}
         </div>
+        
+        {user.nivel_acesso === 'admin' && (
         <div className="panel-card">
             <div className="panel-title">Gestão de Utilizadores Administrativos</div>
             <table className="table-minimal">
@@ -190,6 +215,7 @@ export default function Dashboard({ token, user, onLogout }) {
                </tbody>
             </table>
         </div>
+        )}
       </>
   );
 
