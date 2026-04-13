@@ -116,73 +116,37 @@ async function connectToWhatsApp() {
 
     sock.ev.on('creds.update', saveCreds);
 
-    // 4. Ouvir mensagens (!reg adaptado para o novo modelo de dados "eventos")
-    sock.ev.on('messages.upsert', async (m) => {
-        if (!m.messages || m.messages.length === 0) return;
-        const msg = m.messages[0];
+        // 4. Ouvir mensagens (!reg adaptado para o novo modelo de dados "eventos")
+        sock.ev.on('messages.upsert', async (m) => {
+            if (!m.messages || m.messages.length === 0) return;
+            const msg = m.messages[0];
 
-        // Ignorar mensagens minhas
-        if (msg.key.fromMe) return;
+            if (msg.key.fromMe) return;
 
-        // Extrair texto da mensagem na biblioteca Baileys
-        const textMessage = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+            const textMessage = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
-        if (textMessage && textMessage.startsWith('!reg ')) {
-            console.log("🎯 Comando !reg identificado!");
-
-            const dados = textMessage.slice(5).split(',');
-
-            if (dados.length < 2) {
-                console.log("⚠️ Formato de comando errado.");
-                return sock.sendMessage(msg.key.remoteJid, { text: '❌ Formato inválido! Use: !reg Nome do Casal, AAAA-MM-DD' }, { quoted: msg });
+            // TESTE DE CONEXÃO DIRETO
+            if (textMessage === '!ping') {
+                console.log('🏓 PING recebido!');
+                return await sock.sendMessage(msg.key.remoteJid, { text: '🏓 PONG! O robô está vivo e a ouvir.' }, { quoted: msg });
             }
 
-            const nomesPrincipais = dados[0].trim();
-            const dataEvento = dados[1].trim();
-            // O tipo de evento pode ser passado como terceiro argumento opcional
-            const tipoEvento = dados[2] ? dados[2].trim().toLowerCase() : 'casamento';
-            const grupoId = msg.key.remoteJid; // Associamos ao grupo de onde veio
+            // ========== RESPOSTAS AUTOMÁTICAS (AUTO-REPLY) ========== //
+            const myId = sock.user.id.split(':')[0];
+            const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
+            const repliedJid = contextInfo?.participant;
+            const mentionedJids = contextInfo?.mentionedJid || [];
+            
+            const isReplyToBot = repliedJid?.includes(myId);
+            const isMentioningBot = mentionedJids.some(jid => jid.includes(myId)) || textMessage?.includes(myId);
 
-            try {
-                const query = `
-                    INSERT INTO eventos (nomes_principais, data_evento, tipo_evento, grupo_id) 
-                    VALUES ($1, $2, $3, $4) RETURNING id
-                `;
-                const result = await pool.query(query, [nomesPrincipais, dataEvento, tipoEvento, grupoId]);
-                
-                await registarLog(result.rows[0].id, grupoId, 'registo_whatsapp', `Registado via !reg: ${nomesPrincipais}`, 'sucesso');
-
-                console.log(`✅ Sucesso: ${nomesPrincipais} inserido no banco (v2).`);
-                await sock.sendMessage(
-                    msg.key.remoteJid, 
-                    { text: `✅ Evento Registado!\nNomes: ${nomesPrincipais}\nData: ${dataEvento}\nTipo: ${tipoEvento}\nLembrete ativado neste grupo.` }, 
-                    { quoted: msg }
-                );
-            } catch (err) {
-                console.error('❌ Erro no Banco de Dados:', err.message);
-                await registarLog(null, grupoId, 'erro_registo', err.message, 'falha');
-                await sock.sendMessage(msg.key.remoteJid, { text: '❌ Ouve um erro ao salvar no banco de dados. Verifique o formato AAAA-MM-DD.' }, { quoted: msg });
+            if (textMessage) {
+                console.log(`📩 [Bot ID: ${myId}] | Texto: "${textMessage}"`);
+                console.log(`   └─ Status: Reply=${isReplyToBot} | Menciona=${isMentioningBot} | RepliedJid=${repliedJid}`);
             }
-            return;
-        }
 
-        // ========== RESPOSTAS AUTOMÁTICAS (AUTO-REPLY) ========== //
-        const myId = sock.user.id.split(':')[0];
-        const theBotId = myId + '@s.whatsapp.net';
-        const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
-        const repliedJid = contextInfo?.participant;
-        const mentionedJids = contextInfo?.mentionedJid || [];
-        
-        const isReplyToBot = repliedJid?.includes(myId);
-        const isMentioningBot = mentionedJids.some(jid => jid.includes(myId)) || textMessage?.includes(myId);
-
-        // LOG para diagnóstico
-        if (textMessage) {
-            console.log(`📩 [Bot ID: ${myId}] | Texto: "${textMessage.substring(0,30)}" | Reply ao Bot: ${isReplyToBot} | Menciona Bot: ${isMentioningBot}`);
-        }
-
-        if ((isReplyToBot || isMentioningBot) && textMessage) {
-            console.log(`🤖 Auto-Reply ativado para: "${textMessage}"`);
+            if ((isReplyToBot || isMentioningBot) && textMessage) {
+                console.log(`🤖 Auto-Reply Ativado!`);
             const textLower = textMessage.toLowerCase();
             
             if (textLower.includes('obrigad') || textLower.includes('obg') || textLower.includes('grato') || textLower.includes('amem') || textLower.includes('amém')) {
