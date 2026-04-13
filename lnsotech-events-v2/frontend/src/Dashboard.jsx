@@ -26,6 +26,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [usuarios, setUsuarios] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [logFilter, setLogFilter] = useState('todos');
   const [grupos, setGrupos] = useState([]);
   const [backups, setBackups] = useState([]);
   const [gruposLoading, setGruposLoading] = useState(false);
@@ -531,28 +532,63 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     </div>
   );
 
-  /* ========== RENDER: LOGS ========== */
-  const renderLogs = () => (
-    <div className="panel-card">
-      <div className="panel-title">📋 Logs Detalhados (Últimos 100)</div>
-      <div className="table-responsive">
-        <table className="table-minimal">
-          <thead><tr><th>Data/Hora</th><th>Tipo</th><th>Status</th><th>Mensagem</th><th>Grupo</th></tr></thead>
-          <tbody>
-            {logs.length === 0 ? <tr><td colSpan="5">Sem logs.</td></tr> : logs.map(l => (
-              <tr key={l.id}>
-                <td className="text-small">{new Date(l.criado_em).toLocaleString()}</td>
-                <td><span className="badge-tipo">{l.tipo_log}</span></td>
-                <td><span style={{color: l.status==='sucesso'?'#10b981':'#dc2626',fontWeight:600}}>{l.status?.toUpperCase()}</span></td>
-                <td className="text-small">{l.mensagem?.substring(0,50)}{l.mensagem?.length>50?'...':''}</td>
-                <td className="text-small">{l.grupo_id?.substring(0,15)}...</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+  /* ========== RENDER: HISTÓRICO (LOGS) ========== */
+  const renderLogs = () => {
+    const filteredLogs = logFilter === 'todos' ? logs : logs.filter(l => l.tipo_log === logFilter);
+    return (
+      <div className="panel-card">
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', marginBottom:'1rem'}}>
+          <div className="panel-title" style={{margin:0}}>📖 Histórico de Interações (Audit)</div>
+          <div style={{display:'flex', gap:'0.5rem'}}>
+            <select className="inline-input" value={logFilter} onChange={e=>setLogFilter(e.target.value)} style={{margin:0, width:'200px'}}>
+              <option value="todos">Todos os Eventos</option>
+              <option value="lembrete_enviado">Lembretes Enviados</option>
+              <option value="auto_resposta">Respostas Automáticas</option>
+              <option value="registo_whatsapp">Criação via Bot</option>
+              <option value="erro_registo">Erros do Bot</option>
+              <option value="lembrete_falha">Falhas de Envio</option>
+            </select>
+            <button className="btn-submit" onClick={fetchData} style={{margin:0}}>🔄 Atualizar</button>
+          </div>
+        </div>
+        
+        <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1rem'}}>Histórico detalhado de tudo o que o bot disparou, ouviu ou reportou.</p>
+        
+        <div className="table-responsive">
+          <table className="table-minimal">
+            <thead><tr><th>Data/Hora</th><th>Natureza</th><th>Status</th><th>Detalhes / Mensagem Trocada</th><th>Destinatário (ID)</th></tr></thead>
+            <tbody>
+              {filteredLogs.length === 0 ? <tr><td colSpan="5">Nenhum registo encontrado para este filtro.</td></tr> : filteredLogs.map(l => (
+                <tr key={l.id}>
+                  <td className="text-small" style={{whiteSpace:'nowrap', color:'#475569'}}>{new Date(l.criado_em).toLocaleString('pt-PT')}</td>
+                  <td>
+                    <span style={{
+                      fontSize:'0.75rem', padding:'0.2rem 0.5rem', borderRadius:'6px', fontWeight:600,
+                      background: l.tipo_log === 'auto_resposta' ? '#e0e7ff' : l.tipo_log === 'lembrete_enviado' ? '#dcfce7' : '#f1f5f9',
+                      color: l.tipo_log === 'auto_resposta' ? '#4f46e5' : l.tipo_log === 'lembrete_enviado' ? '#16a34a' : '#475569'
+                    }}>
+                      {l.tipo_log?.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{color: l.status==='sucesso'?'#10b981':(l.status==='falha'?'#dc2626':'#f59e0b'),fontWeight:600, fontSize:'0.8rem'}}>
+                      {l.status === 'sucesso' ? '✅ SUCESSO' : '❌ FALHA'}
+                    </span>
+                  </td>
+                  <td className="text-small" title={l.mensagem} style={{maxWidth:'300px'}}>
+                    {l.mensagem?.length > 70 ? l.mensagem.substring(0,70) + '...' : l.mensagem}
+                  </td>
+                  <td className="text-small" style={{fontFamily:'monospace', color:'#64748b'}} title={l.grupo_id}>
+                    {grupos.find(g=>g.id===l.grupo_id)?.nome || (l.grupo_id ? l.grupo_id.substring(0,18)+'...' : 'Sistema')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   /* ========== RENDER: CONFIGURAÇÕES ========== */
   const renderConfig = () => (
@@ -800,7 +836,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>setActiveTab('eventos')}><span>👥</span><span>Eventos/Casais</span></div>
           <div className={`nav-item ${activeTab==='calendario'?'active':''}`} onClick={()=>setActiveTab('calendario')}><span>📅</span><span>Calendário</span></div>
           <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>setActiveTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>
-          {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>setActiveTab('logs')}><span>📋</span><span>Logs</span></div>}
+          {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>setActiveTab('logs')}><span>📖</span><span>Histórico</span></div>}
           <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>setActiveTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>
         </nav>
         <div className="sidebar-footer">
@@ -828,7 +864,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
         <div className="content-wrapper">
           <h2 className="page-title">{
-            {dashboard:'Painel Executivo', eventos:'Gestão de Clientes', calendario:'Calendário de Eventos', grupos:'Grupos WhatsApp', logs:'Logs do Sistema', configuracoes:'Configurações'}[activeTab]
+            {dashboard:'Painel Executivo', eventos:'Gestão de Clientes', calendario:'Calendário de Eventos', grupos:'Grupos WhatsApp', logs:'Histórico e Auditoria', configuracoes:'Configurações'}[activeTab]
           }</h2>
           <p className="page-subtitle">LNSOTECH Automation CRM — {user.nivel_acesso?.toUpperCase()}</p>
           
