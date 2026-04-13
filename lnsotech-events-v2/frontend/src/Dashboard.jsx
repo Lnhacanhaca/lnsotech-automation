@@ -117,6 +117,75 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const handleExportCSV = () => window.open(`${apiBase}/api/eventos?exportCsv=true`, '_blank');
 
+  const handleExportExcel = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const dadosExcel = eventos.map(ev => ({
+        'ID': ev.id,
+        'Nomes': ev.nomes_principais,
+        'Data Evento': new Date(ev.data_evento).toLocaleDateString('pt-PT'),
+        'Tipo': ev.tipo_evento,
+        'Frequencia': ev.frequencia_lembrete || 'anual',
+        'Grupo': grupos.find(g => g.id === ev.grupo_id)?.nome || ev.grupo_id || 'N/A',
+        'Foto': ev.foto_url ? 'Sim' : 'Nao',
+      }));
+      const ws = XLSX.utils.json_to_sheet(dadosExcel);
+      ws['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 25 }, { wch: 6 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Eventos');
+      const statsData = [
+        ['Metrica', 'Valor'],
+        ['Total Eventos', stats.totalEventos],
+        ['Total Bodas', stats.totalBodas],
+        ['Total Aniversarios', stats.totalAniversarios],
+        ['Grupos Ativos', stats.gruposAtivos],
+        ['Lembretes Enviados', stats.lembretesEnviados],
+      ];
+      const wsStats = XLSX.utils.aoa_to_sheet(statsData);
+      XLSX.utils.book_append_sheet(wb, wsStats, 'Estatisticas');
+      XLSX.writeFile(wb, `lnsotech-relatorio-${new Date().toISOString().slice(0,10)}.xlsx`);
+    } catch (err) { console.error(err); alert('Erro ao gerar Excel: ' + err.message); }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'landscape' });
+      const dataHoje = new Date().toLocaleDateString('pt-PT');
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, 297, 20, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('LNSOTECH Events CRM - Relatorio de Eventos', 14, 13);
+      doc.setFontSize(9);
+      doc.text('Gerado em: ' + dataHoje, 240, 13);
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Total: ' + stats.totalEventos + ' eventos  |  Bodas: ' + stats.totalBodas + '  |  Aniversarios: ' + stats.totalAniversarios + '  |  Lembretes enviados: ' + stats.lembretesEnviados, 14, 28);
+      autoTable(doc, {
+        startY: 35,
+        head: [['#', 'Nomes', 'Data Evento', 'Tipo', 'Frequencia', 'Grupo WhatsApp']],
+        body: eventos.map(ev => [
+          ev.id,
+          ev.nomes_principais,
+          new Date(ev.data_evento).toLocaleDateString('pt-PT'),
+          ev.tipo_evento ? ev.tipo_evento.charAt(0).toUpperCase() + ev.tipo_evento.slice(1) : '',
+          ev.frequencia_lembrete || 'anual',
+          grupos.find(g => g.id === ev.grupo_id)?.nome || (ev.grupo_id ? ev.grupo_id.substring(0, 20) : 'N/A'),
+        ]),
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 60 }, 2: { cellWidth: 25 }, 3: { cellWidth: 22 }, 4: { cellWidth: 22 }, 5: { cellWidth: 50 } },
+      });
+      doc.save('lnsotech-relatorio-' + new Date().toISOString().slice(0, 10) + '.pdf');
+    } catch (err) { console.error(err); alert('Erro ao gerar PDF: ' + err.message); }
+  };
+
+
   const handleImportCSV = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     const fd = new FormData(); fd.append('csv', file);
@@ -273,7 +342,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       <div className="eventos-toolbar">
         <div className="panel-title" style={{margin:0}}>Base de Dados de Clientes</div>
         <div className="toolbar-buttons">
-          <button onClick={handleExportCSV} className="btn-submit" style={{background:'#1e293b'}}>📥 Exportar CSV</button>
+          <div style={{display:'flex', gap:'0.5rem'}}>
+            <button onClick={handleExportCSV} className="btn-submit" style={{background:'#1e293b'}}>📥 CSV</button>
+            <button onClick={handleExportExcel} className="btn-submit" style={{background:'#047857'}}>📊 Excel</button>
+            <button onClick={handleExportPDF} className="btn-submit" style={{background:'#be123c'}}>📄 PDF</button>
+          </div>
           {canEdit && (<>
             <input type="file" accept=".csv" ref={csvRef} onChange={handleImportCSV} style={{display:'none'}} />
             <button onClick={() => csvRef.current?.click()} className="btn-submit" style={{background:'#0f766e'}}>📤 Importar CSV</button>
