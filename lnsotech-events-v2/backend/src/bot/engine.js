@@ -162,6 +162,34 @@ async function connectToWhatsApp() {
                 await registarLog(null, grupoId, 'erro_registo', err.message, 'falha');
                 await sock.sendMessage(msg.key.remoteJid, { text: '❌ Ouve um erro ao salvar no banco de dados. Verifique o formato AAAA-MM-DD.' }, { quoted: msg });
             }
+            return;
+        }
+
+        // ========== RESPOSTAS AUTOMÁTICAS (AUTO-REPLY) ========== //
+        // 1. Verificar se a mensagem é uma resposta direta a uma mensagem do bot
+        // 2. Ou se menciona o próprio bot (tag)
+        const theBotId = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+        const repliedJid = msg.message?.extendedTextMessage?.contextInfo?.participant;
+        const mentionedJids = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        
+        const isReplyToBot = repliedJid === theBotId;
+        const isMentioningBot = mentionedJids.includes(theBotId);
+
+        if ((isReplyToBot || isMentioningBot) && textMessage) {
+            console.log(`🤖 Interação automática ativada no grupo ${msg.key.remoteJid}`);
+            const textLower = textMessage.toLowerCase();
+            
+            // Logica básica: Se for agradecimento ou confirmação
+            if (textLower.includes('obrigad') || textLower.includes('obg') || textLower.includes('grato') || textLower.includes('amem') || textLower.includes('amém')) {
+                await sock.sendMessage(msg.key.remoteJid, { text: 'A LNSOTECH agradece! ✨ Que este dia seja repleto de muitas bênçãos.' }, { quoted: msg });
+            } else if (textLower.includes('parab') || textLower.includes('felic') || textLower.includes('feliz')) {
+                await sock.sendMessage(msg.key.remoteJid, { text: 'Muito obrigado! 🎉 Estamos felizes em celebrar mais um momento inesquecível!' }, { quoted: msg });
+            } else {
+                // Auto-resposta padrão leve para outras menções
+                await sock.sendMessage(msg.key.remoteJid, { text: 'Recebemos a tua mensagem! 🤖 (Bot Automático LNSOTECH)' }, { quoted: msg });
+            }
+            
+            await registarLog(null, msg.key.remoteJid, 'auto_resposta', `Respondido a user: ${textMessage.substring(0,30)}...`, 'sucesso');
         }
     });
 
