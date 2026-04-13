@@ -9,6 +9,7 @@ const pino = require('pino');
 const cron = require('node-cron');
 const { Pool } = require('pg');
 const path = require('path');
+const fs = require('fs');
 const qrcodeTerminal = require('qrcode-terminal');
 const QRCode = require('qrcode');
 
@@ -178,7 +179,8 @@ function iniciarCron(sock) {
         try {
             // Buscar TODOS os tipos de evento (casamento, aniversario, batizado, formatura)
             const res = await pool.query(`
-                SELECT id, nomes_principais, grupo_id, tipo_evento, EXTRACT(YEAR FROM data_evento) as ano_origem 
+                SELECT id, nomes_principais, grupo_id, tipo_evento, foto_url,
+                       EXTRACT(YEAR FROM data_evento) as ano_origem 
                 FROM eventos 
                 WHERE EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM CURRENT_DATE) 
                 AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM CURRENT_DATE)
@@ -204,8 +206,21 @@ function iniciarCron(sock) {
                 }
 
                 try {
-                    // Envia para o grupo específico do evento (cada evento pode ter grupo diferente)
-                    await sock.sendMessage(evento.grupo_id, { text: mensagem });
+                    // Se o evento tem foto, envia imagem + legenda. Caso contrário, só texto.
+                    if (evento.foto_url) {
+                        const fotoPath = path.resolve(__dirname, '../../src/uploads', path.basename(evento.foto_url));
+                        if (fs.existsSync(fotoPath)) {
+                            await sock.sendMessage(evento.grupo_id, {
+                                image: { url: 'file://' + fotoPath },
+                                caption: mensagem
+                            });
+                        } else {
+                            // Ficheiro não encontrado localmente, envia só texto
+                            await sock.sendMessage(evento.grupo_id, { text: mensagem });
+                        }
+                    } else {
+                        await sock.sendMessage(evento.grupo_id, { text: mensagem });
+                    }
                     await registarLog(evento.id, evento.grupo_id, 'lembrete_enviado', mensagem, 'sucesso');
                     console.log(`✅ Enviado para: ${evento.nomes_principais} (Grupo: ${evento.grupo_id})`);
                 } catch (sendErr) {
