@@ -202,9 +202,9 @@ async function connectToWhatsApp() {
 
 // 5. Função agendada com cron
 function iniciarCron(sock) {
-    console.log('⏳ Cron Job iniciado (Horário de Teste: 00:02 Maputo)');
+    console.log('⏳ Cron Job iniciado (Horário de Teste: 00:06 Maputo)');
     
-    cron.schedule('2 0 * * *', async () => {
+    cron.schedule('6 0 * * *', async () => {
         console.log('🔍 LNSOTECH: Verificando eventos de hoje...');
         try {
             // Buscar eventos conforme frequência de lembrete configurada
