@@ -47,9 +47,6 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [editingUserId, setEditingUserId] = useState(null);
   const [editUserForm, setEditUserForm] = useState({ nome: '', email: '', senha: '', nivel_acesso: 'leitor' });
 
-  const [tiposEvento, setTiposEvento] = useState([]);
-  const [newTipoNome, setNewTipoNome] = useState('');
-  const [newTipoCor, setNewTipoCor] = useState('#3b82f6');
   const [editingTipoId, setEditingTipoId] = useState(null);
   const [editTipoForm, setEditTipoForm] = useState({ nome: '', cor: '#3b82f6' });
 
