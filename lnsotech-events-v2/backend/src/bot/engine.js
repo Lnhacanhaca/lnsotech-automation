@@ -13,6 +13,7 @@ const fs = require('fs');
 const { exec } = require('child_process');
 const qrcodeTerminal = require('qrcode-terminal');
 const QRCode = require('qrcode');
+const PDFDocument = require('pdfkit');
 
 // Estado global da conexão WhatsApp
 global.waState = { qr: null, status: 'desconectado', lastUpdate: null };
@@ -330,6 +331,74 @@ function iniciarCron(sock) {
                 });
             });
         });
+    }, {
+        timezone: "Africa/Maputo"
+    });
+
+    // ========== CRON JOB PARA RELATÓRIO SEMANAL (Sexta-feira 17:00) ========== //
+    cron.schedule('0 17 * * 5', async () => {
+        const adminNumber = process.env.REPORT_PHONE_NUMBER;
+        if (!adminNumber) {
+            console.log('📉 LNSOTECH: Relatório semanal criado, mas REPORT_PHONE_NUMBER não está definido no .env para envio.');
+            return;
+        }
+
+        console.log('📊 LNSOTECH: Gerando relatório PDF semanal...');
+        const adminJid = adminNumber.includes('@s.whatsapp.net') ? adminNumber : `${adminNumber.replace(/[^0-9]/g, '')}@s.whatsapp.net`;
+        
+        try {
+            // Buscar stats básicas para preencher o PDF
+            const eventosCount = await pool.query('SELECT COUNT(*) FROM eventos');
+            const logsRecentes = await pool.query("SELECT COUNT(*) FROM logs_envio WHERE criado_em >= NOW() - INTERVAL '7 days' AND tipo_log = 'lembrete_enviado'");
+            const falhasRecentes = await pool.query("SELECT COUNT(*) FROM logs_envio WHERE criado_em >= NOW() - INTERVAL '7 days' AND status = 'falha'");
+
+            const numEventos = parseInt(eventosCount.rows[0].count);
+            const numLogs = parseInt(logsRecentes.rows[0].count);
+            const numFalhas = parseInt(falhasRecentes.rows[0].count);
+
+            const doc = new PDFDocument({ margin: 50 });
+            const reportDir = path.resolve(__dirname, '../../src/uploads/relatorios');
+            if (!fs.existsSync(reportDir)) fs.mkdirSync(reportDir, { recursive: true });
+            
+            const filePath = path.join(reportDir, `Relatorio-Semanal-${new Date().toISOString().slice(0, 10)}.pdf`);
+            const writeStream = fs.createWriteStream(filePath);
+            
+            doc.pipe(writeStream);
+            
+            // Design simples de PDF
+            doc.fontSize(20).text('LNSOTECH Automation CRM', { align: 'center' });
+            doc.moveDown();
+            doc.fontSize(14).text('Relatório Semanal de Atividades', { align: 'center' });
+            doc.moveDown(2);
+            
+            doc.fontSize(12).text(`Data: ${new Date().toLocaleDateString('pt-PT')}`);
+            doc.moveDown();
+            doc.text('Estatísticas da Semana:');
+            doc.moveDown();
+            doc.text(`• Total de Clientes/Eventos Registados: ${numEventos}`);
+            doc.text(`• Lembretes Disparados (Últimos 7 dias): ${numLogs}`);
+            doc.text(`• Lembretes Falhados (Erros do Bot): ${numFalhas}`);
+            
+            doc.moveDown(3);
+            doc.fontSize(10).fillColor('grey').text('Sistema Automático de Gestão de Eventos • LNSOTECH', { align: 'center' });
+            doc.end();
+
+            // Esperar o PDF ser completamente escrito no disco
+            writeStream.on('finish', async () => {
+                const captionMsg = `📊 *LNSOTECH CRM - Resumo da Semana*\n\nTotal de Base de Dados: ${numEventos}\nLembretes na semana: ${numLogs}\n\nSegue o anexo oficial em PDF. Bom fim de semana!`;
+                
+                await sock.sendMessage(adminJid, { 
+                    document: { url: filePath }, 
+                    mimetype: 'application/pdf', 
+                    fileName: `LNSO-Relatorio-${new Date().toISOString().slice(0, 10)}.pdf`, 
+                    caption: captionMsg 
+                });
+                console.log(`✅ Relatório enviado para o Administrador: ${adminJid}`);
+            });
+
+        } catch (err) {
+            console.error('❌ Erro na geração do Relatório Semanal:', err);
+        }
     }, {
         timezone: "Africa/Maputo"
     });
