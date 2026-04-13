@@ -908,7 +908,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const renderCalendario = () => {
     const mesesPT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     const diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    const coresEvento = { casamento:'#3b82f6', aniversario:'#10b981', batizado:'#8b5cf6', formatura:'#f59e0b' };
+    // Criar mapeamento dinâmico de cores baseado nos tipos existentes
+    const coresEvento = tiposEvento.reduce((acc, t) => ({ ...acc, [t.nome]: t.cor }), { 
+      casamento:'#3b82f6', aniversario:'#10b981', batizado:'#8b5cf6', formatura:'#f59e0b' 
+    });
     
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
     const firstWeekDay = new Date(calYear, calMonth, 1).getDay();
