@@ -205,32 +205,35 @@ function iniciarCron(sock) {
     console.log('⏳ MODO DE TESTE: Cron a correr a cada 2 minutos...');
     
     cron.schedule('*/2 * * * *', async () => {
-        console.log('🔍 LNSOTECH: Verificando eventos de hoje...');
+        const agoraMaputo = new Date().toLocaleString("pt-PT", {timeZone: "Africa/Maputo"});
+        console.log(`🔍 [${agoraMaputo}] LNSOTECH: Verificando eventos...`);
         try {
             // Buscar eventos conforme frequência de lembrete configurada
-            const res = await pool.query(`
+            const query = `
                 SELECT id, nomes_principais, grupo_id, tipo_evento, foto_url,
                        frequencia_lembrete,
                        EXTRACT(YEAR FROM data_evento) as ano_origem 
                 FROM eventos 
                 WHERE grupo_id IS NOT NULL AND (
-                    -- ANUAL (padrão): mesmo dia e mês do ano (Considerando fuso horário de Maputo)
+                    -- ANUAL: mesmo dia e mês do ano
                     ((frequencia_lembrete = 'anual' OR frequencia_lembrete IS NULL)
-                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo'))
-                     AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
+                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (NOW() AT TIME ZONE 'Africa/Maputo'))
+                     AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
                     OR
-                    -- MENSAL: mesmo dia do mês, todos os meses
+                    -- MENSAL: mesmo dia do mês
                     (frequencia_lembrete = 'mensal'
-                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
+                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
                     OR
                     -- SEMANAL: mesmo dia da semana
                     (frequencia_lembrete = 'semanal'
-                     AND EXTRACT(DOW FROM data_evento) = EXTRACT(DOW FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
+                     AND EXTRACT(DOW FROM data_evento) = EXTRACT(DOW FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
                     OR
-                    -- DIÁRIO: todos os dias
+                    -- DIÁRIO
                     frequencia_lembrete = 'diario'
                 )
-            `);
+            `;
+            const res = await pool.query(query);
+            console.log(`📊 Eventos encontrados para hoje: ${res.rows.length}`);
 
             // Buscar templates dinâmicos
             const templatesRes = await pool.query('SELECT * FROM templates_mensagem');
