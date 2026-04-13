@@ -26,7 +26,9 @@ services:
       - "3000:3000"
     volumes:
       # O Baileys guarda as sessões na pasta auth_info_baileys. Mapeamos para persistir
-      - ./auth_info_baileys:/app/auth_info_baileys 
+      - ./auth_info_baileys:/app/auth_info_baileys
+      # Uploads de fotos persistidos fora do contentor
+      - ./uploads:/app/src/uploads
     networks:
       - lnso_network
 
@@ -38,6 +40,8 @@ services:
       - "8080:80"
     volumes:
       - ./lnsotech-events-v2/frontend/dist:/usr/share/nginx/html
+      # Partilhar pasta de uploads para o nginx também servir as fotos
+      - ./uploads:/usr/share/nginx/html/uploads
     networks:
       - lnso_network
 networks:
