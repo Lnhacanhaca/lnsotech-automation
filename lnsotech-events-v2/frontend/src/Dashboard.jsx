@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export default function Dashboard({ token, user, onLogout }) {
+export default function Dashboard({ token, user: rawUser, onLogout }) {
+  // FIX: suportar tanto "nivel" (token antigo) como "nivel_acesso" (token novo)
+  const user = { ...rawUser, nivel_acesso: rawUser.nivel_acesso || rawUser.nivel || 'leitor' };
+  const isAdmin = user.nivel_acesso === 'admin';
+  const isEditor = user.nivel_acesso === 'editor';
+  const canEdit = isAdmin || isEditor;
+
   const [eventos, setEventos] = useState([]);
   const [stats, setStats] = useState({ totalEventos: 0, totalBodas: 0, totalAniversarios: 0, gruposAtivos: 0, lembretesEnviados: 0, falhasHoje: 0 });
   const [loading, setLoading] = useState(true);
@@ -15,6 +21,8 @@ export default function Dashboard({ token, user, onLogout }) {
   const [usuarios, setUsuarios] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [grupos, setGrupos] = useState([]);
+  const [gruposLoading, setGruposLoading] = useState(false);
 
   const [newUserNome, setNewUserNome] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
@@ -22,8 +30,6 @@ export default function Dashboard({ token, user, onLogout }) {
   const [newUserRole, setNewUserRole] = useState('leitor');
 
   const csvRef = useRef(null);
-  const fotoRef = useRef(null);
-  const [uploadingFotoId, setUploadingFotoId] = useState(null);
 
   const apiBase = '';
   const headers = { 'Authorization': `Bearer ${token}` };
@@ -40,14 +46,14 @@ export default function Dashboard({ token, user, onLogout }) {
       const resStats = await fetch(`${apiBase}/api/eventos/stats`, { headers });
       if (resStats.ok) setStats(await resStats.json());
       
-      if (user.nivel_acesso === 'admin' || user.nivel_acesso === 'editor') {
+      if (canEdit) {
         const resUsr = await fetch(`${apiBase}/api/auth/usuarios`, { headers });
         if (resUsr.ok) setUsuarios(await resUsr.json());
         const resTp = await fetch(`${apiBase}/api/eventos/templates`, { headers });
         if (resTp.ok) setTemplates(await resTp.json());
       }
 
-      if (user.nivel_acesso === 'admin') {
+      if (isAdmin) {
         const resLogs = await fetch(`${apiBase}/api/eventos/logs`, { headers });
         if (resLogs.ok) setLogs(await resLogs.json());
       }
@@ -55,87 +61,84 @@ export default function Dashboard({ token, user, onLogout }) {
     finally { setLoading(false); }
   };
 
+  const fetchGrupos = async () => {
+    setGruposLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/api/eventos/grupos`, { headers });
+      if (res.ok) setGrupos(await res.json());
+      else { const d = await res.json(); alert(d.erro || 'Bot offline'); }
+    } catch (e) { alert('Falha ao carregar grupos'); }
+    setGruposLoading(false);
+  };
+
   useEffect(() => { fetchData(searchQuery); }, [activeTab, searchQuery]);
+  useEffect(() => { if (activeTab === 'grupos' && grupos.length === 0) fetchGrupos(); }, [activeTab]);
 
   // =================== HANDLERS =================== //
   const handleExportCSV = () => window.open(`${apiBase}/api/eventos?exportCsv=true`, '_blank');
 
   const handleImportCSV = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('csv', file);
-    try {
-      const res = await fetch(`${apiBase}/api/eventos/importar`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData });
-      const data = await res.json();
-      alert(data.mensagem || 'Importação concluída');
-      fetchData();
-    } catch (err) { alert('Erro na importação'); }
+    const file = e.target.files[0]; if (!file) return;
+    const fd = new FormData(); fd.append('csv', file);
+    const res = await fetch(`${apiBase}/api/eventos/importar`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
+    const data = await res.json(); alert(data.mensagem || 'Concluído'); fetchData();
     e.target.value = '';
   };
 
   const handleCreateEvento = async (e) => {
     e.preventDefault();
-    if (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'editor') return alert("Permissão negada!");
-    const payload = { nomes_principais: formNomes, data_evento: formData, tipo_evento: formTipo, grupo_id: formGrupo || 'Painel_Web', criado_por: user.id };
-    try {
-      const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
-      if (res.ok) { setFormNomes(''); setFormData(''); setFormGrupo(''); alert('Registado!'); fetchData(); }
-      else alert('Erro ao guardar!');
-    } catch (error) { alert("Falha na comunicação."); }
+    if (!canEdit) return alert("Permissão negada!");
+    if (!formGrupo) return alert("Seleccione um grupo WhatsApp!");
+    const payload = { nomes_principais: formNomes, data_evento: formData, tipo_evento: formTipo, grupo_id: formGrupo, criado_por: user.id };
+    const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
+    if (res.ok) { setFormNomes(''); setFormData(''); alert('Registado!'); fetchData(); }
+    else alert('Erro ao guardar!');
   };
 
-  const handleUploadFoto = async (eventoId) => {
-    const file = fotoRef.current?.files[0];
-    if (!file) return alert('Seleccione uma foto primeiro');
-    setUploadingFotoId(eventoId);
-    const fd = new FormData();
-    fd.append('foto', file);
-    try {
-      const res = await fetch(`${apiBase}/api/eventos/${eventoId}/foto`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
-      if (res.ok) { alert('Foto anexada!'); fetchData(); }
-      else alert('Erro ao enviar foto');
-    } catch (e) { alert('Falha'); }
-    setUploadingFotoId(null);
-    fotoRef.current.value = '';
+  const handleUploadFoto = async (eventoId, file) => {
+    if (!file) return;
+    const fd = new FormData(); fd.append('foto', file);
+    const res = await fetch(`${apiBase}/api/eventos/${eventoId}/foto`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
+    if (res.ok) { alert('Foto anexada!'); fetchData(); } else alert('Erro');
   };
   
-  const handleUpdateTemplate = async (id, novaMSG) => {
-    await fetch(`${apiBase}/api/eventos/templates/${id}`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({mensagem: novaMSG}) });
+  const handleUpdateTemplate = async (id, msg) => {
+    await fetch(`${apiBase}/api/eventos/templates/${id}`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({mensagem: msg}) });
     alert('Template Salvo!');
   };
 
   const apagarEvento = async (id) => {
-    if (user.nivel_acesso !== 'admin') return alert('Só Admins apagam!');
-    if (window.confirm('Apagar este registo?')) {
-      await fetch(`${apiBase}/api/eventos/${id}`, { method: 'DELETE', headers });
-      fetchData();
-    }
+    if (!isAdmin) return alert('Só Admins!');
+    if (window.confirm('Apagar?')) { await fetch(`${apiBase}/api/eventos/${id}`, { method: 'DELETE', headers }); fetchData(); }
   };
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
     const res = await fetch(`${apiBase}/api/auth/usuarios`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: newUserNome, email: newUserEmail, senha: newUserSenha, nivel_acesso: newUserRole }) });
-    const data = await res.json();
-    if (res.ok) { alert('Utilizador criado!'); setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserRole('leitor'); fetchData(); }
-    else alert(data.erro || 'Erro ao criar');
+    const d = await res.json();
+    if (res.ok) { alert('Criado!'); setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserRole('leitor'); fetchData(); }
+    else alert(d.erro || 'Erro');
   };
 
   const handleDeleteUser = async (id) => {
-    if (window.confirm('Remover?')) {
-      const res = await fetch(`${apiBase}/api/auth/usuarios/${id}`, { method: 'DELETE', headers });
-      const d = await res.json(); if (res.ok) fetchData(); else alert(d.erro);
-    }
+    if (window.confirm('Remover?')) { const res = await fetch(`${apiBase}/api/auth/usuarios/${id}`, { method: 'DELETE', headers }); if (res.ok) fetchData(); }
   };
 
-  const handleTesteConexao = async () => {
-    const grupo = prompt('ID do grupo WhatsApp (ou deixe vazio para o padrão):');
-    const res = await fetch(`${apiBase}/api/eventos/teste-conexao`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ grupo_id: grupo || undefined }) });
-    const d = await res.json();
-    alert(d.mensagem || d.erro);
+  const handleTesteConexao = async (grupoId) => {
+    const res = await fetch(`${apiBase}/api/eventos/teste-conexao`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ grupo_id: grupoId }) });
+    const d = await res.json(); alert(d.mensagem || d.erro);
   };
 
   const percBodas = stats.totalEventos > 0 ? Math.round((stats.totalBodas / stats.totalEventos) * 100) : 0;
+
+  // Helper: dropdown de grupos
+  const GrupoSelect = ({ value, onChange, style }) => (
+    <select className="inline-input" style={style || {flex:'0.35'}} value={value} onChange={onChange}>
+      <option value="">-- Seleccionar Grupo --</option>
+      {grupos.map(g => <option key={g.id} value={g.id}>{g.nome} ({g.participantes} membros)</option>)}
+      <option value="__manual__">Inserir ID manualmente...</option>
+    </select>
+  );
 
   /* ========== RENDER: DASHBOARD ========== */
   const renderDashboard = () => (
@@ -146,39 +149,35 @@ export default function Dashboard({ token, user, onLogout }) {
         <div className="stat-card"><div className="stat-header">Lembretes Enviados<div className="stat-icon-wrapper bg-yellow-light">🔔</div></div><div className="stat-value">{stats.lembretesEnviados}</div></div>
         <div className="stat-card"><div className="stat-header">Falhas<div className="stat-icon-wrapper" style={{background:'#fee2e2'}}>⚠️</div></div><div className="stat-value" style={{color: stats.falhasHoje > 0 ? '#dc2626':'#10b981'}}>{stats.falhasHoje}</div></div>
       </div>
-
       <div className="middle-grid">
-        <div className="panel-card" style={{ gap: '1rem' }}>
+        <div className="panel-card" style={{gap:'1rem'}}>
           <div className="panel-title">Novo Registo</div>
-          {(user?.nivel_acesso === 'admin' || user?.nivel_acesso === 'editor') ? (
+          {canEdit ? (
             <form className="inline-form" onSubmit={handleCreateEvento}>
-              <input type="text" className="inline-input" placeholder="Nomes (João e Maria)" value={formNomes} onChange={e => setFormNomes(e.target.value)} required />
-              <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e => setFormData(e.target.value)} required />
+              <input type="text" className="inline-input" placeholder="Nomes (Ex: João e Maria)" value={formNomes} onChange={e=>setFormNomes(e.target.value)} required />
+              <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
               <select className="inline-input" style={{flex:'0.25'}} value={formTipo} onChange={e=>setFormTipo(e.target.value)}>
                 <option value="casamento">Casamento</option><option value="aniversario">Aniversário</option>
                 <option value="batizado">Batizado</option><option value="formatura">Formatura</option>
               </select>
-              <input type="text" className="inline-input" style={{flex:'0.3'}} placeholder="ID Grupo WhatsApp (opcional)" value={formGrupo} onChange={e => setFormGrupo(e.target.value)} />
+              <GrupoSelect value={formGrupo} onChange={e => {
+                if (e.target.value === '__manual__') { const id = prompt('Cole o ID do grupo:'); if (id) setFormGrupo(id); }
+                else setFormGrupo(e.target.value);
+              }} />
               <button type="submit" className="btn-submit" disabled={loading}>+ Guardar</button>
             </form>
-          ) : (<div className="text-muted">Apenas admins/editores podem registar.</div>)}
-
-          <div className="panel-title" style={{ marginTop: '1rem' }}>Últimos 5 Registos</div>
+          ) : <div className="text-muted">Apenas admins/editores podem registar.</div>}
+          <div className="panel-title" style={{marginTop:'1rem'}}>Últimos 5 Registos</div>
           <table className="table-minimal">
             <thead><tr><th>Nomes</th><th>Tipo</th><th style={{textAlign:'right'}}>Data</th></tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan="3">A carregar...</td></tr> : eventos.length === 0 ? <tr><td colSpan="3">Sem eventos.</td></tr> : 
+              {loading ? <tr><td colSpan="3">A carregar...</td></tr> : eventos.length === 0 ? <tr><td colSpan="3">Sem eventos.</td></tr> :
                 eventos.slice(0,5).map(ev => (
-                  <tr key={ev.id}>
-                    <td className="fw-bold">{ev.nomes_principais}</td>
-                    <td><span className="badge-tipo">{ev.tipo_evento}</span></td>
-                    <td style={{textAlign:'right'}}>{new Date(ev.data_evento).toLocaleDateString()}</td>
-                  </tr>
+                  <tr key={ev.id}><td className="fw-bold">{ev.nomes_principais}</td><td><span className="badge-tipo">{ev.tipo_evento}</span></td><td style={{textAlign:'right'}}>{new Date(ev.data_evento).toLocaleDateString()}</td></tr>
               ))}
             </tbody>
           </table>
         </div>
-
         <div className="panel-card">
           <div className="panel-title">Distribuição</div>
           <div className="pie-container">
@@ -189,31 +188,25 @@ export default function Dashboard({ token, user, onLogout }) {
               <div className="legend-item"><div className="dot yellow"></div> Outros ({stats.totalEventos - stats.totalBodas - stats.totalAniversarios})</div>
             </div>
           </div>
-          {user.nivel_acesso === 'admin' && (
-            <button onClick={handleTesteConexao} className="btn-submit" style={{marginTop:'1rem',width:'100%',background:'#1e293b'}}>🤖 Enviar Teste de Conexão</button>
-          )}
         </div>
       </div>
     </>
   );
 
-  /* ========== RENDER: EVENTOS (BASE DE DADOS) ========== */
+  /* ========== RENDER: EVENTOS ========== */
   const renderEventos = () => (
-    <div className="panel-card" style={{ gap: '1rem' }}>
+    <div className="panel-card" style={{gap:'1rem'}}>
       <div className="eventos-toolbar">
         <div className="panel-title" style={{margin:0}}>Base de Dados de Clientes</div>
         <div className="toolbar-buttons">
           <button onClick={handleExportCSV} className="btn-submit" style={{background:'#1e293b'}}>📥 Exportar CSV</button>
-          {(user.nivel_acesso === 'admin' || user.nivel_acesso === 'editor') && (
-            <>
-              <input type="file" accept=".csv" ref={csvRef} onChange={handleImportCSV} style={{display:'none'}} />
-              <button onClick={() => csvRef.current?.click()} className="btn-submit" style={{background:'#0f766e'}}>📤 Importar CSV</button>
-            </>
-          )}
+          {canEdit && (<>
+            <input type="file" accept=".csv" ref={csvRef} onChange={handleImportCSV} style={{display:'none'}} />
+            <button onClick={() => csvRef.current?.click()} className="btn-submit" style={{background:'#0f766e'}}>📤 Importar CSV</button>
+          </>)}
         </div>
       </div>
-      
-      {(user.nivel_acesso === 'admin' || user.nivel_acesso === 'editor') && (
+      {canEdit && (
         <form className="inline-form" onSubmit={handleCreateEvento} style={{background:'#f8fafc',padding:'1rem',borderRadius:'8px',border:'1px solid var(--border)'}}>
           <input type="text" className="inline-input" placeholder="Nomes" value={formNomes} onChange={e=>setFormNomes(e.target.value)} required />
           <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
@@ -221,11 +214,10 @@ export default function Dashboard({ token, user, onLogout }) {
             <option value="casamento">Casamento</option><option value="aniversario">Aniversário</option>
             <option value="batizado">Batizado</option><option value="formatura">Formatura</option>
           </select>
-          <input type="text" className="inline-input" style={{flex:'0.3'}} placeholder="ID Grupo WhatsApp" value={formGrupo} onChange={e=>setFormGrupo(e.target.value)} />
+          <GrupoSelect value={formGrupo} onChange={e => { if (e.target.value==='__manual__') { const id=prompt('ID:'); if(id)setFormGrupo(id); } else setFormGrupo(e.target.value); }} />
           <button type="submit" className="btn-submit" disabled={loading}>+ Guardar</button>
         </form>
       )}
-
       <div className="table-responsive">
         <table className="table-minimal" style={{marginTop:'1rem'}}>
           <thead><tr><th>Nomes</th><th>Data</th><th>Tipo</th><th>Grupo</th><th>Foto</th><th>Gestão</th></tr></thead>
@@ -233,27 +225,54 @@ export default function Dashboard({ token, user, onLogout }) {
             {loading ? <tr><td colSpan="6">A carregar...</td></tr> : eventos.map(ev => (
               <tr key={ev.id}>
                 <td className="fw-bold">{ev.nomes_principais}</td>
-                <td>{new Date(ev.data_evento).toLocaleDateString()}</td>
+                <td>{new Date(ev.data_evento).toLocaleDateString()}<br/><span className="text-small">{ev.tipo_evento?.toUpperCase()}</span></td>
                 <td><span className="badge-tipo">{ev.tipo_evento}</span></td>
-                <td className="text-small">{ev.grupo_id?.substring(0,20)}{ev.grupo_id?.length > 20 ? '...' : ''}</td>
+                <td className="text-small" title={ev.grupo_id}>{grupos.find(g=>g.id===ev.grupo_id)?.nome || ev.grupo_id?.substring(0,18)}{ev.grupo_id?.length>18 ? '...':''}</td>
                 <td>
-                  {ev.foto_url ? <span title={ev.foto_url}>📷</span> : (
-                    (user.nivel_acesso === 'admin' || user.nivel_acesso === 'editor') && (
-                      <div className="foto-upload-mini">
-                        <input type="file" ref={uploadingFotoId === ev.id ? fotoRef : null} accept="image/*" onChange={() => setUploadingFotoId(ev.id)} style={{width:'70px',fontSize:'0.7rem'}} />
-                        {uploadingFotoId === ev.id && <button onClick={() => handleUploadFoto(ev.id)} className="btn-mini">📎</button>}
-                      </div>
-                    )
+                  {ev.foto_url ? <span title={ev.foto_url}>📷✅</span> : (
+                    canEdit && <label className="btn-mini" style={{cursor:'pointer'}}>📎<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleUploadFoto(ev.id, e.target.files[0])} /></label>
                   )}
                 </td>
-                <td>
-                  {user.nivel_acesso === 'admin' && <button onClick={() => apagarEvento(ev.id)} className="btn-danger-text">✖</button>}
-                </td>
+                <td>{isAdmin && <button onClick={()=>apagarEvento(ev.id)} className="btn-danger-text">✖</button>}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+    </div>
+  );
+
+  /* ========== RENDER: GRUPOS WHATSAPP ========== */
+  const renderGrupos = () => (
+    <div className="panel-card">
+      <div className="eventos-toolbar">
+        <div className="panel-title" style={{margin:0}}>📱 Grupos WhatsApp do Bot</div>
+        <button onClick={fetchGrupos} className="btn-submit" disabled={gruposLoading}>{gruposLoading ? 'A carregar...' : '🔄 Atualizar Lista'}</button>
+      </div>
+      <p className="text-muted" style={{marginBottom:'1rem'}}>Estes são todos os grupos onde o bot está presente. Seleccione um grupo ao criar eventos para definir onde o lembrete será enviado.</p>
+      
+      {gruposLoading ? <p>A buscar grupos do WhatsApp...</p> : grupos.length === 0 ? <p className="text-muted">Nenhum grupo encontrado. O bot pode estar offline.</p> : (
+        <div className="table-responsive">
+          <table className="table-minimal">
+            <thead><tr><th>Nome do Grupo</th><th>Membros</th><th>ID WhatsApp</th><th>Ações</th></tr></thead>
+            <tbody>
+              {grupos.map(g => (
+                <tr key={g.id}>
+                  <td className="fw-bold">{g.nome}</td>
+                  <td>{g.participantes}</td>
+                  <td className="text-small" style={{fontFamily:'monospace',fontSize:'0.7rem'}}>{g.id}</td>
+                  <td>
+                    <div className="toolbar-buttons">
+                      {isAdmin && <button onClick={()=>handleTesteConexao(g.id)} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem'}}>🤖 Testar</button>}
+                      <button onClick={()=>{navigator.clipboard.writeText(g.id); alert('ID copiado!')}} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem',background:'#475569'}}>📋 Copiar ID</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 
@@ -265,12 +284,12 @@ export default function Dashboard({ token, user, onLogout }) {
         <table className="table-minimal">
           <thead><tr><th>Data/Hora</th><th>Tipo</th><th>Status</th><th>Mensagem</th><th>Grupo</th></tr></thead>
           <tbody>
-            {logs.length === 0 ? <tr><td colSpan="5">Sem logs registados.</td></tr> : logs.map(l => (
+            {logs.length === 0 ? <tr><td colSpan="5">Sem logs.</td></tr> : logs.map(l => (
               <tr key={l.id}>
                 <td className="text-small">{new Date(l.criado_em).toLocaleString()}</td>
                 <td><span className="badge-tipo">{l.tipo_log}</span></td>
-                <td><span style={{color: l.status === 'sucesso' ? '#10b981' : '#dc2626', fontWeight: 600}}>{l.status?.toUpperCase()}</span></td>
-                <td className="text-small">{l.mensagem?.substring(0,60)}{l.mensagem?.length > 60 ? '...' : ''}</td>
+                <td><span style={{color: l.status==='sucesso'?'#10b981':'#dc2626',fontWeight:600}}>{l.status?.toUpperCase()}</span></td>
+                <td className="text-small">{l.mensagem?.substring(0,50)}{l.mensagem?.length>50?'...':''}</td>
                 <td className="text-small">{l.grupo_id?.substring(0,15)}...</td>
               </tr>
             ))}
@@ -282,21 +301,19 @@ export default function Dashboard({ token, user, onLogout }) {
 
   /* ========== RENDER: CONFIGURAÇÕES ========== */
   const renderConfig = () => (
-    (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'editor') 
-      ? <div className="panel-card"><p>Sem permissões. Contacte o Administrador.</p></div> 
-      : <>
+    !canEdit ? <div className="panel-card"><p>Sem permissões. Contacte o Administrador.</p></div> : <>
       <div className="panel-card" style={{marginBottom:'1.5rem'}}>
         <div className="panel-title">📝 Templates de Mensagens</div>
         {templates.length > 0 ? templates.map(t => (
           <div key={t.id} className="template-card">
             <div className="template-label">{t.tipo_evento.toUpperCase()}</div>
-            <textarea className="template-textarea" defaultValue={t.mensagem} onBlur={(e) => handleUpdateTemplate(t.id, e.target.value)} />
-            <div className="text-muted" style={{fontSize:'0.7rem'}}>Use &#123;nomes&#125; e &#123;bodas&#125; como variáveis. Clique fora para gravar.</div>
+            <textarea className="template-textarea" defaultValue={t.mensagem} onBlur={e=>handleUpdateTemplate(t.id, e.target.value)} />
+            <div className="text-muted" style={{fontSize:'0.7rem'}}>Use &#123;nomes&#125; e &#123;bodas&#125; como variáveis.</div>
           </div>
         )) : <p className="text-muted">Nenhum template. Corra v5_upgrade.sql na VPS.</p>}
       </div>
       
-      {user.nivel_acesso === 'admin' && (<>
+      {isAdmin && (<>
         <div className="panel-card" style={{marginBottom:'1.5rem'}}>
           <div className="panel-title">👤 Criar Novo Utilizador</div>
           <form className="inline-form" onSubmit={handleCreateUser} style={{background:'#f8fafc',padding:'1rem',borderRadius:'8px',border:'1px solid var(--border)',flexWrap:'wrap'}}>
@@ -311,16 +328,16 @@ export default function Dashboard({ token, user, onLogout }) {
         </div>
 
         <div className="panel-card">
-          <div className="panel-title">🛡️ Utilizadores do Sistema</div>
+          <div className="panel-title">🛡️ Utilizadores do Sistema ({usuarios.length})</div>
           <div className="table-responsive">
             <table className="table-minimal">
               <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th>Ações</th></tr></thead>
               <tbody>
-                {usuarios.map(u => (
+                {usuarios.length === 0 ? <tr><td colSpan="4">Nenhum utilizador encontrado.</td></tr> : usuarios.map(u => (
                   <tr key={u.id}>
                     <td>{u.nome}</td><td>{u.email}</td>
                     <td><span className={`badge-role badge-${u.nivel_acesso}`}>{u.nivel_acesso?.toUpperCase()}</span></td>
-                    <td>{u.id !== 1 ? <button onClick={() => handleDeleteUser(u.id)} className="btn-danger-text">✖ Remover</button> : <span className="text-muted">Root</span>}</td>
+                    <td>{u.id !== 1 ? <button onClick={()=>handleDeleteUser(u.id)} className="btn-danger-text">✖ Remover</button> : <span className="text-muted">Root</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -331,7 +348,7 @@ export default function Dashboard({ token, user, onLogout }) {
     </>
   );
 
-  /* ========== LAYOUT PRINCIPAL ========== */
+  /* ========== LAYOUT ========== */
   return (
     <div className="dashboard-layout">
       <aside className="sidebar">
@@ -342,14 +359,15 @@ export default function Dashboard({ token, user, onLogout }) {
         <nav className="nav-menu">
           <div className={`nav-item ${activeTab==='dashboard'?'active':''}`} onClick={()=>setActiveTab('dashboard')}><span>📊</span><span>Dashboard</span></div>
           <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>setActiveTab('eventos')}><span>👥</span><span>Eventos/Casais</span></div>
-          {user.nivel_acesso === 'admin' && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>setActiveTab('logs')}><span>📋</span><span>Logs</span></div>}
+          <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>setActiveTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>
+          {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>setActiveTab('logs')}><span>📋</span><span>Logs</span></div>}
           <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>setActiveTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>
         </nav>
         <div className="sidebar-footer">
           <div className="user-avatar">{user?.nome?.charAt(0) || 'U'}</div>
           <div className="user-info">
             <h4>{user?.nome || 'Utilizador'}</h4>
-            <p>{user?.nivel_acesso === 'admin' ? 'Administrador' : (user?.nivel_acesso === 'editor' ? 'Editor' : 'Leitor')}</p>
+            <p>{isAdmin ? 'Administrador' : (isEditor ? 'Editor' : 'Leitor')}</p>
           </div>
           <div style={{cursor:'pointer',marginLeft:'auto',color:'#94a3b8'}} onClick={onLogout} title="Sair">🚪</div>
         </div>
@@ -359,10 +377,10 @@ export default function Dashboard({ token, user, onLogout }) {
         <header className="topbar">
           <button className="mobile-menu-btn" onClick={() => document.querySelector('.sidebar').classList.toggle('open')}>☰</button>
           <div className="search-bar-container">
-            <input type="text" className="search-bar" placeholder="🔍 Buscar nomes, datas, tipos..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <input type="text" className="search-bar" placeholder="🔍 Buscar nomes, datas, tipos..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} />
           </div>
           <div className="topbar-icons">
-            <span className="icon-btn" title={`Nível: ${user?.nivel_acesso}`}>{user?.nivel_acesso==='admin' ? '🛡️' : (user?.nivel_acesso==='editor' ? '✏️' : '👁️')}</span>
+            <span className="icon-btn" title={`Nível: ${user.nivel_acesso}`}>{isAdmin ? '🛡️' : (isEditor ? '✏️' : '👁️')}</span>
             {stats.falhasHoje > 0 && <span className="icon-btn notification-badge" title="Existem falhas!">🔔</span>}
             <div className="user-avatar topbar-avatar">{user?.nome?.charAt(0) || 'U'}</div>
           </div>
@@ -370,14 +388,13 @@ export default function Dashboard({ token, user, onLogout }) {
 
         <div className="content-wrapper">
           <h2 className="page-title">{
-            activeTab === 'dashboard' ? 'Painel Executivo' : 
-            activeTab === 'eventos' ? 'Gestão de Clientes' : 
-            activeTab === 'logs' ? 'Logs do Sistema' : 'Configurações'
+            {dashboard:'Painel Executivo', eventos:'Gestão de Clientes', grupos:'Grupos WhatsApp', logs:'Logs do Sistema', configuracoes:'Configurações'}[activeTab]
           }</h2>
-          <p className="page-subtitle">LNSOTECH Automation CRM — {user?.nivel_acesso?.toUpperCase()}</p>
+          <p className="page-subtitle">LNSOTECH Automation CRM — {user.nivel_acesso?.toUpperCase()}</p>
           
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'eventos' && renderEventos()}
+          {activeTab === 'grupos' && renderGrupos()}
           {activeTab === 'logs' && renderLogs()}
           {activeTab === 'configuracoes' && renderConfig()}
         </div>

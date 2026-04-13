@@ -214,4 +214,24 @@ router.post('/teste-conexao', async (req, res) => {
     }
 });
 
+// ========== LISTAR GRUPOS WHATSAPP ========== //
+router.get('/grupos', async (req, res) => {
+    try {
+        if (!global.waSocket) {
+            return res.status(503).json({ erro: 'Bot não está conectado ao WhatsApp' });
+        }
+        const groups = await global.waSocket.groupFetchAllParticipating();
+        const groupsArray = Object.values(groups).map(g => ({
+            id: g.id,
+            nome: g.subject,
+            participantes: g.participants?.length || 0,
+            descricao: g.desc || ''
+        }));
+        res.json(groupsArray);
+    } catch (err) {
+        console.error('Erro ao listar grupos:', err);
+        res.status(500).json({ erro: 'Falha ao obter grupos' });
+    }
+});
+
 module.exports = router;
