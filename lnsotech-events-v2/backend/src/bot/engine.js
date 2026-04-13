@@ -9,7 +9,11 @@ const pino = require('pino');
 const cron = require('node-cron');
 const { Pool } = require('pg');
 const path = require('path');
-const qrcode = require('qrcode-terminal');
+const qrcodeTerminal = require('qrcode-terminal');
+const QRCode = require('qrcode');
+
+// Estado global da conexão WhatsApp
+global.waState = { qr: null, status: 'desconectado', lastUpdate: null };
 
 // 1. Objeto de Bodas
 const listaBodas = {
@@ -61,8 +65,13 @@ async function connectToWhatsApp() {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            console.log('[QR Code] Novo QR gerado! Faça a leitura com o WhatsApp.');
-            qrcode.generate(qr, { small: true });
+            console.log('[QR Code] Novo QR gerado! Disponível no painel web.');
+            qrcodeTerminal.generate(qr, { small: true });
+            // Gerar imagem base64 para o painel web
+            try {
+                const qrDataUrl = await QRCode.toDataURL(qr, { width: 300, margin: 2 });
+                global.waState = { qr: qrDataUrl, status: 'aguardando_qr', lastUpdate: new Date().toISOString() };
+            } catch (e) { console.error('Erro ao gerar QR image:', e); }
         }
 
         if (connection === 'close') {
@@ -76,6 +85,7 @@ async function connectToWhatsApp() {
             }
         } else if (connection === 'open') {
             console.log("🚀 LNSOTECH Bot v2 (Baileys) Online!");
+            global.waState = { qr: null, status: 'conectado', lastUpdate: new Date().toISOString() };
 
             // SEM mensagem de teste automática — só é enviada via painel admin
 

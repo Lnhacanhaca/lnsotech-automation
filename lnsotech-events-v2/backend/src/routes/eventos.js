@@ -233,5 +233,34 @@ router.get('/grupos', async (req, res) => {
         res.status(500).json({ erro: 'Falha ao obter grupos' });
     }
 });
+// ========== ESTADO DA CONEXÃO WHATSAPP + QR CODE ========== //
+router.get('/whatsapp-status', (req, res) => {
+    res.json(global.waState || { qr: null, status: 'desconhecido', lastUpdate: null });
+});
+
+// ========== RECONECTAR WHATSAPP (gera novo QR) ========== //
+router.post('/whatsapp-reconectar', async (req, res) => {
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        const authDir = path.resolve(__dirname, '../../auth_info_baileys');
+        
+        // Apagar sessão para forçar novo QR
+        if (fs.existsSync(authDir)) {
+            fs.rmSync(authDir, { recursive: true, force: true });
+            console.log('[Admin] Sessão WhatsApp apagada para reconexão');
+        }
+        
+        global.waState = { qr: null, status: 'a_reconectar', lastUpdate: new Date().toISOString() };
+        
+        // Reiniciar o bot (o próprio Docker vai reiniciar o container)
+        res.json({ mensagem: 'Sessão apagada! O container vai reiniciar automaticamente. Aguarde o novo QR Code aparecer no painel (pode demorar 10-30 segundos).' });
+        
+        // Forçar saída para o Docker reiniciar o container
+        setTimeout(() => { process.exit(0); }, 2000);
+    } catch (err) {
+        res.status(500).json({ erro: 'Falha: ' + err.message });
+    }
+});
 
 module.exports = router;

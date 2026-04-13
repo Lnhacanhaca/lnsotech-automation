@@ -23,6 +23,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [logs, setLogs] = useState([]);
   const [grupos, setGrupos] = useState([]);
   const [gruposLoading, setGruposLoading] = useState(false);
+  const [waStatus, setWaStatus] = useState({ qr: null, status: 'desconhecido', lastUpdate: null });
 
   const [newUserNome, setNewUserNome] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
@@ -71,10 +72,35 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     setGruposLoading(false);
   };
 
+  const fetchWaStatus = async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/eventos/whatsapp-status`, { headers });
+      if (res.ok) setWaStatus(await res.json());
+    } catch (e) { console.error('Erro status WP', e); }
+  };
+
   useEffect(() => { fetchData(searchQuery); }, [activeTab, searchQuery]);
-  useEffect(() => { if (activeTab === 'grupos' && grupos.length === 0) fetchGrupos(); }, [activeTab]);
+  useEffect(() => { 
+    let interval;
+    if (activeTab === 'grupos') {
+      if (grupos.length === 0) fetchGrupos(); 
+      fetchWaStatus();
+      interval = setInterval(fetchWaStatus, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [activeTab]);
 
   // =================== HANDLERS =================== //
+  const handleReconectarWA = async () => {
+    if (!window.confirm('Isto irá desconectar o WhatsApp atual e pedir um novo QR code. O bot vai reiniciar. Continuar?')) return;
+    try {
+      const res = await fetch(`${apiBase}/api/eventos/whatsapp-reconectar`, { method: 'POST', headers: jsonHeaders });
+      const d = await res.json();
+      alert(d.mensagem || 'A reiniciar...');
+      fetchWaStatus();
+    } catch (e) { alert('Erro ao pedir reconexão'); }
+  };
+
   const handleExportCSV = () => window.open(`${apiBase}/api/eventos?exportCsv=true`, '_blank');
 
   const handleImportCSV = async (e) => {
@@ -242,14 +268,43 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     </div>
   );
 
-  /* ========== RENDER: GRUPOS WHATSAPP ========== */
+  /* ========== RENDER: GRUPOS WHATSAPP E QR CODE ========== */
   const renderGrupos = () => (
-    <div className="panel-card">
-      <div className="eventos-toolbar">
-        <div className="panel-title" style={{margin:0}}>📱 Grupos WhatsApp do Bot</div>
-        <button onClick={fetchGrupos} className="btn-submit" disabled={gruposLoading}>{gruposLoading ? 'A carregar...' : '🔄 Atualizar Lista'}</button>
-      </div>
-      <p className="text-muted" style={{marginBottom:'1rem'}}>Estes são todos os grupos onde o bot está presente. Seleccione um grupo ao criar eventos para definir onde o lembrete será enviado.</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {isAdmin && (
+        <div className="panel-card">
+          <div className="panel-title" style={{margin:0}}>🔌 Conexão WhatsApp</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center', marginTop: '1rem' }}>
+            <div style={{ flex: '1', minWidth: '250px' }}>
+              <p>Status: <span className="badge-tipo" style={{fontSize: '0.85rem'}}>{waStatus.status?.toUpperCase()}</span></p>
+              {waStatus.status === 'aguardando_qr' && waStatus.qr && (
+                <div style={{ marginTop: '1rem', background: '#fff', padding: '10px', display: 'inline-block', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <img src={waStatus.qr} alt="WhatsApp QR Code" style={{ width: '220px', height: '220px', display: 'block' }} />
+                  <p style={{ fontSize: '0.8rem', textAlign: 'center', marginTop: '0.5rem', color: 'var(--text-secondary)' }}>Escaneie com o app do WhatsApp</p>
+                </div>
+              )}
+              {waStatus.status === 'conectado' && (
+                <div style={{ marginTop: '1rem', color: '#10b981', fontWeight: 'bold' }}>✅ Bot conectado e a comunicar!</div>
+              )}
+            </div>
+            <div style={{ flex: '1', minWidth: '250px' }}>
+              <p className="text-muted" style={{ marginBottom: '1rem', fontSize: '0.85rem' }}>
+                Se quiseres ligar outro dispositivo ou se o bot perdeu a conexão, podes forçar uma nova ligação. Isto apagará a sessão antiga e gerará um novo QR Code.
+              </p>
+              <button onClick={handleReconectarWA} className="btn-submit" style={{ background: '#f59e0b', color: '#000' }}>
+                🔄 Forçar Nova Conexão (Gerar QR)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="panel-card">
+        <div className="eventos-toolbar">
+          <div className="panel-title" style={{margin:0}}>📱 Grupos WhatsApp do Bot</div>
+          <button onClick={fetchGrupos} className="btn-submit" disabled={gruposLoading}>{gruposLoading ? 'A carregar...' : '🔄 Atualizar Lista'}</button>
+        </div>
+        <p className="text-muted" style={{marginBottom:'1rem'}}>Estes são todos os grupos onde o bot está presente. Seleccione um grupo ao criar eventos para definir onde o lembrete será enviado.</p>
       
       {gruposLoading ? <p>A buscar grupos do WhatsApp...</p> : grupos.length === 0 ? <p className="text-muted">Nenhum grupo encontrado. O bot pode estar offline.</p> : (
         <div className="table-responsive">
@@ -273,6 +328,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           </table>
         </div>
       )}
+      </div>
     </div>
   );
 
