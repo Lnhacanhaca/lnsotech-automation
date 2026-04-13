@@ -1,0 +1,57 @@
+name: LNSOTECH Deploy & Backup
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/apps/bot/lnsotech-automation
+            git pull origin main
+            
+            # Build frontend
+            cd lnsotech-events-v2/frontend
+            docker run --rm -v $(pwd):/app -w /app node:20-alpine sh -c "npm install && npm run build"
+            
+            # Restart services
+            cd /opt/apps/bot/lnsotech-automation
+            docker compose up -d --build
+            
+            echo "✅ Deploy concluído com sucesso!"
+
+  backup:
+    runs-on: ubuntu-latest
+    # Corre semanalmente (Domingo 03:00 UTC)
+    # Para ativar, descomentar o schedule abaixo e comentar o push trigger
+    # schedule:
+    #   - cron: '0 3 * * 0'
+    if: github.event_name == 'push'
+    needs: deploy
+    steps:
+      - name: Backup Database via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            BACKUP_DIR="/opt/apps/bot/backups"
+            mkdir -p $BACKUP_DIR
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+            
+            # Backup PostgreSQL
+            docker exec lnsotech-db-bot-v2 pg_dump -U lnso_admin lnsotech_db > "$BACKUP_DIR/db_backup_$TIMESTAMP.sql"
+            
+            # Manter apenas os últimos 10 backups
+            ls -t $BACKUP_DIR/db_backup_*.sql | tail -n +11 | xargs -r rm
+            
+            echo "✅ Backup concluído: db_backup_$TIMESTAMP.sql"

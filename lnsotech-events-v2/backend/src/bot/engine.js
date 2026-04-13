@@ -20,7 +20,7 @@ const listaBodas = {
     45: "Rubi", 50: "Ouro", 60: "Diamante"
 };
 
-// 2. Configuração do Banco de Dados (Apontando para a v2 - eventos)
+// 2. Configuração do Banco de Dados
 const pool = new Pool({
     host: process.env.DB_HOST || 'database',   
     user: process.env.DB_USER || 'lnso_admin',         
@@ -28,6 +28,18 @@ const pool = new Pool({
     database: process.env.DB_NAME || 'lnsotech_db',    
     port: process.env.DB_PORT || 5432,
 });
+
+// Helper: Registar log no banco de dados
+async function registarLog(eventoId, grupoId, tipoLog, mensagem, status) {
+    try {
+        await pool.query(
+            'INSERT INTO logs_envio (evento_id, grupo_id, tipo_log, mensagem, status) VALUES ($1, $2, $3, $4, $5)',
+            [eventoId, grupoId, tipoLog, mensagem, status]
+        );
+    } catch (err) {
+        console.error('Erro ao registar log:', err.message);
+    }
+}
 
 async function connectToWhatsApp() {
     const authDir = path.resolve(__dirname, '../../auth_info_baileys');
@@ -38,8 +50,8 @@ async function connectToWhatsApp() {
 
     const sock = makeWASocket({
         version,
-        logger: pino({ level: 'silent' }), // Trocar para 'level: silent' evita a poluição no terminal
-        printQRInTerminal: true, // Substitui a necessidade do qrcode-terminal
+        logger: pino({ level: 'silent' }),
+        printQRInTerminal: true,
         auth: state,
         generateHighQualityLinkPreview: true,
     });
@@ -50,7 +62,6 @@ async function connectToWhatsApp() {
 
         if (qr) {
             console.log('[QR Code] Novo QR gerado! Faça a leitura com o WhatsApp.');
-            // O Baileys depreciou a opção nativa, portanto usamos o qrcode-terminal
             qrcode.generate(qr, { small: true });
         }
 
@@ -66,15 +77,7 @@ async function connectToWhatsApp() {
         } else if (connection === 'open') {
             console.log("🚀 LNSOTECH Bot v2 (Baileys) Online!");
 
-            // Teste de conexão para um grupo configurado (se existir)
-            if (process.env.GRUPO_ID && process.env.GRUPO_ID !== 'pendente') {
-                try {
-                    await sock.sendMessage(process.env.GRUPO_ID, { text: "🤖 Teste de conexão: O bot leve (v2) está ativo!" });
-                    console.log("✅ Mensagem de teste enviada com sucesso!");
-                } catch (err) {
-                    console.error("❌ Erro ao enviar mensagem de teste:", err.message);
-                }
-            }
+            // SEM mensagem de teste automática — só é enviada via painel admin
 
             // Listar grupos para o utilizador poder configurar
             setTimeout(async () => {
@@ -94,7 +97,7 @@ async function connectToWhatsApp() {
                 }
             }, 15000);
             
-            iniciarCron(sock); // Inicia o Cron Job apenas se estiver ligado!
+            iniciarCron(sock);
         }
     });
 
@@ -108,7 +111,7 @@ async function connectToWhatsApp() {
         // Ignorar mensagens minhas
         if (msg.key.fromMe) return;
 
-        // Extrair texto da mensagem na biblioteca Baileys (pode vir em properties diferentes)
+        // Extrair texto da mensagem na biblioteca Baileys
         const textMessage = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
         if (textMessage && textMessage.startsWith('!reg ')) {
@@ -116,35 +119,42 @@ async function connectToWhatsApp() {
 
             const dados = textMessage.slice(5).split(',');
 
-            if (dados.length !== 2) {
+            if (dados.length < 2) {
                 console.log("⚠️ Formato de comando errado.");
                 return sock.sendMessage(msg.key.remoteJid, { text: '❌ Formato inválido! Use: !reg Nome do Casal, AAAA-MM-DD' }, { quoted: msg });
             }
 
             const nomesPrincipais = dados[0].trim();
             const dataEvento = dados[1].trim();
-            const grupoId = msg.key.remoteJid; // Associamos diretamente ao grupo de onde o comando foi enviado
+            // O tipo de evento pode ser passado como terceiro argumento opcional
+            const tipoEvento = dados[2] ? dados[2].trim().toLowerCase() : 'casamento';
+            const grupoId = msg.key.remoteJid; // Associamos ao grupo de onde veio
 
             try {
-                // Inserindo no novo banco de dados (tabela eventos ao invés de aniversarios)
                 const query = `
                     INSERT INTO eventos (nomes_principais, data_evento, tipo_evento, grupo_id) 
-                    VALUES ($1, $2, 'casamento', $3)
+                    VALUES ($1, $2, $3, $4) RETURNING id
                 `;
-                await pool.query(query, [nomesPrincipais, dataEvento, grupoId]);
+                const result = await pool.query(query, [nomesPrincipais, dataEvento, tipoEvento, grupoId]);
                 
+                await registarLog(result.rows[0].id, grupoId, 'registo_whatsapp', `Registado via !reg: ${nomesPrincipais}`, 'sucesso');
+
                 console.log(`✅ Sucesso: ${nomesPrincipais} inserido no banco (v2).`);
                 await sock.sendMessage(
                     msg.key.remoteJid, 
-                    { text: `✅ Evento Registado na v2!\nNomes: ${nomesPrincipais}\nData: ${dataEvento}\nLembrete ativado neste grupo.` }, 
+                    { text: `✅ Evento Registado!\nNomes: ${nomesPrincipais}\nData: ${dataEvento}\nTipo: ${tipoEvento}\nLembrete ativado neste grupo.` }, 
                     { quoted: msg }
                 );
             } catch (err) {
                 console.error('❌ Erro no Banco de Dados:', err.message);
+                await registarLog(null, grupoId, 'erro_registo', err.message, 'falha');
                 await sock.sendMessage(msg.key.remoteJid, { text: '❌ Ouve um erro ao salvar no banco de dados. Verifique o formato AAAA-MM-DD.' }, { quoted: msg });
             }
         }
     });
+
+    // Expor sock globalmente para que o servidor API possa usá-lo (ex: teste de conexão manual)
+    global.waSocket = sock;
 
     return sock;
 }
@@ -154,33 +164,48 @@ function iniciarCron(sock) {
     console.log('⏳ Cron Job iniciado (Horário: 08:00 Maputo)');
     
     cron.schedule('0 8 * * *', async () => {
-        console.log('🔍 LNSOTECH: Verificando eventos de hoje na v2...');
+        console.log('🔍 LNSOTECH: Verificando eventos de hoje...');
         try {
-            // Nova query adaptada para a tabela "eventos" e considerando o tipo 'casamento'
+            // Buscar TODOS os tipos de evento (casamento, aniversario, batizado, formatura)
             const res = await pool.query(`
-                SELECT nomes_principais, grupo_id, EXTRACT(YEAR FROM data_evento) as ano_origem 
+                SELECT id, nomes_principais, grupo_id, tipo_evento, EXTRACT(YEAR FROM data_evento) as ano_origem 
                 FROM eventos 
-                WHERE tipo_evento = 'casamento'
-                AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM CURRENT_DATE) 
+                WHERE EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM CURRENT_DATE) 
                 AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM CURRENT_DATE)
             `);
+
+            // Buscar templates dinâmicos
+            const templatesRes = await pool.query('SELECT * FROM templates_mensagem');
+            const templatesMap = {};
+            templatesRes.rows.forEach(t => { templatesMap[t.tipo_evento] = t.mensagem; });
 
             for (let evento of res.rows) {
                 const anos = new Date().getFullYear() - evento.ano_origem;
                 if (anos <= 0) continue;
 
-                const nomeBoda = listaBodas[anos] || "União e Amor";
-                const mensagem = `🎉 *LNSOTECH CONGRATULATIONS* 🎉\n\n` +
-                                 `Hoje o casal *${evento.nomes_principais}* celebra ${anos} anos de união!\n` +
-                                 `💍 Felizes *Bodas de ${nomeBoda}*!\n\n` +
-                                 `A equipe LNSOTECH deseja muitas felicidades e bênçãos ❤️`;
+                let mensagem;
+                if (evento.tipo_evento === 'casamento') {
+                    const nomeBoda = listaBodas[anos] || "União e Amor";
+                    const template = templatesMap['casamento'] || 'Feliz Aniversário de Casamento, {nomes}! 💍 Bodas de {bodas}!';
+                    mensagem = template.replace('{nomes}', evento.nomes_principais).replace('{bodas}', nomeBoda);
+                } else {
+                    const template = templatesMap[evento.tipo_evento] || 'Parabéns {nomes}! 🎉 Celebrando mais um ano!';
+                    mensagem = template.replace('{nomes}', evento.nomes_principais);
+                }
 
-                // Envia diretamente para o grupo onde foi registado
-                await sock.sendMessage(evento.grupo_id, { text: mensagem });
-                console.log(`✅ Mensagem de felicitação enviada para: ${evento.nomes_principais} (Grupo: ${evento.grupo_id})`);
+                try {
+                    // Envia para o grupo específico do evento (cada evento pode ter grupo diferente)
+                    await sock.sendMessage(evento.grupo_id, { text: mensagem });
+                    await registarLog(evento.id, evento.grupo_id, 'lembrete_enviado', mensagem, 'sucesso');
+                    console.log(`✅ Enviado para: ${evento.nomes_principais} (Grupo: ${evento.grupo_id})`);
+                } catch (sendErr) {
+                    await registarLog(evento.id, evento.grupo_id, 'lembrete_falha', sendErr.message, 'falha');
+                    console.error(`❌ Falha ao enviar para ${evento.grupo_id}:`, sendErr.message);
+                }
             }
         } catch (err) {
             console.error('❌ Erro no Cron Job:', err);
+            await registarLog(null, null, 'cron_erro', err.message, 'falha');
         }
     }, {
         timezone: "Africa/Maputo"
