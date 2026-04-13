@@ -214,18 +214,18 @@ function iniciarCron(sock) {
                        EXTRACT(YEAR FROM data_evento) as ano_origem 
                 FROM eventos 
                 WHERE grupo_id IS NOT NULL AND (
-                    -- ANUAL (padrão): mesmo dia e mês do ano
+                    -- ANUAL (padrão): mesmo dia e mês do ano (Considerando fuso horário de Maputo)
                     ((frequencia_lembrete = 'anual' OR frequencia_lembrete IS NULL)
-                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM CURRENT_DATE)
-                     AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM CURRENT_DATE))
+                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo'))
+                     AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
                     OR
                     -- MENSAL: mesmo dia do mês, todos os meses
                     (frequencia_lembrete = 'mensal'
-                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM CURRENT_DATE))
+                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
                     OR
                     -- SEMANAL: mesmo dia da semana
                     (frequencia_lembrete = 'semanal'
-                     AND EXTRACT(DOW FROM data_evento) = EXTRACT(DOW FROM CURRENT_DATE))
+                     AND EXTRACT(DOW FROM data_evento) = EXTRACT(DOW FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
                     OR
                     -- DIÁRIO: todos os dias
                     frequencia_lembrete = 'diario'
