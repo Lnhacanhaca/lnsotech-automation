@@ -250,7 +250,7 @@ router.post('/whatsapp-reconectar', async (req, res) => {
             const files = fs.readdirSync(authDir);
             for (const file of files) {
                 try {
-                    fs.unlinkSync(path.join(authDir, file));
+                    fs.rmSync(path.join(authDir, file), { recursive: true, force: true });
                 } catch (e) {
                     console.log(`[Reconectar] Aviso ao apagar ${file}:`, e.message);
                 }
