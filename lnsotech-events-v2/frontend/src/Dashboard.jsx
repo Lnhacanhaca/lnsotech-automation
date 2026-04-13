@@ -51,7 +51,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       
       if (canEdit) {
         const resUsr = await fetch(`${apiBase}/api/auth/usuarios`, { headers });
-        if (resUsr.ok) setUsuarios(await resUsr.json());
+        if (resUsr.ok) {
+          const usrData = await resUsr.json();
+          setUsuarios(usrData);
+        } else {
+          console.error('[fetchData] Falha ao buscar utilizadores. Status:', resUsr.status, await resUsr.text().catch(()=>''));
+        }
         const resTp = await fetch(`${apiBase}/api/eventos/templates`, { headers });
         if (resTp.ok) setTemplates(await resTp.json());
       }
