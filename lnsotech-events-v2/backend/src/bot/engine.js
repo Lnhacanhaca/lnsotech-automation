@@ -144,13 +144,8 @@ async function connectToWhatsApp() {
             const isMentioningBot = mentionedJids.some(jid => jid.includes(myId) || jid.includes(myLid)) || 
                                     textMessage?.includes(myId) || textMessage?.includes(myLid);
 
-            if (textMessage) {
-                console.log(`📩 [Bot ID: ${myId} | LID: ${myLid}] | Texto: "${textMessage}"`);
-                console.log(`   └─ Status: Reply=${isReplyToBot} | Menciona=${isMentioningBot} | RepliedJid=${repliedJid}`);
-            }
-
             if ((isReplyToBot || isMentioningBot) && textMessage) {
-                console.log(`🤖 Auto-Reply Ativado!`);
+                console.log(`🤖 Auto-Reply Ativado para: "${textMessage}"`);
             const textLower = textMessage.toLowerCase();
             
             if (textLower.includes('obrigad') || textLower.includes('obg') || textLower.includes('grato') || textLower.includes('amem') || textLower.includes('amém')) {
