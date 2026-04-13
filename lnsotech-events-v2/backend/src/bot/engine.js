@@ -167,27 +167,29 @@ async function connectToWhatsApp() {
         }
 
         // ========== RESPOSTAS AUTOMÁTICAS (AUTO-REPLY) ========== //
-        // 1. Verificar se a mensagem é uma resposta direta a uma mensagem do bot
-        // 2. Ou se menciona o próprio bot (tag)
         const theBotId = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-        const repliedJid = msg.message?.extendedTextMessage?.contextInfo?.participant;
-        const mentionedJids = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+        const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
+        const repliedJid = contextInfo?.participant;
+        const mentionedJids = contextInfo?.mentionedJid || [];
         
         const isReplyToBot = repliedJid === theBotId;
         const isMentioningBot = mentionedJids.includes(theBotId);
 
+        // LOG para diagnóstico
+        if (textMessage) {
+            console.log(`📩 [Mensagem no Grupo] De: ${msg.key.participant || 'Privado'} | Texto: "${textMessage.substring(0,20)}..." | Reply ao Bot: ${isReplyToBot} | Menciona Bot: ${isMentioningBot}`);
+        }
+
         if ((isReplyToBot || isMentioningBot) && textMessage) {
-            console.log(`🤖 Interação automática ativada no grupo ${msg.key.remoteJid}`);
+            console.log(`🤖 Auto-Reply ativado para: "${textMessage}"`);
             const textLower = textMessage.toLowerCase();
             
-            // Logica básica: Se for agradecimento ou confirmação
             if (textLower.includes('obrigad') || textLower.includes('obg') || textLower.includes('grato') || textLower.includes('amem') || textLower.includes('amém')) {
                 await sock.sendMessage(msg.key.remoteJid, { text: 'A LNSOTECH agradece! ✨ Que este dia seja repleto de muitas bênçãos.' }, { quoted: msg });
             } else if (textLower.includes('parab') || textLower.includes('felic') || textLower.includes('feliz')) {
                 await sock.sendMessage(msg.key.remoteJid, { text: 'Muito obrigado! 🎉 Estamos felizes em celebrar mais um momento inesquecível!' }, { quoted: msg });
             } else {
-                // Auto-resposta padrão leve para outras menções
-                await sock.sendMessage(msg.key.remoteJid, { text: 'Recebemos a tua mensagem! 🤖 (Bot Automático LNSOTECH)' }, { quoted: msg });
+                await sock.sendMessage(msg.key.remoteJid, { text: 'Recebemos a tua mensagem! 🤖 Se precisares de algo, a equipa LNSOTECH está ao dispor.' }, { quoted: msg });
             }
             
             await registarLog(null, msg.key.remoteJid, 'auto_resposta', `Respondido a user: ${textMessage.substring(0,30)}...`, 'sucesso');
