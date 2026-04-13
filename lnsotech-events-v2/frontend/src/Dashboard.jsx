@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+
 
 export default function Dashboard({ token, user: rawUser, onLogout }) {
   // FIX: suportar tanto "nivel" (token antigo) como "nivel_acesso" (token novo)
@@ -119,7 +123,6 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const handleExportExcel = async () => {
     try {
-      const XLSX = await import('xlsx');
       const dadosExcel = eventos.map(ev => ({
         'ID': ev.id,
         'Nomes': ev.nomes_principais,
@@ -149,8 +152,6 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const handleExportPDF = async () => {
     try {
-      const { default: jsPDF } = await import('jspdf');
-      const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF({ orientation: 'landscape' });
       const dataHoje = new Date().toLocaleDateString('pt-PT');
       doc.setFillColor(15, 23, 42);
