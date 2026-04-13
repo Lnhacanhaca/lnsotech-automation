@@ -133,15 +133,19 @@ async function connectToWhatsApp() {
 
             // ========== RESPOSTAS AUTOMÁTICAS (AUTO-REPLY) ========== //
             const myId = sock.user.id.split(':')[0];
+            const myLid = sock.user.lid?.split(':')[0] || '24868565323955'; // Forçamos a deteção do LID visto nos logs
+            
             const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
             const repliedJid = contextInfo?.participant;
             const mentionedJids = contextInfo?.mentionedJid || [];
             
-            const isReplyToBot = repliedJid?.includes(myId);
-            const isMentioningBot = mentionedJids.some(jid => jid.includes(myId)) || textMessage?.includes(myId);
+            // Verifica se a resposta ou menção é para QUALQUER um dos IDs do bot
+            const isReplyToBot = (repliedJid?.includes(myId)) || (repliedJid?.includes(myLid));
+            const isMentioningBot = mentionedJids.some(jid => jid.includes(myId) || jid.includes(myLid)) || 
+                                    textMessage?.includes(myId) || textMessage?.includes(myLid);
 
             if (textMessage) {
-                console.log(`📩 [Bot ID: ${myId}] | Texto: "${textMessage}"`);
+                console.log(`📩 [Bot ID: ${myId} | LID: ${myLid}] | Texto: "${textMessage}"`);
                 console.log(`   └─ Status: Reply=${isReplyToBot} | Menciona=${isMentioningBot} | RepliedJid=${repliedJid}`);
             }
 
