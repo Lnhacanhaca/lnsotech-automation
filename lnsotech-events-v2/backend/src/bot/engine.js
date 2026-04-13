@@ -173,11 +173,11 @@ async function connectToWhatsApp() {
 
 // 5. Função agendada com cron
 function iniciarCron(sock) {
-    console.log('⏳ MODO DE TESTE: Cron a correr a cada 2 minutos...');
+    console.log('⏳ Cron Job iniciado (Horário: 07:00 Maputo)');
     
-    cron.schedule('*/2 * * * *', async () => {
+    cron.schedule('0 7 * * *', async () => {
         const agoraMaputo = new Date().toLocaleString("pt-PT", {timeZone: "Africa/Maputo"});
-        console.log(`🔍 [${agoraMaputo}] LNSOTECH: Verificando eventos...`);
+        console.log(`🔍 [${agoraMaputo}] LNSOTECH: Verificando eventos do dia...`);
         try {
             // Buscar eventos conforme frequência de lembrete configurada
             const query = `
@@ -204,7 +204,7 @@ function iniciarCron(sock) {
                 )
             `;
             const res = await pool.query(query);
-            console.log(`📊 Eventos encontrados para hoje: ${res.rows.length}`);
+            if (res.rows.length > 0) console.log(`📊 Encontrados ${res.rows.length} eventos para hoje.`);
 
             // Buscar templates dinâmicos
             const templatesRes = await pool.query('SELECT * FROM templates_mensagem');
