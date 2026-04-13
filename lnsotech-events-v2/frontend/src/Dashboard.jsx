@@ -16,6 +16,12 @@ export default function Dashboard({ token, user, onLogout }) {
   const [usuarios, setUsuarios] = useState([]);
   const [templates, setTemplates] = useState([]);
 
+  // States para criar novo utilizador (admin)
+  const [newUserNome, setNewUserNome] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserSenha, setNewUserSenha] = useState('');
+  const [newUserRole, setNewUserRole] = useState('leitor');
+
   const apiBase = '';
 
   const fetchData = async (search = '') => {
@@ -25,12 +31,10 @@ export default function Dashboard({ token, user, onLogout }) {
       const resEv = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
       if (resEv.ok) setEventos(await resEv.json());
 
-      if (activeTab === 'dashboard') {
-        const resStats = await fetch(`${apiBase}/api/eventos/stats`, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (resStats.ok) setStats(await resStats.json());
-      }
+      const resStats = await fetch(`${apiBase}/api/eventos/stats`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (resStats.ok) setStats(await resStats.json());
       
-      if (activeTab === 'configuracoes' && user.nivel_acesso === 'admin') {
+      if (user.nivel_acesso === 'admin' || user.nivel_acesso === 'editor') {
          const resUsr = await fetch(`${apiBase}/api/auth/usuarios`, { headers: { 'Authorization': `Bearer ${token}` } });
          if (resUsr.ok) setUsuarios(await resUsr.json());
          
@@ -74,13 +78,43 @@ export default function Dashboard({ token, user, onLogout }) {
   };
 
   const apagarEvento = async (id) => {
-      if(user.nivel_acesso !== 'admin') return alert('Só Admins apagam pares!');
-      if(window.confirm('Apagar?')) {
+      if(user.nivel_acesso !== 'admin') return alert('Só Admins apagam!');
+      if(window.confirm('Apagar este registo?')) {
           await fetch(`${apiBase}/api/eventos/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }});
           fetchData();
       }
   };
 
+  const handleCreateUser = async (e) => {
+      e.preventDefault();
+      try {
+          const res = await fetch(`${apiBase}/api/auth/usuarios`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ nome: newUserNome, email: newUserEmail, senha: newUserSenha, nivel_acesso: newUserRole })
+          });
+          const data = await res.json();
+          if (res.ok) {
+              alert('Utilizador criado com sucesso!');
+              setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserRole('leitor');
+              fetchData();
+          } else {
+              alert(data.erro || 'Erro ao criar utilizador');
+          }
+      } catch (err) { alert('Falha na comunicação'); }
+  };
+
+  const handleDeleteUser = async (id) => {
+      if (window.confirm('Remover este utilizador?')) {
+          const res = await fetch(`${apiBase}/api/auth/usuarios/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }});
+          const data = await res.json();
+          if (res.ok) { fetchData(); } else { alert(data.erro || 'Erro'); }
+      }
+  };
+
+  const percBodas = stats.totalEventos > 0 ? Math.round((stats.totalBodas / stats.totalEventos) * 100) : 0;
+
+  /* ========== RENDER: DASHBOARD ========== */
   const renderDashboard = () => (
     <>
       <div className="stats-grid">
@@ -107,19 +141,17 @@ export default function Dashboard({ token, user, onLogout }) {
                 <button type="submit" className="btn-submit" disabled={loading}>+ Adicionar</button>
               </form>
           ) : (
-              <div style={{color: '#94a3b8', fontSize: '0.9rem', fontStyle: 'italic'}}>Apenas admins/editores podem fazer isto.</div>
+              <div style={{color: '#94a3b8', fontSize: '0.9rem', fontStyle: 'italic'}}>Apenas admins/editores podem registar.</div>
           )}
 
           <div className="panel-title" style={{ marginTop: '1.5rem', marginBottom: '0.5rem' }}>Últimos Registos</div>
           <table className="table-minimal">
             <thead><tr><th>Nomes / Casal</th><th style={{textAlign: 'right'}}>Data Origem</th></tr></thead>
             <tbody>
-              {loading ? ( <tr><td colSpan="2">A carregar banco de dados...</td></tr> ) : eventos.length === 0 ? ( <tr><td colSpan="2">Sem eventos na V2. O Bot aguarda o uso de !reg.</td></tr> ) : (
+              {loading ? ( <tr><td colSpan="2">A carregar...</td></tr> ) : eventos.length === 0 ? ( <tr><td colSpan="2">Sem eventos registados.</td></tr> ) : (
                 eventos.slice(0, 5).map(ev => (
                   <tr key={ev.id}>
-                    <td className="fw-bold">{ev.nomes_principais} 
-                      <span className={ev.tipo_evento === 'casamento' ? 'badge-casamento' : ''} style={{marginLeft: '8px', fontSize:'0.7rem', fontWeight:'normal', color:'#64748b'}}>{ev.grupo_id?.substring(0, 8)}...</span>
-                    </td>
+                    <td className="fw-bold">{ev.nomes_principais}</td>
                     <td style={{textAlign: 'right'}}>{new Date(ev.data_evento).toLocaleDateString()}</td>
                   </tr>
                 ))
@@ -129,24 +161,25 @@ export default function Dashboard({ token, user, onLogout }) {
         </div>
 
         <div className="panel-card">
-               <div className="panel-title">Distribuição de Eventos</div>
-               <div className="pie-container">
-                  <div className="pie-chart">
-                     <div className="pie-inner">
-                        {percBodas}%<span style={{fontSize: '0.6rem', color: '#64748b', fontWeight: 400}}>Bodas</span>
-                     </div>
-                  </div>
-                  <div className="pie-legend">
-                     <div className="legend-item"><div className="dot blue"></div> Aniversários ({stats.totalAniversarios})</div>
-                     <div className="legend-item"><div className="dot green"></div> Bodas ({stats.totalBodas})</div>
-                     <div className="legend-item"><div className="dot yellow"></div> Outros (0)</div>
-                  </div>
-               </div>
+          <div className="panel-title">Distribuição de Eventos</div>
+          <div className="pie-container">
+            <div className="pie-chart">
+              <div className="pie-inner">
+                {percBodas}%<span style={{fontSize: '0.6rem', color: '#64748b', fontWeight: 400}}>Bodas</span>
+              </div>
+            </div>
+            <div className="pie-legend">
+              <div className="legend-item"><div className="dot blue"></div> Aniversários ({stats.totalAniversarios})</div>
+              <div className="legend-item"><div className="dot green"></div> Bodas ({stats.totalBodas})</div>
+              <div className="legend-item"><div className="dot yellow"></div> Outros (0)</div>
+            </div>
+          </div>
         </div>
       </div>
     </>
   );
 
+  /* ========== RENDER: EVENTOS ========== */
   const renderEventos = () => (
       <div className="panel-card" style={{ gap: '1rem' }}>
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -170,7 +203,7 @@ export default function Dashboard({ token, user, onLogout }) {
           <table className="table-minimal" style={{marginTop: '1rem'}}>
             <thead><tr><th>Nomes Principais</th><th>Data / Celebração</th><th>Grupo WhatsApp</th><th>Gestão</th></tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan="4">A carregar banco de dados...</td></tr> : eventos.map(ev => (
+              {loading ? <tr><td colSpan="4">A carregar...</td></tr> : eventos.map(ev => (
                 <tr key={ev.id}>
                   <td className="fw-bold">{ev.nomes_principais}</td>
                   <td>{new Date(ev.data_evento).toLocaleDateString()} <br/><span style={{fontSize:'0.7rem', color:'#64748b'}}>{ev.tipo_evento?.toUpperCase()}</span></td>
@@ -185,32 +218,66 @@ export default function Dashboard({ token, user, onLogout }) {
       </div>
   );
 
+  /* ========== RENDER: CONFIGURAÇÕES ========== */
   const renderConfig = () => (
-      (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'editor') ? <div>Sem permissões para configurações.</div> :
-      <>
+      (user.nivel_acesso !== 'admin' && user.nivel_acesso !== 'editor') 
+        ? <div className="panel-card"><p>Sem permissões para configurações. Contacte o Administrador.</p></div> 
+        : <>
+        {/* Templates de Mensagens */}
         <div className="panel-card" style={{marginBottom: '1.5rem'}}>
-            <div className="panel-title">Templates de Mensagens (Editor Dinâmico)</div>
+            <div className="panel-title">📝 Templates de Mensagens (Editor Dinâmico)</div>
             {templates.length > 0 ? templates.map(t => (
                 <div key={t.id} style={{marginBottom: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px'}}>
                     <div style={{fontWeight: 600, marginBottom: '0.5rem', color: 'var(--primary)'}}>{t.tipo_evento.toUpperCase()}</div>
                     <textarea 
-                        style={{width: '100%', minHeight: '60px', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)'}} 
+                        style={{width: '100%', minHeight: '60px', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', fontFamily: 'inherit'}} 
                         defaultValue={t.mensagem} 
                         onBlur={(e) => handleUpdateTemplate(t.id, e.target.value)}
                     />
-                    <div style={{fontSize: '0.7rem', color: '#94a3b8'}}>Dica: O sistema substitui automaticament `&#123;nomes&#125;` pelos clientes. Sai do campo para Guardar!</div>
+                    <div style={{fontSize: '0.7rem', color: '#94a3b8'}}>Use &#123;nomes&#125; para inserir nomes do casal automaticamente. Clique fora do campo para gravar.</div>
                 </div>
-            )) : <p style={{fontSize: '0.9rem', color: '#64748b'}}>Nenhum template encontrado (Admin: Reabra esta janela após migração).</p>}
+            )) : <p style={{fontSize: '0.9rem', color: '#64748b'}}>Nenhum template encontrado. O Admin deve correr o script v3_update.sql na VPS.</p>}
         </div>
         
+        {/* Criar Utilizadores — Apenas Admin */}
+        {user.nivel_acesso === 'admin' && (
+        <div className="panel-card" style={{marginBottom: '1.5rem'}}>
+            <div className="panel-title">👤 Criar Novo Utilizador</div>
+            <form className="inline-form" onSubmit={handleCreateUser} style={{background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)', flexWrap: 'wrap'}}>
+               <input type="text" className="inline-input" placeholder="Nome completo" value={newUserNome} onChange={e => setNewUserNome(e.target.value)} required />
+               <input type="email" className="inline-input" placeholder="Email" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} required />
+               <input type="password" className="inline-input" placeholder="Senha" value={newUserSenha} onChange={e => setNewUserSenha(e.target.value)} required style={{flex: '0.3'}} />
+               <select className="inline-input" style={{flex: '0.3'}} value={newUserRole} onChange={e=>setNewUserRole(e.target.value)}>
+                   <option value="admin">Admin</option>
+                   <option value="editor">Editor</option>
+                   <option value="leitor">Leitor</option>
+               </select>
+               <button type="submit" className="btn-submit">+ Criar Conta</button>
+            </form>
+        </div>
+        )}
+
+        {/* Lista de Utilizadores — Apenas Admin */}
         {user.nivel_acesso === 'admin' && (
         <div className="panel-card">
-            <div className="panel-title">Gestão de Utilizadores Administrativos</div>
+            <div className="panel-title">🛡️ Utilizadores do Sistema</div>
             <table className="table-minimal">
-               <thead><tr><th>Nome</th><th>Email</th><th>Role</th></tr></thead>
+               <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th>Ações</th></tr></thead>
                <tbody>
                    {usuarios.map(u => (
-                      <tr key={u.id}><td>{u.nome}</td><td>{u.email}</td><td>{u.nivel_acesso?.toUpperCase()}</td></tr>
+                      <tr key={u.id}>
+                        <td>{u.nome}</td>
+                        <td>{u.email}</td>
+                        <td><span style={{padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, 
+                          background: u.nivel_acesso === 'admin' ? '#dcfce7' : u.nivel_acesso === 'editor' ? '#dbeafe' : '#f1f5f9',
+                          color: u.nivel_acesso === 'admin' ? '#166534' : u.nivel_acesso === 'editor' ? '#1e40af' : '#475569'
+                        }}>{u.nivel_acesso?.toUpperCase()}</span></td>
+                        <td>
+                          {u.id !== 1 
+                            ? <button onClick={() => handleDeleteUser(u.id)} style={{color: 'red', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.85rem'}}>✖ Remover</button> 
+                            : <span style={{color: '#94a3b8', fontSize: '0.8rem'}}>Root</span>}
+                        </td>
+                      </tr>
                    ))}
                </tbody>
             </table>
@@ -219,6 +286,7 @@ export default function Dashboard({ token, user, onLogout }) {
       </>
   );
 
+  /* ========== LAYOUT PRINCIPAL ========== */
   return (
     <div className="dashboard-layout">
       {/* SIDEBAR */}
@@ -250,14 +318,14 @@ export default function Dashboard({ token, user, onLogout }) {
             <input type="text" className="search-bar" placeholder="🔍 Buscar nomes ou Datas..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
           <div className="topbar-icons">
-            <span className="icon-btn" title="Nível Privilégio: Alta">{user?.nivel_acesso==='admin' ? '🛡️' : '👁️'}</span>
-            <div className={`user-avatar ${user?.nivel_acesso==='admin'?'bg-green-light':''}`} style={{width: '32px', height: '32px', fontSize: '0.8rem', background: '#e2e8f0', color: '#1e293b'}}>V3</div>
+            <span className="icon-btn" title="Nível de Privilégio">{user?.nivel_acesso==='admin' ? '🛡️' : (user?.nivel_acesso==='editor' ? '✏️' : '👁️')}</span>
+            <div className="user-avatar" style={{width: '32px', height: '32px', fontSize: '0.8rem', background: user?.nivel_acesso==='admin' ? '#dcfce7' : '#e2e8f0', color: '#1e293b'}}>{user?.nome?.charAt(0) || 'U'}</div>
           </div>
         </header>
 
         <div className="content-wrapper">
           <h2 className="page-title">{activeTab === 'dashboard' ? 'Painel Executivo' : (activeTab === 'eventos' ? 'Gestão de Clientes' : 'Configurações de Sistema')}</h2>
-          <p className="page-subtitle">Sistema Completo CRM LNSOTECH Automation V3.</p>
+          <p className="page-subtitle">LNSOTECH Automation CRM V3 — Sessão: {user?.nivel_acesso?.toUpperCase()}</p>
           
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'eventos' && renderEventos()}

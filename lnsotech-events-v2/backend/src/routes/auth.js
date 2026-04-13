@@ -27,12 +27,12 @@ router.post('/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: usuario.id, nome: usuario.nome, nivel: usuario.nivel_acesso },
+            { id: usuario.id, nome: usuario.nome, nivel_acesso: usuario.nivel_acesso },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
 
-        res.json({ token, usuario: { id: usuario.id, nome: usuario.nome, nivel: usuario.nivel_acesso } });
+        res.json({ token, usuario: { id: usuario.id, nome: usuario.nome, nivel_acesso: usuario.nivel_acesso } });
     } catch (err) {
         console.error('Erro no login:', err);
         res.status(500).json({ erro: 'Erro interno no servidor' });
