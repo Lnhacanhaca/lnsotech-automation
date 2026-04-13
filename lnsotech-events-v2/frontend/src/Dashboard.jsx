@@ -50,6 +50,36 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const headers = { 'Authorization': `Bearer ${token}` };
   const jsonHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
+  // =================== OFFLINE SYNC PWA =================== //
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [offlineQueueLength, setOfflineQueueLength] = useState(() => {
+    return JSON.parse(localStorage.getItem('offline_events') || '[]').length;
+  });
+
+  useEffect(() => {
+    const handleOnline = () => { setIsOnline(true); syncOfflineQueue(); };
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
+  }, []);
+
+  const syncOfflineQueue = async () => {
+    const queue = JSON.parse(localStorage.getItem('offline_events') || '[]');
+    if (queue.length === 0) return;
+    let successCount = 0;
+    for (const payload of queue) {
+      try {
+        const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
+        if(res.ok) successCount++;
+      } catch (err) { console.error('Sync error', err); }
+    }
+    localStorage.removeItem('offline_events');
+    setOfflineQueueLength(0);
+    alert(`📶 Ligação restabelecida! ${successCount} registos que estavam offline foram sincronizados com o servidor.`);
+    fetchData();
+  };
+
   // =================== FETCH DATA =================== //
   const fetchData = async (search = '') => {
     try {
@@ -230,8 +260,21 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (!canEdit) return alert("Permissão negada!");
     if (!formGrupo) return alert("Seleccione um grupo WhatsApp!");
     const payload = { nomes_principais: formNomes, data_evento: formData, tipo_evento: formTipo, grupo_id: formGrupo, criado_por: user.id, frequencia_lembrete: formFrequencia };
+
+    if (!isOnline) {
+       // Guardar no localStorage para sincronizar depois (Modo Offline / PWA)
+       const queue = JSON.parse(localStorage.getItem('offline_events') || '[]');
+       queue.push(payload);
+       localStorage.setItem('offline_events', JSON.stringify(queue));
+       setOfflineQueueLength(queue.length);
+       
+       setFormNomes(''); setFormData(''); setFormFrequencia('anual');
+       alert('📴 Guardado Offline! Será sincronizado assim que tiveres Internet.');
+       return;
+    }
+
     const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
-    if (res.ok) { setFormNomes(''); setFormData(''); setFormFrequencia('anual'); alert('Registado!'); fetchData(); }
+    if (res.ok) { setFormNomes(''); setFormData(''); setFormFrequencia('anual'); alert('Registado com sucesso!'); fetchData(); }
     else alert('Erro ao guardar!');
   };
 
@@ -903,7 +946,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           </div>
           <div className="topbar-icons">
             <span className="icon-btn" title={`Nível: ${user.nivel_acesso}`}>{isAdmin ? '🛡️' : (isEditor ? '✏️' : '👁️')}</span>
+            
+            {!isOnline && <span className="icon-btn notification-badge" style={{background:'#f59e0b'}} title="Sistma Offline. Lembretes pendentes.">📴</span>}
+            {offlineQueueLength > 0 && <span className="icon-btn notification-badge" style={{background:'#3b82f6'}} title={`${offlineQueueLength} registos por sincronizar.`}>⏳ {offlineQueueLength}</span>}
             {stats.falhasHoje > 0 && <span className="icon-btn notification-badge" title="Existem falhas!">🔔</span>}
+            
             <div className="user-avatar topbar-avatar">{user?.nome?.charAt(0) || 'U'}</div>
           </div>
         </header>
