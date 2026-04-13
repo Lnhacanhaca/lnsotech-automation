@@ -273,17 +273,25 @@ router.get('/:id/historico', async (req, res) => {
 
 // ========== CRIAR EVENTO (POST) ========== //
 router.post('/', async (req, res) => {
-    const { nomes_principais, data_evento, tipo_evento, grupo_id, criado_por, frequencia_lembrete } = req.body;
+    const { nomes_principais, data_evento, tipo_evento, grupo_id, criado_por, frequencia_lembrete, prioridade } = req.body;
     try {
         const query = `
-            INSERT INTO eventos (nomes_principais, data_evento, tipo_evento, grupo_id, criado_por, frequencia_lembrete)
-            VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+            INSERT INTO eventos (nomes_principais, data_evento, tipo_evento, grupo_id, criado_por, frequencia_lembrete, prioridade)
+            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
         `;
-        const { rows } = await req.db.query(query, [nomes_principais, data_evento, tipo_evento || 'casamento', grupo_id, criado_por, frequencia_lembrete || 'anual']);
+        const { rows } = await req.db.query(query, [
+            nomes_principais, 
+            data_evento, 
+            tipo_evento || 'casamento', 
+            grupo_id, 
+            criado_por, 
+            frequencia_lembrete || 'anual',
+            prioridade || 'normal'
+        ]);
         res.status(201).json({ mensagem: 'Evento criado com sucesso', id: rows[0].id });
     } catch (err) {
-        console.error('Erro ao criar evento:', err);
-        res.status(500).json({ erro: 'Erro interno ao salvar evento' });
+        console.error('Erro ao criar evento:', err.message);
+        res.status(500).json({ erro: 'Erro ao salvar: ' + err.message });
     }
 });
 

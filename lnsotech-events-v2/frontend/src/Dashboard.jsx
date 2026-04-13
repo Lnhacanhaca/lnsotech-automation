@@ -289,8 +289,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     }
 
     const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
+    const data = await res.json();
     if (res.ok) { setFormNomes(''); setFormData(''); setFormFrequencia('anual'); alert('Registado com sucesso!'); fetchData(); }
-    else alert('Erro ao guardar!');
+    else alert('Erro ao guardar: ' + (data.erro || 'Falha desconhecida.'));
   };
 
   const handleUploadFoto = async (eventoId, file) => {
