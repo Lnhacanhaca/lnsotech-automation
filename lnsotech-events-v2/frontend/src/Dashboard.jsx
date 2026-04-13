@@ -268,8 +268,23 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 <td><span className="badge-tipo">{ev.tipo_evento}</span></td>
                 <td className="text-small" title={ev.grupo_id}>{grupos.find(g=>g.id===ev.grupo_id)?.nome || ev.grupo_id?.substring(0,18)}{ev.grupo_id?.length>18 ? '...':''}</td>
                 <td>
-                  {ev.foto_url ? <span title={ev.foto_url}>📷✅</span> : (
-                    canEdit && <label className="btn-mini" style={{cursor:'pointer'}}>📎<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleUploadFoto(ev.id, e.target.files[0])} /></label>
+                  {ev.foto_url ? (
+                    <div style={{display:'flex', alignItems:'center', gap:'0.4rem'}}>
+                      <img
+                        src={ev.foto_url}
+                        alt="Foto"
+                        title="Clique para ampliar"
+                        onClick={() => window.open(ev.foto_url, '_blank')}
+                        style={{width:'38px', height:'38px', borderRadius:'6px', objectFit:'cover', cursor:'pointer', border:'2px solid #e2e8f0'}}
+                      />
+                      {canEdit && (
+                        <label title="Substituir foto" style={{cursor:'pointer', fontSize:'1rem'}}>
+                          🔄<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleUploadFoto(ev.id, e.target.files[0])} />
+                        </label>
+                      )}
+                    </div>
+                  ) : (
+                    canEdit && <label className="btn-mini" style={{cursor:'pointer'}}>📎 Foto<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleUploadFoto(ev.id, e.target.files[0])} /></label>
                   )}
                 </td>
                 <td>{isAdmin && <button onClick={()=>apagarEvento(ev.id)} className="btn-danger-text">✖</button>}</td>
