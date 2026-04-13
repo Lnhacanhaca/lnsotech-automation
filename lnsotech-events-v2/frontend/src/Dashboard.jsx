@@ -677,7 +677,20 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
     
     return (
-      <div style={{display:'flex', gap:'1.5rem', flexWrap:'wrap', alignItems:'flex-start'}}>
+      <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
+        <div className="panel-card" style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'1rem'}}>
+          <div>
+            <h3 style={{margin:'0 0 0.5rem 0', display:'flex', alignItems:'center', gap:'0.5rem'}}>📅 Sincronização Google Calendar / Apple</h3>
+            <p className="text-muted" style={{margin:0, fontSize:'0.85rem'}}>Adicione este link à sua aplicação de calendário para ver todos os eventos do CRM lá.</p>
+          </div>
+          <div style={{display:'flex', gap:'0.5rem', flex:'1', minWidth:'300px'}}>
+            <input type="text" readOnly value={`${apiBase}/api/eventos/feed.ics`} className="inline-input" style={{flex:1, background:'#f8fafc'}} />
+            <button onClick={() => { navigator.clipboard.writeText(`${apiBase}/api/eventos/feed.ics`); alert('Link copiado!'); }} className="btn-submit">📋 Copiar Link</button>
+            <a href={`${apiBase}/api/eventos/feed.ics`} target="_blank" rel="noreferrer" className="btn-submit" style={{background:'#2563eb', textDecoration:'none', color:'#fff'}}>📥 ICS</a>
+          </div>
+        </div>
+
+        <div style={{display:'flex', gap:'1.5rem', flexWrap:'wrap', alignItems:'flex-start'}}>
         <div className="panel-card" style={{flex:'1', minWidth:'320px'}}>
           {/* Header do calendário */}
           <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem'}}>
@@ -769,6 +782,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             )}
           </div>
         </div>
+      </div>
       </div>
     );
   };

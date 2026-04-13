@@ -61,6 +61,67 @@ router.get('/', async (req, res) => {
     }
 });
 
+// ========== FEED ICAL (GOOGLE CALENDAR SYNC) ========== //
+router.get('/feed.ics', async (req, res) => {
+    try {
+        const { rows } = await req.db.query('SELECT * FROM eventos');
+        
+        let icsContent = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//LNSOTECH Events CRM//PT',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            'X-WR-CALNAME:Eventos LNSOTECH',
+            'X-WR-TIMEZONE:Africa/Maputo',
+            'X-WR-CALDESC:Sincronização automática de eventos CRM LNSOTECH'
+        ];
+
+        rows.forEach(ev => {
+            const dateObj = new Date(ev.data_evento);
+            const freq = ev.frequencia_lembrete || 'anual';
+            const yearStr = dateObj.getFullYear();
+            const monthStr = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const dayStr = String(dateObj.getDate()).padStart(2, '0');
+            const dtStart = `${yearStr}${monthStr}${dayStr}`;
+            
+            // Generate RRULE based on frequency
+            let rrule = '';
+            if (freq === 'anual') rrule = 'RRULE:FREQ=YEARLY';
+            else if (freq === 'mensal') rrule = 'RRULE:FREQ=MONTHLY';
+            else if (freq === 'semanal') rrule = 'RRULE:FREQ=WEEKLY';
+            else if (freq === 'diario') rrule = 'RRULE:FREQ=DAILY';
+
+            const summary = ev.tipo_evento === 'casamento' 
+                ? `Bodas: ${ev.nomes_principais}` 
+                : `${ev.tipo_evento?.charAt(0).toUpperCase() + ev.tipo_evento?.slice(1)}: ${ev.nomes_principais}`;
+
+            icsContent.push(
+                'BEGIN:VEVENT',
+                `UID:lnso-evento-${ev.id}@lnsotech.com`,
+                `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                // Make it an all-day event
+                `DTSTART;VALUE=DATE:${dtStart}`,
+                `SUMMARY:${summary}`,
+                `DESCRIPTION:Grupo WhatsApp associado: ${ev.grupo_id || 'N/A'}\\nFrequência: ${freq}`,
+                rrule,
+                'STATUS:CONFIRMED',
+                'END:VEVENT'
+            );
+        });
+
+        icsContent.push('END:VCALENDAR');
+
+        res.header('Content-Type', 'text/calendar; charset=utf-8');
+        res.header('Content-Disposition', 'attachment; filename="lnsotech_eventos.ics"');
+        res.send(icsContent.join('\r\n'));
+
+    } catch (error) {
+        console.error('Erro ao gerar feed ICS:', error);
+        res.status(500).send('Erro ao gerar calendário');
+    }
+});
+
 // ========== TEMPLATES DE MENSAGENS ========== //
 router.get('/templates', async (req, res) => {
     try {
