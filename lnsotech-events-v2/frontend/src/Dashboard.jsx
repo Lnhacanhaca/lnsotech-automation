@@ -289,19 +289,30 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             <option value="batizado">Batizado</option><option value="formatura">Formatura</option>
           </select>
           <GrupoSelect value={formGrupo} onChange={e => { if (e.target.value==='__manual__') { const id=prompt('ID:'); if(id)setFormGrupo(id); } else setFormGrupo(e.target.value); }} />
+          <select className="inline-input" style={{flex:'0.22'}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
+            <option value="anual">📅 Anual</option>
+            <option value="mensal">🔄 Mensal</option>
+            <option value="semanal">📆 Semanal</option>
+            <option value="diario">⏰ Diário</option>
+          </select>
           <button type="submit" className="btn-submit" disabled={loading}>+ Guardar</button>
         </form>
       )}
       <div className="table-responsive">
         <table className="table-minimal" style={{marginTop:'1rem'}}>
-          <thead><tr><th>Nomes</th><th>Data</th><th>Tipo</th><th>Grupo</th><th>Foto</th><th>Gestão</th></tr></thead>
+          <thead><tr><th>Nomes</th><th>Data</th><th>Tipo</th><th>Freq.</th><th>Grupo</th><th>Foto</th><th>Gestão</th></tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan="6">A carregar...</td></tr> : eventos.map(ev => (
+            {loading ? <tr><td colSpan="7">A carregar...</td></tr> : eventos.map(ev => (
               <tr key={ev.id}>
                 <td className="fw-bold">{ev.nomes_principais}</td>
                 <td>{new Date(ev.data_evento).toLocaleDateString()}<br/><span className="text-small">{ev.tipo_evento?.toUpperCase()}</span></td>
                 <td><span className="badge-tipo">{ev.tipo_evento}</span></td>
-                <td className="text-small" title={ev.grupo_id}>{grupos.find(g=>g.id===ev.grupo_id)?.nome || ev.grupo_id?.substring(0,18)}{ev.grupo_id?.length>18 ? '...':''}</td>
+                <td>
+                  <span title={`Lembrete: ${ev.frequencia_lembrete || 'anual'}`} style={{fontSize:'0.75rem', padding:'0.15rem 0.4rem', borderRadius:'4px', background:'#f1f5f9', color:'#475569', fontWeight:500}}>
+                    {ev.frequencia_lembrete === 'mensal' ? '🔄 Mensal' : ev.frequencia_lembrete === 'semanal' ? '📆 Semanal' : ev.frequencia_lembrete === 'diario' ? '⏰ Diário' : '📅 Anual'}
+                  </span>
+                </td>
+                <td className="text-small" title={ev.grupo_id}>{grupos.find(g=>g.id===ev.grupo_id)?.nome || ev.grupo_id?.substring(0,18)}{ev.grupo_id?.length>18 ? '..':''}</td>
                 <td>
                   {ev.foto_url ? (
                     <div style={{display:'flex', alignItems:'center', gap:'0.4rem'}}>
