@@ -1017,7 +1017,6 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           </div>
           <button onClick={onLogout} style={{background:'none', border:'none', color:'#94a3b8', cursor:'pointer', fontSize:'1.2rem'}} title="Sair">🚪</button>
         </div>
-        </div>
       </aside>
 
       <main className="main-area">
