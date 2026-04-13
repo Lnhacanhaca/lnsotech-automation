@@ -122,6 +122,33 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     } catch (e) { alert('Erro ao pedir reconexão'); }
   };
 
+  const handleRestoreBackup = async (filename) => {
+    if (!window.confirm(`⚠️ ATENÇÃO EXTREMA!\n\nIsto irá substituir TODA a base de dados atual pelo backup "${filename}".\nTodos os dados criados desde essa data serão PERDIDOS.\n\nTem ABSOLUTA certeza que deseja restaurar este ficheiro?`)) return;
+    
+    // Double confirmation for safety
+    if (window.prompt('Escreva "RESTAURAR" para confirmar a operação:') !== 'RESTAURAR') {
+        alert('Operação cancelada.');
+        return;
+    }
+
+    try {
+        setLoading(true);
+        const res = await fetch(`${apiBase}/api/auth/backups/restore/${filename}`, { method: 'POST', headers: jsonHeaders });
+        const data = await res.json();
+        
+        if (res.ok) {
+            alert('✅ Backup restaurado com sucesso! A página será atualizada.');
+            window.location.reload();
+        } else {
+            alert('❌ Erro: ' + (data.erro || 'Falha ao restaurar'));
+        }
+    } catch (err) {
+        alert('❌ Erro na comunicação com o servidor.');
+    } finally {
+        setLoading(false);
+    }
+  };
+
   const handleExportCSV = () => window.open(`${apiBase}/api/eventos?exportCsv=true`, '_blank');
 
   const handleExportExcel = async () => {
@@ -608,9 +635,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                     <td className="fw-bold">{b.name}</td>
                     <td>{b.size}</td>
                     <td>
-                      <a href={`${apiBase}/api/auth/backups/download/${b.name}`} download className="btn-submit" style={{padding:'0.25rem 0.6rem',fontSize:'0.8rem',textDecoration:'none',display:'inline-block'}}>
+                      <a href={`${apiBase}/api/auth/backups/download/${b.name}`} download className="btn-submit" style={{padding:'0.25rem 0.6rem',fontSize:'0.8rem',textDecoration:'none',display:'inline-block', marginRight:'0.5rem'}}>
                         📥 Transferir
                       </a>
+                      <button onClick={() => handleRestoreBackup(b.name)} className="btn-submit" style={{padding:'0.25rem 0.6rem',fontSize:'0.8rem',background:'#dc2626',color:'#fff'}}>
+                        🔄 Restaurar
+                      </button>
                     </td>
                   </tr>
                 ))}

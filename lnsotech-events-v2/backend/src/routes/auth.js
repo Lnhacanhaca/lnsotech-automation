@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 
 
 const JWT_SECRET = process.env.JWT_SECRET || 'lnsotech_super_secret_key_2026';
@@ -150,6 +151,34 @@ router.get('/backups/download/:filename', (req, res) => {
     } else {
         res.status(404).json({ erro: 'Ficheiro não encontrado' });
     }
+});
+
+// Restaurar Backup
+router.post('/backups/restore/:filename', (req, res) => {
+    const backupDir = path.resolve(__dirname, '../../src/uploads/backups');
+    const filePath = path.join(backupDir, req.params.filename);
+
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ erro: 'Ficheiro de backup não encontrado' });
+    }
+
+    const host = process.env.DB_HOST || 'lnsotech-db-bot-v2';
+    const user = process.env.DB_USER || 'lnso_admin';
+    const pass = process.env.DB_PASS || 'n4VbB6#SjG';
+    const db   = process.env.DB_NAME || 'lnsotech_db';
+
+    // O '-c' limpa a BD antes de restaurar, '-1' assegura transação única
+    // '-F c' é usado porque o pg_dump exportou em custom format
+    const restoreCmd = `PGPASSWORD='${pass}' pg_restore -h ${host} -U ${user} -d ${db} -c -1 "${filePath}"`;
+
+    exec(restoreCmd, (error, stdout, stderr) => {
+        // pg_restore dita muitos avisos que não são travamentos reais (ex: role permissions), por isso filtramos falhas críticas:
+        if (error && !stderr.includes('already exists')) {
+            console.error('❌ Erro no restore: ', stderr);
+            return res.status(500).json({ erro: 'Erro ao restaurar', detalhes: stderr });
+        }
+        res.json({ mensagem: 'Backup restaurado com sucesso!' });
+    });
 });
 
 module.exports = router;
