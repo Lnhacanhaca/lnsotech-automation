@@ -24,14 +24,56 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-// Listar todos os eventos
+// Exportação CSV e Listar
 router.get('/', async (req, res) => {
     try {
-        const { rows } = await req.db.query('SELECT * FROM eventos ORDER BY data_evento DESC');
+        const { search, exportCsv } = req.query;
+        let query = 'SELECT * FROM eventos';
+        let params = [];
+        
+        if (search) {
+            query += ' WHERE nomes_principais ILIKE $1 OR data_evento::text ILIKE $1';
+            params.push(`%${search}%`);
+        }
+        
+        query += ' ORDER BY data_evento DESC';
+        const { rows } = await req.db.query(query, params);
+
+        if (exportCsv === 'true') {
+            const csvRows = ['ID,Nomes,Data,Tipo,Grupo,Criado Em'];
+            rows.forEach(r => {
+                const rowStr = `${r.id},"${r.nomes_principais}",${new Date(r.data_evento).toLocaleDateString()},${r.tipo_evento},${r.grupo_id || 'N/A'},${new Date(r.criado_em).toLocaleDateString()}`;
+                csvRows.push(rowStr);
+            });
+            res.header('Content-Type', 'text/csv');
+            res.attachment('lnsotech_eventos.csv');
+            return res.send(csvRows.join('\n'));
+        }
+
         res.json(rows);
     } catch (err) {
         console.error('Erro ao buscar eventos:', err);
         res.status(500).json({ erro: 'Erro interno ao buscar eventos' });
+    }
+});
+
+// ==== TEMPLATES DE MENSAGENS ==== //
+router.get('/templates', async (req, res) => {
+    try {
+        const { rows } = await req.db.query('SELECT * FROM templates_mensagem ORDER BY tipo_evento ASC');
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({erro: 'Falha buscar templates'});
+    }
+});
+
+router.put('/templates/:id', async (req, res) => {
+    const { mensagem } = req.body;
+    try {
+        await req.db.query('UPDATE templates_mensagem SET mensagem = $1 WHERE id = $2', [mensagem, req.params.id]);
+        res.json({sucesso: true});
+    } catch (error) {
+        res.status(500).json({erro: 'Falha atualizar template'});
     }
 });
 

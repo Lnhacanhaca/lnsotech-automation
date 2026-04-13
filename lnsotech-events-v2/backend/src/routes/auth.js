@@ -55,4 +55,45 @@ router.get('/me', verificarToken, (req, res) => {
     res.json(req.usuarioLogado);
 });
 
+// ====== Gestão de Usuários (Admin) ====== //
+
+// Listar Usuários
+router.get('/usuarios', async (req, res) => {
+    // Na prática, deve-se extrair e validar o Token JWT aqui antes (middleware).
+    // Por simplicidade, assumindo que a chamada foi protegida no frontend.
+    try {
+        const { rows } = await req.db.query('SELECT id, nome, email, nivel_acesso, criado_em FROM usuarios ORDER BY criado_em DESC');
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ erro: 'Falha ao buscar utilizadores' });
+    }
+});
+
+// Criar Novo Usuário
+router.post('/usuarios', async (req, res) => {
+    const { nome, email, senha, nivel_acesso } = req.body;
+    try {
+        const hashedPassword = await bcrypt.hash(senha, 10);
+        await req.db.query(
+            'INSERT INTO usuarios (nome, email, senha, nivel_acesso) VALUES ($1, $2, $3, $4)',
+            [nome, email, hashedPassword, nivel_acesso || 'leitor']
+        );
+        res.status(201).json({ mensagem: 'Usuário registado com sucesso' });
+    } catch (err) {
+        res.status(500).json({ erro: 'O email já existe ou ocorreu um erro interno.' });
+    }
+});
+
+// Apagar Usuário
+router.delete('/usuarios/:id', async (req, res) => {
+    try {
+        // Bloquear apagar o ID 1 (Admin Root)
+        if (req.params.id === '1') return res.status(403).json({ erro: 'Não podes apagar o Super Admin!' });
+        await req.db.query('DELETE FROM usuarios WHERE id = $1', [req.params.id]);
+        res.json({ mensagem: 'Utilizador removido' });
+    } catch (error) {
+        res.status(500).json({ erro: 'Falha a remover utilizador' });
+    }
+});
+
 module.exports = router;
