@@ -347,7 +347,28 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                   <td>
                     <div className="toolbar-buttons">
                       {isAdmin && <button onClick={()=>handleTesteConexao(g.id, g.nome)} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem'}}>🤖 Testar</button>}
-                      <button onClick={()=>{navigator.clipboard.writeText(g.id); alert('ID copiado!')}} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem',background:'#475569'}}>📋 Copiar ID</button>
+                      <button onClick={() => {
+                        // Tenta clipboard moderno, mas tem fallback para HTTP/contextos não-seguros
+                        const copiar = (texto) => {
+                          if (navigator.clipboard && window.isSecureContext) {
+                            navigator.clipboard.writeText(texto).then(() => alert('✅ ID copiado!')).catch(() => {
+                              // fallback manual
+                              const el = document.createElement('textarea');
+                              el.value = texto; el.style.position='fixed'; el.style.opacity='0';
+                              document.body.appendChild(el); el.select();
+                              document.execCommand('copy'); document.body.removeChild(el);
+                              alert('✅ ID copiado!');
+                            });
+                          } else {
+                            const el = document.createElement('textarea');
+                            el.value = texto; el.style.position='fixed'; el.style.opacity='0';
+                            document.body.appendChild(el); el.select();
+                            document.execCommand('copy'); document.body.removeChild(el);
+                            alert('✅ ID copiado!');
+                          }
+                        };
+                        copiar(g.id);
+                      }} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem',background:'#475569'}}>📋 Copiar ID</button>
                     </div>
                   </td>
                 </tr>
