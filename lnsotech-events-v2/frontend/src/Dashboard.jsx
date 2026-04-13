@@ -32,6 +32,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [editingUserId, setEditingUserId] = useState(null);
   const [editUserForm, setEditUserForm] = useState({ nome: '', email: '', senha: '', nivel_acesso: 'leitor' });
 
+  // Estado do Calendário
+  const today = new Date();
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [calYear, setCalYear] = useState(today.getFullYear());
+  const [calSelectedDay, setCalSelectedDay] = useState(null);
+
   const csvRef = useRef(null);
 
   const apiBase = '';
@@ -499,6 +505,127 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     </>
   );
 
+  /* ========== RENDER: CALENDÁRIO INTERATIVO ========== */
+  const renderCalendario = () => {
+    const mesesPT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    const coresEvento = { casamento:'#3b82f6', aniversario:'#10b981', batizado:'#8b5cf6', formatura:'#f59e0b' };
+    
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const firstWeekDay = new Date(calYear, calMonth, 1).getDay();
+    
+    // Eventos do mês (aniversario anual - mesmo dia e mês)
+    const getEventosForDay = (day) => eventos.filter(ev => {
+      const d = new Date(ev.data_evento);
+      return d.getDate() === day && d.getMonth() === calMonth;
+    });
+    
+    const selectedEventos = calSelectedDay ? getEventosForDay(calSelectedDay) : [];
+    
+    const prevMonth = () => { if (calMonth === 0) { setCalMonth(11); setCalYear(calYear-1); } else setCalMonth(calMonth-1); setCalSelectedDay(null); };
+    const nextMonth = () => { if (calMonth === 11) { setCalMonth(0); setCalYear(calYear+1); } else setCalMonth(calMonth+1); setCalSelectedDay(null); };
+    
+    const cells = [];
+    for (let i = 0; i < firstWeekDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    
+    return (
+      <div style={{display:'flex', gap:'1.5rem', flexWrap:'wrap', alignItems:'flex-start'}}>
+        <div className="panel-card" style={{flex:'1', minWidth:'320px'}}>
+          {/* Header do calendário */}
+          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem'}}>
+            <button onClick={prevMonth} className="btn-submit" style={{padding:'0.3rem 0.8rem', fontSize:'1rem', background:'#475569'}}>&#8249;</button>
+            <div className="panel-title" style={{margin:0}}>{mesesPT[calMonth]} {calYear}</div>
+            <button onClick={nextMonth} className="btn-submit" style={{padding:'0.3rem 0.8rem', fontSize:'1rem', background:'#475569'}}>&#8250;</button>
+          </div>
+          {/* Dias da semana */}
+          <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'2px', marginBottom:'4px'}}>
+            {diasSemana.map(d => <div key={d} style={{textAlign:'center', fontSize:'0.7rem', fontWeight:700, color:'#64748b', padding:'4px 0'}}>{d}</div>)}
+          </div>
+          {/* Células do calendário */}
+          <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'3px'}}>
+            {cells.map((day, i) => {
+              if (!day) return <div key={`empty-${i}`} />;
+              const dayEvs = getEventosForDay(day);
+              const isToday = day === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+              const isSelected = day === calSelectedDay;
+              return (
+                <div key={day} onClick={() => setCalSelectedDay(day === calSelectedDay ? null : day)}
+                  style={{
+                    minHeight:'52px', borderRadius:'8px', padding:'4px', cursor:'pointer', userSelect:'none',
+                    background: isSelected ? '#3b82f6' : isToday ? '#eff6ff' : dayEvs.length > 0 ? '#f0fdf4' : '#f8fafc',
+                    border: isSelected ? '2px solid #1d4ed8' : isToday ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                    transition:'all 0.15s'
+                  }}>
+                  <div style={{fontSize:'0.8rem', fontWeight: isToday?700:500, color: isSelected?'#fff': isToday?'#1d4ed8':'#334155'}}>{day}</div>
+                  <div style={{display:'flex', flexWrap:'wrap', gap:'2px', marginTop:'2px'}}>
+                    {dayEvs.slice(0,3).map(ev => (
+                      <div key={ev.id} title={ev.nomes_principais} style={{width:'8px', height:'8px', borderRadius:'50%', background: coresEvento[ev.tipo_evento] || '#94a3b8'}} />
+                    ))}
+                    {dayEvs.length > 3 && <div style={{fontSize:'0.55rem', color:'#64748b'}}>+{dayEvs.length-3}</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Legenda */}
+          <div style={{display:'flex', gap:'1rem', marginTop:'1rem', flexWrap:'wrap'}}>
+            {Object.entries(coresEvento).map(([tipo, cor]) => (
+              <div key={tipo} style={{display:'flex', alignItems:'center', gap:'4px', fontSize:'0.75rem', color:'#475569'}}>
+                <div style={{width:'10px', height:'10px', borderRadius:'50%', background:cor}} />
+                {tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Painel lateral: eventos do dia selecionado */}
+        <div className="panel-card" style={{flex:'0.7', minWidth:'260px'}}>
+          <div className="panel-title">
+            {calSelectedDay ? `📅 ${calSelectedDay} de ${mesesPT[calMonth]}` : '📅 Selecione um dia'}
+          </div>
+          {!calSelectedDay ? (
+            <p className="text-muted" style={{fontSize:'0.85rem'}}>Clique num dia do calendário para ver os eventos agendados.</p>
+          ) : selectedEventos.length === 0 ? (
+            <p className="text-muted" style={{fontSize:'0.85rem'}}>Nenhum evento neste dia.</p>
+          ) : selectedEventos.map(ev => {
+            const anoOrigem = new Date(ev.data_evento).getFullYear();
+            const anos = calYear - anoOrigem;
+            return (
+              <div key={ev.id} style={{padding:'0.75rem', borderRadius:'8px', marginBottom:'0.75rem', background:'#f8fafc', border:`2px solid ${coresEvento[ev.tipo_evento]||'#e2e8f0'}`}}>
+                <div style={{display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'4px'}}>
+                  {ev.foto_url && <img src={ev.foto_url} alt="" style={{width:'32px', height:'32px', borderRadius:'50%', objectFit:'cover'}} />}
+                  <div>
+                    <div style={{fontWeight:700, fontSize:'0.9rem'}}>{ev.nomes_principais}</div>
+                    <div style={{fontSize:'0.75rem', color:'#64748b'}}>{ev.tipo_evento} • {anos > 0 ? `${anos} ano${anos!==1?'s':''}` : 'Ano de origem'}</div>
+                  </div>
+                </div>
+                <div style={{fontSize:'0.7rem', color:'#94a3b8'}}>Grupo: {grupos.find(g=>g.id===ev.grupo_id)?.nome || ev.grupo_id?.substring(0,20) || 'N/A'}</div>
+              </div>
+            );
+          })}
+          
+          {/* Resumo do mês */}
+          <div style={{marginTop:'1.5rem', borderTop:'1px solid var(--border)', paddingTop:'1rem'}}>
+            <div className="panel-title" style={{fontSize:'0.85rem', marginBottom:'0.5rem'}}>Resumo de {mesesPT[calMonth]}</div>
+            {['casamento','aniversario','batizado','formatura'].map(tipo => {
+              const count = eventos.filter(ev => new Date(ev.data_evento).getMonth() === calMonth && ev.tipo_evento === tipo).length;
+              return count > 0 ? (
+                <div key={tipo} style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', padding:'2px 0', color:'#475569'}}>
+                  <span style={{color: coresEvento[tipo]}}>● {tipo.charAt(0).toUpperCase()+tipo.slice(1)}</span>
+                  <strong>{count}</strong>
+                </div>
+              ) : null;
+            })}
+            {eventos.filter(ev => new Date(ev.data_evento).getMonth() === calMonth).length === 0 && (
+              <p style={{fontSize:'0.8rem', color:'#94a3b8'}}>Nenhum evento este mês.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   /* ========== LAYOUT ========== */
   return (
     <div className="dashboard-layout">
@@ -510,6 +637,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         <nav className="nav-menu">
           <div className={`nav-item ${activeTab==='dashboard'?'active':''}`} onClick={()=>setActiveTab('dashboard')}><span>📊</span><span>Dashboard</span></div>
           <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>setActiveTab('eventos')}><span>👥</span><span>Eventos/Casais</span></div>
+          <div className={`nav-item ${activeTab==='calendario'?'active':''}`} onClick={()=>setActiveTab('calendario')}><span>📅</span><span>Calendário</span></div>
           <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>setActiveTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>
           {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>setActiveTab('logs')}><span>📋</span><span>Logs</span></div>}
           <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>setActiveTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>
@@ -539,12 +667,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
         <div className="content-wrapper">
           <h2 className="page-title">{
-            {dashboard:'Painel Executivo', eventos:'Gestão de Clientes', grupos:'Grupos WhatsApp', logs:'Logs do Sistema', configuracoes:'Configurações'}[activeTab]
+            {dashboard:'Painel Executivo', eventos:'Gestão de Clientes', calendario:'Calendário de Eventos', grupos:'Grupos WhatsApp', logs:'Logs do Sistema', configuracoes:'Configurações'}[activeTab]
           }</h2>
           <p className="page-subtitle">LNSOTECH Automation CRM — {user.nivel_acesso?.toUpperCase()}</p>
           
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'eventos' && renderEventos()}
+          {activeTab === 'calendario' && renderCalendario()}
           {activeTab === 'grupos' && renderGrupos()}
           {activeTab === 'logs' && renderLogs()}
           {activeTab === 'configuracoes' && renderConfig()}
