@@ -134,19 +134,69 @@ router.get('/tipos', async (req, res) => {
 
 router.post('/tipos', async (req, res) => {
     const { nome, cor } = req.body;
+    const lowerNome = nome.toLowerCase();
     try {
-        await req.db.query('INSERT INTO tipos_evento (nome, cor) VALUES ($1, $2)', [nome.toLowerCase(), cor || '#3b82f6']);
+        await req.db.query('BEGIN');
+        // 1. Criar o tipo
+        await req.db.query('INSERT INTO tipos_evento (nome, cor) VALUES ($1, $2)', [lowerNome, cor || '#3b82f6']);
+        // 2. Criar template padrão para este tipo
+        await req.db.query(
+            'INSERT INTO templates_mensagem (tipo_evento, mensagem) VALUES ($1, $2) ON CONFLICT DO NOTHING', 
+            [lowerNome, `Lembrete LNSOTECH: Hoje celebramos {nomes} (${lowerNome})! 🎉`]
+        );
+        await req.db.query('COMMIT');
         res.json({sucesso: true});
     } catch (error) {
+        await req.db.query('ROLLBACK');
+        console.error('Erro criar tipo:', error);
         res.status(500).json({erro: 'Falha ao criar tipo de evento. Nome pode já existir.'});
+    }
+});
+
+router.put('/tipos/:id', async (req, res) => {
+    const { nome, cor } = req.body;
+    const lowerNome = nome.toLowerCase();
+    try {
+        // Buscar nome antigo para atualizar referências
+        const old = await req.db.query('SELECT nome FROM tipos_evento WHERE id = $1', [req.params.id]);
+        if (old.rows.length === 0) return res.status(404).json({erro: 'Tipo não encontrado'});
+        
+        const oldNome = old.rows[0].nome;
+
+        await req.db.query('BEGIN');
+        // 1. Atualizar o tipo
+        await req.db.query('UPDATE tipos_evento SET nome = $1, cor = $2 WHERE id = $3', [lowerNome, cor, req.params.id]);
+        
+        if (lowerNome !== oldNome) {
+            // 2. Atualizar eventos associados
+            await req.db.query('UPDATE eventos SET tipo_evento = $1 WHERE tipo_evento = $2', [lowerNome, oldNome]);
+            // 3. Atualizar templates associados
+            await req.db.query('UPDATE templates_mensagem SET tipo_evento = $1 WHERE tipo_evento = $2', [lowerNome, oldNome]);
+        }
+        
+        await req.db.query('COMMIT');
+        res.json({sucesso: true});
+    } catch (error) {
+        await req.db.query('ROLLBACK');
+        res.status(500).json({erro: 'Falha ao atualizar tipo de evento'});
     }
 });
 
 router.delete('/tipos/:id', async (req, res) => {
     try {
-        await req.db.query('DELETE FROM tipos_evento WHERE id = $1', [req.params.id]);
+        const old = await req.db.query('SELECT nome FROM tipos_evento WHERE id = $1', [req.params.id]);
+        if (old.rows.length > 0) {
+            const nome = old.rows[0].nome;
+            await req.db.query('BEGIN');
+            await req.db.query('DELETE FROM tipos_evento WHERE id = $1', [req.params.id]);
+            await req.db.query('DELETE FROM templates_mensagem WHERE tipo_evento = $1', [nome]);
+            await req.db.query('COMMIT');
+        } else {
+            await req.db.query('DELETE FROM tipos_evento WHERE id = $1', [req.params.id]);
+        }
         res.json({sucesso: true});
     } catch (error) {
+        await req.db.query('ROLLBACK');
         res.status(500).json({erro: 'Falha ao apagar tipo de evento'});
     }
 });

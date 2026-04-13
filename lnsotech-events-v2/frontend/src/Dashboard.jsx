@@ -47,6 +47,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [editingUserId, setEditingUserId] = useState(null);
   const [editUserForm, setEditUserForm] = useState({ nome: '', email: '', senha: '', nivel_acesso: 'leitor' });
 
+  const [tiposEvento, setTiposEvento] = useState([]);
+  const [newTipoNome, setNewTipoNome] = useState('');
+  const [newTipoCor, setNewTipoCor] = useState('#3b82f6');
+  const [editingTipoId, setEditingTipoId] = useState(null);
+  const [editTipoForm, setEditTipoForm] = useState({ nome: '', cor: '#3b82f6' });
+
   // Estado do Calendário
   const today = new Date();
   const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -311,9 +317,24 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   };
 
   const handleDeletarTipo = async (id) => {
-    if (!isAdmin || !window.confirm('Apagar tipo de evento?')) return;
+    if (!isAdmin || !window.confirm('Apagar tipo de evento? (Isto também apagará o template de mensagem associado)')) return;
     const res = await fetch(`${apiBase}/api/eventos/tipos/${id}`, { method: 'DELETE', headers });
     if (res.ok) fetchData();
+  };
+
+  const startEditTipo = (t) => {
+    setEditingTipoId(t.id);
+    setEditTipoForm({ nome: t.nome, cor: t.cor });
+  };
+
+  const handleUpdateTipo = async () => {
+    const res = await fetch(`${apiBase}/api/eventos/tipos/${editingTipoId}`, { 
+        method: 'PUT', 
+        headers: jsonHeaders, 
+        body: JSON.stringify(editTipoForm) 
+    });
+    if (res.ok) { setEditingTipoId(null); fetchData(); alert('Tipo atualizado!'); }
+    else alert('Erro ao atualizar tipo');
   };
 
   const startEditEvento = (ev) => {
@@ -838,11 +859,21 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           </form>
           <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap'}}>
             {tiposEvento.map(t => (
-                <div key={t.id} style={{background:'#f8fafc', border:'1px solid #e2e8f0', padding:'0.5rem 1rem', borderRadius:'20px', display:'flex', alignItems:'center', gap:'0.5rem'}}>
-                    <div style={{width:'12px', height:'12px', borderRadius:'50%', background:t.cor}}></div>
-                    <span style={{fontWeight:500}}>{t.nome}</span>
-                    <button onClick={()=>handleDeletarTipo(t.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', fontWeight:'bold', fontSize:'1.1rem'}}>×</button>
-                </div>
+                editingTipoId === t.id ? (
+                    <div key={t.id} style={{background:'#f0f9ff', border:'1px solid #3b82f6', padding:'0.5rem', borderRadius:'8px', display:'flex', alignItems:'center', gap:'0.4rem'}}>
+                        <input className="inline-input" style={{width:'120px', margin:0}} value={editTipoForm.nome} onChange={e=>setEditTipoForm({...editTipoForm, nome: e.target.value})} />
+                        <input type="color" style={{width:'30px', height:'30px', border:'none', cursor:'pointer'}} value={editTipoForm.cor} onChange={e=>setEditTipoForm({...editTipoForm, cor: e.target.value})} />
+                        <button onClick={handleUpdateTipo} className="btn-submit" style={{padding:'4px 8px', margin:0, fontSize:'0.75rem'}}>💾</button>
+                        <button onClick={()=>setEditingTipoId(null)} className="btn-danger-text" style={{fontSize:'1.1rem'}}>×</button>
+                    </div>
+                ) : (
+                    <div key={t.id} style={{background:'#f8fafc', border:'1px solid #e2e8f0', padding:'0.5rem 1rem', borderRadius:'20px', display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                        <div style={{width:'12px', height:'12px', borderRadius:'50%', background:t.cor}}></div>
+                        <span style={{fontWeight:500}}>{t.nome}</span>
+                        <button onClick={()=>startEditTipo(t)} style={{background:'none', border:'none', color:'#3b82f6', cursor:'pointer', fontSize:'0.9rem'}}>✏️</button>
+                        <button onClick={()=>handleDeletarTipo(t.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', fontWeight:'bold', fontSize:'1.1rem'}}>×</button>
+                    </div>
+                )
             ))}
           </div>
         </div>
