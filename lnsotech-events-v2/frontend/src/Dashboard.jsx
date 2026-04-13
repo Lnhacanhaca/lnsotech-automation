@@ -595,6 +595,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               </tbody>
             </table>
           </div>
+        </div>
         <div className="panel-card">
           <div className="panel-title">💾 Backups da Base de Dados</div>
           <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1rem'}}>Os backups diários são gerados automaticamente às 00:00 (hora de Maputo). Backups com mais de 15 dias são apagados para evitar encher o disco.</p>
