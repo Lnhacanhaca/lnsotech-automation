@@ -10,6 +10,7 @@ const cron = require('node-cron');
 const { Pool } = require('pg');
 const path = require('path');
 const fs = require('fs');
+const { exec } = require('child_process');
 const qrcodeTerminal = require('qrcode-terminal');
 const QRCode = require('qrcode');
 
@@ -248,8 +249,59 @@ function iniciarCron(sock) {
             }
         } catch (err) {
             console.error('❌ Erro no Cron Job:', err);
-            await registarLog(null, null, 'cron_erro', err.message, 'falha');
         }
+    }, {
+        timezone: "Africa/Maputo"
+    });
+
+    // ========== CRON JOB PARA BACKUP DA BASE DE DADOS (00:00) ========== //
+    cron.schedule('0 0 * * *', () => {
+        console.log('💾 LNSOTECH: Iniciando backup diário da base de dados...');
+        const backupDir = path.resolve(__dirname, '../../src/uploads/backups');
+        
+        // Garante que a directoria de backups existe
+        if (!fs.existsSync(backupDir)) {
+            fs.mkdirSync(backupDir, { recursive: true });
+        }
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const fileName = `lnsotech_backup_${dateStr}.sql`;
+        const filePath = path.join(backupDir, fileName);
+
+        // O POSTGRES_URL do pool.options ou process.env.DATABASE_URL
+        const host = process.env.DB_HOST || 'lnsotech-db-bot-v2';
+        const user = process.env.DB_USER || 'lnso_admin';
+        const pass = process.env.DB_PASS || 'n4VbB6#SjG';
+        const db   = process.env.DB_NAME || 'lnsotech_db';
+
+        // Usa pg_dump para exportar
+        const dumpCommand = `PGPASSWORD='${pass}' pg_dump -h ${host} -U ${user} -d ${db} -F c -f "${filePath}"`;
+
+        exec(dumpCommand, (error, stdout, stderr) => {
+            if (error) {
+                console.error('❌ Erro ao criar backup:', error.message);
+                return;
+            }
+            console.log(`✅ Backup guardado com sucesso: ${fileName}`);
+
+            // Limpeza: apagar backups com mais de 15 dias
+            fs.readdir(backupDir, (err, files) => {
+                if (err) return;
+                const now = Date.now();
+                const dias15 = 15 * 24 * 60 * 60 * 1000;
+                files.forEach(file => {
+                    const fullPath = path.join(backupDir, file);
+                    fs.stat(fullPath, (err, stats) => {
+                        if (err) return;
+                        if (now - stats.mtimeMs > dias15) {
+                            fs.unlink(fullPath, err => {
+                                if (!err) console.log(`🗑️ Backup antigo removido: ${file}`);
+                            });
+                        }
+                    });
+                });
+            });
+        });
     }, {
         timezone: "Africa/Maputo"
     });

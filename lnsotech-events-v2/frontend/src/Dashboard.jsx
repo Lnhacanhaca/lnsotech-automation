@@ -27,6 +27,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [templates, setTemplates] = useState([]);
   const [logs, setLogs] = useState([]);
   const [grupos, setGrupos] = useState([]);
+  const [backups, setBackups] = useState([]);
   const [gruposLoading, setGruposLoading] = useState(false);
   const [waStatus, setWaStatus] = useState({ qr: null, status: 'desconhecido', lastUpdate: null });
 
@@ -75,6 +76,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       if (isAdmin) {
         const resLogs = await fetch(`${apiBase}/api/eventos/logs`, { headers });
         if (resLogs.ok) setLogs(await resLogs.json());
+        const resBkps = await fetch(`${apiBase}/api/auth/backups`, { headers });
+        if (resBkps.ok) setBackups(await resBkps.json());
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -588,6 +591,27 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                       </td>
                     </tr>
                   )
+                ))}
+              </tbody>
+            </table>
+          </div>
+        <div className="panel-card">
+          <div className="panel-title">💾 Backups da Base de Dados</div>
+          <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1rem'}}>Os backups diários são gerados automaticamente às 00:00 (hora de Maputo). Backups com mais de 15 dias são apagados para evitar encher o disco.</p>
+          <div className="table-responsive">
+            <table className="table-minimal">
+              <thead><tr><th>Ficheiro</th><th>Tamanho</th><th>Gestão</th></tr></thead>
+              <tbody>
+                {backups.length === 0 ? <tr><td colSpan="3">Nenhum backup encontrado.</td></tr> : backups.map(b => (
+                  <tr key={b.name}>
+                    <td className="fw-bold">{b.name}</td>
+                    <td>{b.size}</td>
+                    <td>
+                      <a href={`${apiBase}/api/auth/backups/download/${b.name}`} download className="btn-submit" style={{padding:'0.25rem 0.6rem',fontSize:'0.8rem',textDecoration:'none',display:'inline-block'}}>
+                        📥 Transferir
+                      </a>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>

@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
+
 
 const JWT_SECRET = process.env.JWT_SECRET || 'lnsotech_super_secret_key_2026';
 
@@ -116,6 +119,36 @@ router.put('/usuarios/:id', async (req, res) => {
         res.json({ mensagem: 'Utilizador atualizado com sucesso' });
     } catch (err) {
         res.status(500).json({ erro: 'Falha ao atualizar utilizador. O email pode já estar em uso.' });
+    }
+});
+
+// Listar Backups (apenas Admin idealmente, assumindo UI auth gorfed)
+router.get('/backups', (req, res) => {
+    const backupDir = path.resolve(__dirname, '../../src/uploads/backups');
+    if (!fs.existsSync(backupDir)) return res.json([]);
+    
+    fs.readdir(backupDir, (err, files) => {
+        if (err) return res.status(500).json({ erro: 'Erro ao ler diretoria de backups' });
+        const list = files.map(file => {
+            const stats = fs.statSync(path.join(backupDir, file));
+            return {
+                name: file,
+                size: (stats.size / 1024 / 1024).toFixed(2) + ' MB',
+                date: stats.mtime
+            };
+        }).sort((a,b) => b.date - a.date);
+        res.json(list);
+    });
+});
+
+// Download de Backup
+router.get('/backups/download/:filename', (req, res) => {
+    const backupDir = path.resolve(__dirname, '../../src/uploads/backups');
+    const file = path.join(backupDir, req.params.filename);
+    if (fs.existsSync(file)) {
+        res.download(file);
+    } else {
+        res.status(404).json({ erro: 'Ficheiro não encontrado' });
     }
 });
 

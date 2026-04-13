@@ -5,6 +5,9 @@ FROM node:20-alpine
 WORKDIR /app
 
 # O Baileys não precisa de instalar o Chromium! Isto poupa ~500MB+ de RAM e Armazenamento!
+# Instalar postgresql-client para permitir backups automáticos (pg_dump)
+RUN apk add --no-cache postgresql-client
+
 # Copiar apenas os ficheiros de dependências primeiro (para otimizar cache do Docker)
 COPY package*.json ./
 RUN npm install --production
