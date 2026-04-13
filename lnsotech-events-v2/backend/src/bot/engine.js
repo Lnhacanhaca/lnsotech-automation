@@ -167,17 +167,18 @@ async function connectToWhatsApp() {
         }
 
         // ========== RESPOSTAS AUTOMÁTICAS (AUTO-REPLY) ========== //
-        const theBotId = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+        const myId = sock.user.id.split(':')[0];
+        const theBotId = myId + '@s.whatsapp.net';
         const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
         const repliedJid = contextInfo?.participant;
         const mentionedJids = contextInfo?.mentionedJid || [];
         
-        const isReplyToBot = repliedJid === theBotId;
-        const isMentioningBot = mentionedJids.includes(theBotId);
+        const isReplyToBot = repliedJid?.includes(myId);
+        const isMentioningBot = mentionedJids.some(jid => jid.includes(myId)) || textMessage?.includes(myId);
 
         // LOG para diagnóstico
         if (textMessage) {
-            console.log(`📩 [Mensagem no Grupo] De: ${msg.key.participant || 'Privado'} | Texto: "${textMessage.substring(0,20)}..." | Reply ao Bot: ${isReplyToBot} | Menciona Bot: ${isMentioningBot}`);
+            console.log(`📩 [Bot ID: ${myId}] | Texto: "${textMessage.substring(0,30)}" | Reply ao Bot: ${isReplyToBot} | Menciona Bot: ${isMentioningBot}`);
         }
 
         if ((isReplyToBot || isMentioningBot) && textMessage) {
