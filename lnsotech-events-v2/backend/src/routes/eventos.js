@@ -1,6 +1,29 @@
 const express = require('express');
 const router = express.Router();
 
+// Estatísticas reais para os Cartões
+router.get('/stats', async (req, res) => {
+    try {
+        const eventosCount = await req.db.query('SELECT COUNT(*) FROM eventos');
+        const bodasCount = await req.db.query("SELECT COUNT(*) FROM eventos WHERE tipo_evento = 'casamento'");
+        const aniversariosCount = await req.db.query("SELECT COUNT(*) FROM eventos WHERE tipo_evento = 'aniversario'");
+        const gruposCountRes = await req.db.query("SELECT COUNT(DISTINCT grupo_id) FROM eventos WHERE grupo_id IS NOT NULL");
+        // Se a tabela logs_envio não existir ou não estiver povoada, fazemos count de logs ou mock para agora
+        const logsCount = await req.db.query("SELECT COUNT(*) FROM logs_envio").catch(() => ({rows: [{count: 0}]})); 
+
+        res.json({
+            totalEventos: parseInt(eventosCount.rows[0].count),
+            totalBodas: parseInt(bodasCount.rows[0].count),
+            totalAniversarios: parseInt(aniversariosCount.rows[0].count),
+            gruposAtivos: parseInt(gruposCountRes.rows[0].count),
+            lembretesEnviados: parseInt(logsCount.rows[0].count)
+        });
+    } catch (err) {
+        console.error('Erro nas stats:', err);
+        res.status(500).json({ erro: 'Erro ao buscar estastísticas' });
+    }
+});
+
 // Listar todos os eventos
 router.get('/', async (req, res) => {
     try {
