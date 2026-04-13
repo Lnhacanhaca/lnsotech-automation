@@ -17,6 +17,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [formData, setFormData] = useState('');
   const [formTipo, setFormTipo] = useState('casamento');
   const [formGrupo, setFormGrupo] = useState('');
+  const [formFrequencia, setFormFrequencia] = useState('anual');
 
   const [usuarios, setUsuarios] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -128,9 +129,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     e.preventDefault();
     if (!canEdit) return alert("Permissão negada!");
     if (!formGrupo) return alert("Seleccione um grupo WhatsApp!");
-    const payload = { nomes_principais: formNomes, data_evento: formData, tipo_evento: formTipo, grupo_id: formGrupo, criado_por: user.id };
+    const payload = { nomes_principais: formNomes, data_evento: formData, tipo_evento: formTipo, grupo_id: formGrupo, criado_por: user.id, frequencia_lembrete: formFrequencia };
     const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
-    if (res.ok) { setFormNomes(''); setFormData(''); alert('Registado!'); fetchData(); }
+    if (res.ok) { setFormNomes(''); setFormData(''); setFormFrequencia('anual'); alert('Registado!'); fetchData(); }
     else alert('Erro ao guardar!');
   };
 
@@ -231,6 +232,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 if (e.target.value === '__manual__') { const id = prompt('Cole o ID do grupo:'); if (id) setFormGrupo(id); }
                 else setFormGrupo(e.target.value);
               }} />
+              <select className="inline-input" style={{flex:'0.25'}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
+                <option value="anual">📅 Anual</option>
+                <option value="mensal">🔄 Mensal</option>
+                <option value="semanal">📆 Semanal</option>
+                <option value="diario">⏰ Diário</option>
+              </select>
               <button type="submit" className="btn-submit" disabled={loading}>+ Guardar</button>
             </form>
           ) : <div className="text-muted">Apenas admins/editores podem registar.</div>}

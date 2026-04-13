@@ -83,13 +83,13 @@ router.put('/templates/:id', async (req, res) => {
 
 // ========== CRIAR EVENTO (POST) ========== //
 router.post('/', async (req, res) => {
-    const { nomes_principais, data_evento, tipo_evento, grupo_id, criado_por } = req.body;
+    const { nomes_principais, data_evento, tipo_evento, grupo_id, criado_por, frequencia_lembrete } = req.body;
     try {
         const query = `
-            INSERT INTO eventos (nomes_principais, data_evento, tipo_evento, grupo_id, criado_por)
-            VALUES ($1, $2, $3, $4, $5) RETURNING id
+            INSERT INTO eventos (nomes_principais, data_evento, tipo_evento, grupo_id, criado_por, frequencia_lembrete)
+            VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
         `;
-        const { rows } = await req.db.query(query, [nomes_principais, data_evento, tipo_evento || 'casamento', grupo_id, criado_por]);
+        const { rows } = await req.db.query(query, [nomes_principais, data_evento, tipo_evento || 'casamento', grupo_id, criado_por, frequencia_lembrete || 'anual']);
         res.status(201).json({ mensagem: 'Evento criado com sucesso', id: rows[0].id });
     } catch (err) {
         console.error('Erro ao criar evento:', err);

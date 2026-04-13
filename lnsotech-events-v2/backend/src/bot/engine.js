@@ -177,13 +177,29 @@ function iniciarCron(sock) {
     cron.schedule('0 8 * * *', async () => {
         console.log('🔍 LNSOTECH: Verificando eventos de hoje...');
         try {
-            // Buscar TODOS os tipos de evento (casamento, aniversario, batizado, formatura)
+            // Buscar eventos conforme frequência de lembrete configurada
             const res = await pool.query(`
                 SELECT id, nomes_principais, grupo_id, tipo_evento, foto_url,
+                       frequencia_lembrete,
                        EXTRACT(YEAR FROM data_evento) as ano_origem 
                 FROM eventos 
-                WHERE EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM CURRENT_DATE) 
-                AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                WHERE grupo_id IS NOT NULL AND (
+                    -- ANUAL (padrão): mesmo dia e mês do ano
+                    ((frequencia_lembrete = 'anual' OR frequencia_lembrete IS NULL)
+                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM CURRENT_DATE)
+                     AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM CURRENT_DATE))
+                    OR
+                    -- MENSAL: mesmo dia do mês, todos os meses
+                    (frequencia_lembrete = 'mensal'
+                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM CURRENT_DATE))
+                    OR
+                    -- SEMANAL: mesmo dia da semana
+                    (frequencia_lembrete = 'semanal'
+                     AND EXTRACT(DOW FROM data_evento) = EXTRACT(DOW FROM CURRENT_DATE))
+                    OR
+                    -- DIÁRIO: todos os dias
+                    frequencia_lembrete = 'diario'
+                )
             `);
 
             // Buscar templates dinâmicos
@@ -192,8 +208,10 @@ function iniciarCron(sock) {
             templatesRes.rows.forEach(t => { templatesMap[t.tipo_evento] = t.mensagem; });
 
             for (let evento of res.rows) {
+                const freq = evento.frequencia_lembrete || 'anual';
                 const anos = new Date().getFullYear() - evento.ano_origem;
-                if (anos <= 0) continue;
+                // Para frequência anual, pular eventos do ano de criação
+                if (freq === 'anual' && anos <= 0) continue;
 
                 let mensagem;
                 if (evento.tipo_evento === 'casamento') {

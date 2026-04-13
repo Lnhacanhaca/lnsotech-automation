@@ -33,3 +33,9 @@ VALUES
 ('batizado', 'Que a luz divina guie sempre os passos de {nomes}. Feliz aniversário de Batizado! 🕊️'),
 ('formatura', 'Parabéns {nomes}! 🎓 Mais um ano desde a tua conquista académica!')
 ON CONFLICT (tipo_evento) DO NOTHING;
+
+-- 4. Adicionar coluna frequencia_lembrete em eventos (anual, mensal, semanal, diario)
+DO $$ BEGIN
+    ALTER TABLE eventos ADD COLUMN frequencia_lembrete TEXT DEFAULT 'anual';
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
