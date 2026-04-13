@@ -27,6 +27,15 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [logs, setLogs] = useState([]);
   const [logFilter, setLogFilter] = useState('todos');
   const [grupos, setGrupos] = useState([]);
+  const [tiposEvento, setTiposEvento] = useState([]);
+  const [newTipoNome, setNewTipoNome] = useState('');
+  const [newTipoCor, setNewTipoCor] = useState('#3b82f6');
+  
+  const [editingEvento, setEditingEvento] = useState(null);
+  const [editEventoForm, setEditEventoForm] = useState({ nomes_principais: '', data_evento: '', tipo_evento: '', grupo_id: '', frequencia_lembrete: 'anual', prioridade: 'normal' });
+  const [showHistoryFor, setShowHistoryFor] = useState(null);
+  const [historicoAlteracoes, setHistoricoAlteracoes] = useState([]);
+
   const [backups, setBackups] = useState([]);
   const [gruposLoading, setGruposLoading] = useState(false);
   const [waStatus, setWaStatus] = useState({ qr: null, status: 'desconhecido', lastUpdate: null });
@@ -102,6 +111,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         const resTp = await fetch(`${apiBase}/api/eventos/templates`, { headers });
         if (resTp.ok) setTemplates(await resTp.json());
       }
+
+      const resTypes = await fetch(`${apiBase}/api/eventos/tipos`, { headers });
+      if (resTypes.ok) setTiposEvento(await resTypes.json());
 
       if (isAdmin) {
         const resLogs = await fetch(`${apiBase}/api/eventos/logs`, { headers });
@@ -290,6 +302,50 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     alert('Template Salvo!');
   };
 
+  const handleCreateTipo = async (e) => {
+    e.preventDefault();
+    if (!isAdmin) return;
+    const res = await fetch(`${apiBase}/api/eventos/tipos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: newTipoNome, cor: newTipoCor }) });
+    if (res.ok) { setNewTipoNome(''); fetchData(); alert('Tipo criado!'); }
+    else alert('Erro ao criar tipo');
+  };
+
+  const handleDeletarTipo = async (id) => {
+    if (!isAdmin || !window.confirm('Apagar tipo de evento?')) return;
+    const res = await fetch(`${apiBase}/api/eventos/tipos/${id}`, { method: 'DELETE', headers });
+    if (res.ok) fetchData();
+  };
+
+  const startEditEvento = (ev) => {
+    setEditingEvento(ev.id);
+    setEditEventoForm({
+        nomes_principais: ev.nomes_principais,
+        data_evento: ev.data_evento?.split('T')[0],
+        tipo_evento: ev.tipo_evento,
+        grupo_id: ev.grupo_id,
+        frequencia_lembrete: ev.frequencia_lembrete || 'anual',
+        prioridade: ev.prioridade || 'normal'
+    });
+  };
+
+  const handleUpdateEvento = async () => {
+    const res = await fetch(`${apiBase}/api/eventos/${editingEvento}`, {
+        method: 'PUT',
+        headers: jsonHeaders,
+        body: JSON.stringify({ ...editEventoForm, usuario_id: user.id })
+    });
+    if (res.ok) { alert('Evento atualizado!'); setEditingEvento(null); fetchData(); }
+    else alert('Falha ao atualizar');
+  };
+
+  const fetchHistorico = async (id) => {
+    const res = await fetch(`${apiBase}/api/eventos/${id}/historico`, { headers });
+    if (res.ok) {
+        setHistoricoAlteracoes(await res.json());
+        setShowHistoryFor(id);
+    }
+  };
+
   const apagarEvento = async (id) => {
     if (!isAdmin) return alert('Só Admins!');
     if (window.confirm('Apagar?')) { await fetch(`${apiBase}/api/eventos/${id}`, { method: 'DELETE', headers }); fetchData(); }
@@ -425,8 +481,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               <input type="text" className="inline-input" placeholder="Nomes (Ex: João e Maria)" value={formNomes} onChange={e=>setFormNomes(e.target.value)} required />
               <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
               <select className="inline-input" style={{flex:'0.25'}} value={formTipo} onChange={e=>setFormTipo(e.target.value)}>
-                <option value="casamento">Casamento</option><option value="aniversario">Aniversário</option>
-                <option value="batizado">Batizado</option><option value="formatura">Formatura</option>
+                {tiposEvento.map(t => <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>)}
+                {tiposEvento.length === 0 && <><option value="casamento">Casamento</option><option value="aniversario">Aniversário</option></>}
               </select>
               <GrupoSelect value={formGrupo} onChange={e => {
                 if (e.target.value === '__manual__') { const id = prompt('Cole o ID do grupo:'); if (id) setFormGrupo(id); }
@@ -479,8 +535,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           <input type="text" className="inline-input" placeholder="Nomes" value={formNomes} onChange={e=>setFormNomes(e.target.value)} required />
           <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
           <select className="inline-input" style={{flex:'0.25'}} value={formTipo} onChange={e=>setFormTipo(e.target.value)}>
-            <option value="casamento">Casamento</option><option value="aniversario">Aniversário</option>
-            <option value="batizado">Batizado</option><option value="formatura">Formatura</option>
+            {tiposEvento.map(t => <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>)}
+            {tiposEvento.length === 0 && <><option value="casamento">Casamento</option><option value="aniversario">Aniversário</option></>}
           </select>
           <GrupoSelect value={formGrupo} onChange={e => { if (e.target.value==='__manual__') { const id=prompt('ID:'); if(id)setFormGrupo(id); } else setFormGrupo(e.target.value); }} />
           <select className="inline-input" style={{flex:'0.22'}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
@@ -527,7 +583,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                     canEdit && <label className="btn-mini" style={{cursor:'pointer'}}>📎 Foto<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>handleUploadFoto(ev.id, e.target.files[0])} /></label>
                   )}
                 </td>
-                <td>{isAdmin && <button onClick={()=>apagarEvento(ev.id)} className="btn-danger-text">✖</button>}</td>
+                <td style={{whiteSpace:'nowrap'}}>
+                    {canEdit && <button onClick={()=>startEditEvento(ev)} className="btn-submit" style={{padding:'4px 8px', fontSize:'0.7rem', marginRight:'4px', background:'#3b82f6'}}>✏️ Editar</button>}
+                    <button onClick={()=>fetchHistorico(ev.id)} className="btn-submit" style={{padding:'4px 8px', fontSize:'0.7rem', marginRight:'4px', background:'#64748b'}}>📜 Hist.</button>
+                    {isAdmin && <button onClick={()=>apagarEvento(ev.id)} className="btn-danger-text">✖</button>}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -748,6 +808,25 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             </table>
           </div>
         </div>
+        <div className="panel-card" style={{marginBottom:'1.5rem'}}>
+          <div className="panel-title">🎨 Customizar Tipos de Evento</div>
+          <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1rem'}}>Crie novos tipos de eventos que aparecerão nos formulários e calendários.</p>
+          <form className="inline-form" onSubmit={handleCreateTipo} style={{marginBottom:'1rem'}}>
+            <input type="text" className="inline-input" placeholder="Novo Tipo (Ex: Inauguração)" value={newTipoNome} onChange={e=>setNewTipoNome(e.target.value)} required />
+            <input type="color" className="inline-input" style={{width:'60px', padding:0}} value={newTipoCor} onChange={e=>setNewTipoCor(e.target.value)} />
+            <button type="submit" className="btn-submit">+ Adicionar</button>
+          </form>
+          <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap'}}>
+            {tiposEvento.map(t => (
+                <div key={t.id} style={{background:'#f8fafc', border:'1px solid #e2e8f0', padding:'0.5rem 1rem', borderRadius:'20px', display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                    <div style={{width:'12px', height:'12px', borderRadius:'50%', background:t.cor}}></div>
+                    <span style={{fontWeight:500}}>{t.nome}</span>
+                    <button onClick={()=>handleDeletarTipo(t.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', fontWeight:'bold', fontSize:'1.1rem'}}>×</button>
+                </div>
+            ))}
+          </div>
+        </div>
+
         <div className="panel-card">
           <div className="panel-title">💾 Backups da Base de Dados</div>
           <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1rem'}}>Os backups diários são gerados automaticamente às 00:00 (hora de Maputo). Backups com mais de 15 dias são apagados para evitar encher o disco.</p>
@@ -928,13 +1007,16 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>setActiveTab('logs')}><span>📖</span><span>Histórico</span></div>}
           <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>setActiveTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>
         </nav>
-        <div className="sidebar-footer">
-          <div className="user-avatar">{user?.nome?.charAt(0) || 'U'}</div>
-          <div className="user-info">
-            <h4>{user?.nome || 'Utilizador'}</h4>
-            <p>{isAdmin ? 'Administrador' : (isEditor ? 'Editor' : 'Leitor')}</p>
+        <div className="sidebar-footer" style={{padding:'1rem', borderTop:'1px solid #1e293b', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+          <div style={{display:'flex', alignItems:'center', gap:'0.8rem'}}>
+            <div className="user-avatar" style={{width:'32px', height:'32px', fontSize:'0.9rem'}}>{user?.nome?.charAt(0) || 'U'}</div>
+            <div style={{overflow:'hidden'}}>
+              <div style={{fontSize:'0.85rem', fontWeight:600, color:'#f1f5f9', whiteSpace:'nowrap', textOverflow:'ellipsis'}}>{user?.nome || 'Utilizador'}</div>
+              <div style={{fontSize:'0.7rem', color:'#94a3b8'}}>{isAdmin ? 'Admin' : (isEditor ? 'Editor' : 'Leitor')}</div>
+            </div>
           </div>
-          <div style={{cursor:'pointer',marginLeft:'auto',color:'#94a3b8'}} onClick={onLogout} title="Sair">🚪</div>
+          <button onClick={onLogout} style={{background:'none', border:'none', color:'#94a3b8', cursor:'pointer', fontSize:'1.2rem'}} title="Sair">🚪</button>
+        </div>
         </div>
       </aside>
 
@@ -969,6 +1051,91 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           {activeTab === 'configuracoes' && renderConfig()}
         </div>
       </main>
+
+      {/* OVERLAY: EDITAR EVENTO */}
+      {editingEvento && (
+        <Overlay title="✏️ Editar Evento" onClose={()=>setEditingEvento(null)}>
+            <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
+                <div>
+                    <label style={{display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem', color:'#475569'}}>Nome do Cliente/Evento</label>
+                    <input className="inline-input" style={{width:'100%'}} value={editEventoForm.nomes_principais} onChange={e=>setEditEventoForm({...editEventoForm, nomes_principais: e.target.value})} />
+                </div>
+                
+                <div style={{display:'flex', gap:'1rem'}}>
+                    <div style={{flex:1}}>
+                        <label style={{display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem', color:'#475569'}}>Data</label>
+                        <input type="date" className="inline-input" style={{width:'100%'}} value={editEventoForm.data_evento} onChange={e=>setEditEventoForm({...editEventoForm, data_evento: e.target.value})} />
+                    </div>
+                    <div style={{flex:1}}>
+                        <label style={{display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem', color:'#475569'}}>Tipo</label>
+                        <select className="inline-input" style={{width:'100%'}} value={editEventoForm.tipo_evento} onChange={e=>setEditEventoForm({...editEventoForm, tipo_evento: e.target.value})}>
+                            {tiposEvento.map(t => <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>)}
+                        </select>
+                    </div>
+                </div>
+
+                <div style={{display:'flex', gap:'1rem'}}>
+                    <div style={{flex:1}}>
+                        <label style={{display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem', color:'#475569'}}>Frequência</label>
+                        <select className="inline-input" style={{width:'100%'}} value={editEventoForm.frequencia_lembrete} onChange={e=>setEditEventoForm({...editEventoForm, frequencia_lembrete: e.target.value})}>
+                            <option value="anual">📅 Anual</option>
+                            <option value="mensal">🔄 Mensal</option>
+                            <option value="semanal">📆 Semanal</option>
+                            <option value="diario">⏰ Diário</option>
+                        </select>
+                    </div>
+                    <div style={{flex:1}}>
+                        <label style={{display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem', color:'#475569'}}>Prioridade</label>
+                        <select className="inline-input" style={{width:'100%', border: editEventoForm.prioridade==='urgente'?'2px solid #ef4444':''}} value={editEventoForm.prioridade} onChange={e=>setEditEventoForm({...editEventoForm, prioridade: e.target.value})}>
+                            <option value="normal">🟢 Normal</option>
+                            <option value="urgente">🚨 URGENTE</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style={{display:'flex', gap:'0.75rem', marginTop:'1.5rem'}}>
+                    <button onClick={handleUpdateEvento} className="btn-submit" style={{flex:1, padding:'0.8rem'}}>💾 Guardar Alterações</button>
+                    <button onClick={()=>setEditingEvento(null)} className="btn-submit" style={{flex:0.4, background:'#64748b', padding:'0.8rem'}}>Cancelar</button>
+                </div>
+            </div>
+        </Overlay>
+      )}
+
+      {/* OVERLAY: HISTÓRICO */}
+      {showHistoryFor && (
+        <Overlay title="📜 Histórico de Alterações" onClose={()=>setShowHistoryFor(null)}>
+            <div style={{maxHeight:'60vh', overflowY:'auto'}}>
+                {historicoAlteracoes.length === 0 ? <p className="text-muted">Nenhuma alteração registada para este evento.</p> : (
+                    <div className="table-responsive">
+                        <table className="table-minimal">
+                            <thead><tr><th>Data</th><th>Autor</th><th>Ação</th></tr></thead>
+                            <tbody>
+                                {historicoAlteracoes.map(h => (
+                                    <tr key={h.id}>
+                                        <td className="text-small" style={{whiteSpace:'nowrap'}}>{new Date(h.data_alteracao).toLocaleString('pt-PT')}</td>
+                                        <td className="fw-bold">{h.usuario_nome || 'Sistema'}</td>
+                                        <td className="text-small">Atualização de dados</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </Overlay>
+      )}
     </div>
   );
 }
+
+const Overlay = ({ children, onClose, title }) => (
+    <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(4px)'}}>
+        <div className="panel-card" style={{maxWidth:'600px', width:'100%', boxShadow:'0 25px 50px -12px rgb(0 0 0 / 0.25)', animation:'slideUp 0.3s ease-out'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem', borderBottom:'1px solid #e2e8f0', paddingBottom:'1rem'}}>
+                <div className="panel-title" style={{margin:0, fontSize:'1.25rem'}}>{title}</div>
+                <button onClick={onClose} style={{background:'none', border:'none', fontSize:'1.5rem', cursor:'pointer', color:'#64748b'}}>×</button>
+            </div>
+            {children}
+        </div>
+    </div>
+);

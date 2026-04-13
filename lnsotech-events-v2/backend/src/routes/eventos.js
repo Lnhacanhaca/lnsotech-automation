@@ -122,6 +122,35 @@ router.get('/feed.ics', async (req, res) => {
     }
 });
 
+// ========== TIPOS DE EVENTOS ========== //
+router.get('/tipos', async (req, res) => {
+    try {
+        const { rows } = await req.db.query('SELECT * FROM tipos_evento ORDER BY nome ASC');
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({erro: 'Falha buscar tipos de evento'});
+    }
+});
+
+router.post('/tipos', async (req, res) => {
+    const { nome, cor } = req.body;
+    try {
+        await req.db.query('INSERT INTO tipos_evento (nome, cor) VALUES ($1, $2)', [nome.toLowerCase(), cor || '#3b82f6']);
+        res.json({sucesso: true});
+    } catch (error) {
+        res.status(500).json({erro: 'Falha ao criar tipo de evento. Nome pode já existir.'});
+    }
+});
+
+router.delete('/tipos/:id', async (req, res) => {
+    try {
+        await req.db.query('DELETE FROM tipos_evento WHERE id = $1', [req.params.id]);
+        res.json({sucesso: true});
+    } catch (error) {
+        res.status(500).json({erro: 'Falha ao apagar tipo de evento'});
+    }
+});
+
 // ========== TEMPLATES DE MENSAGENS ========== //
 router.get('/templates', async (req, res) => {
     try {
@@ -139,6 +168,56 @@ router.put('/templates/:id', async (req, res) => {
         res.json({sucesso: true});
     } catch (error) {
         res.status(500).json({erro: 'Falha atualizar template'});
+    }
+});
+
+// ========== EDITAR EVENTO (PUT com Histórico) ========== //
+router.put('/:id', async (req, res) => {
+    const { id } = req.params;
+    const { nomes_principais, data_evento, tipo_evento, grupo_id, frequencia_lembrete, prioridade, usuario_id } = req.body;
+
+    try {
+        // 1. Buscar dados atuais para o histórico
+        const oldState = await req.db.query('SELECT * FROM eventos WHERE id = $1', [id]);
+        if (oldState.rows.length === 0) return res.status(404).json({ erro: 'Evento não encontrado' });
+
+        // 2. Atualizar evento
+        const query = `
+            UPDATE eventos 
+            SET nomes_principais = $1, data_evento = $2, tipo_evento = $3, 
+                grupo_id = $4, frequencia_lembrete = $5, prioridade = $6,
+                atualizado_em = CURRENT_TIMESTAMP
+            WHERE id = $7
+        `;
+        await req.db.query(query, [nomes_principais, data_evento, tipo_evento, grupo_id, frequencia_lembrete, prioridade || 'normal', id]);
+
+        // 3. Registar no histórico
+        await req.db.query(
+            'INSERT INTO historico_eventos (evento_id, usuario_id, dados_anteriores, dados_novos) VALUES ($1, $2, $3, $4)',
+            [id, usuario_id, JSON.stringify(oldState.rows[0]), JSON.stringify(req.body)]
+        );
+
+        res.json({ mensagem: 'Evento atualizado com sucesso' });
+    } catch (err) {
+        console.error('Erro ao atualizar evento:', err);
+        res.status(500).json({ erro: 'Erro ao atualizar evento' });
+    }
+});
+
+// ========== HISTÓRICO DE UM EVENTO ========== //
+router.get('/:id/historico', async (req, res) => {
+    try {
+        const query = `
+            SELECT h.*, u.nome as usuario_nome 
+            FROM historico_eventos h
+            LEFT JOIN usuarios u ON h.usuario_id = u.id
+            WHERE h.evento_id = $1
+            ORDER BY h.data_alteracao DESC
+        `;
+        const { rows } = await req.db.query(query, [req.params.id]);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ erro: 'Falha buscar histórico' });
     }
 });
 
