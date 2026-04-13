@@ -29,6 +29,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserSenha, setNewUserSenha] = useState('');
   const [newUserRole, setNewUserRole] = useState('leitor');
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editUserForm, setEditUserForm] = useState({ nome: '', email: '', senha: '', nivel_acesso: 'leitor' });
 
   const csvRef = useRef(null);
 
@@ -148,6 +150,21 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const handleDeleteUser = async (id) => {
     if (window.confirm('Remover?')) { const res = await fetch(`${apiBase}/api/auth/usuarios/${id}`, { method: 'DELETE', headers }); if (res.ok) fetchData(); }
+  };
+
+  const startEditUser = (u) => {
+    setEditingUserId(u.id);
+    setEditUserForm({ nome: u.nome, email: u.email, senha: '', nivel_acesso: u.nivel_acesso });
+  };
+
+  const handleUpdateUser = async () => {
+    const res = await fetch(`${apiBase}/api/auth/usuarios/${editingUserId}`, {
+      method: 'PUT', headers: jsonHeaders,
+      body: JSON.stringify(editUserForm)
+    });
+    const d = await res.json();
+    if (res.ok) { alert('✅ ' + d.mensagem); setEditingUserId(null); fetchData(); }
+    else alert('❌ ' + (d.erro || 'Erro ao atualizar'));
   };
 
   const handleTesteConexao = async (grupoId, nomeGrupo) => {
@@ -439,11 +456,35 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th>Ações</th></tr></thead>
               <tbody>
                 {usuarios.length === 0 ? <tr><td colSpan="4">Nenhum utilizador encontrado.</td></tr> : usuarios.map(u => (
-                  <tr key={u.id}>
-                    <td>{u.nome}</td><td>{u.email}</td>
-                    <td><span className={`badge-role badge-${u.nivel_acesso}`}>{u.nivel_acesso?.toUpperCase()}</span></td>
-                    <td>{u.id !== 1 ? <button onClick={()=>handleDeleteUser(u.id)} className="btn-danger-text">✖ Remover</button> : <span className="text-muted">Root</span>}</td>
-                  </tr>
+                  editingUserId === u.id ? (
+                    <tr key={u.id} style={{background:'#f0f9ff'}}>
+                      <td><input className="inline-input" style={{width:'95%'}} value={editUserForm.nome} onChange={e=>setEditUserForm({...editUserForm,nome:e.target.value})} placeholder="Nome" /></td>
+                      <td>
+                        <input className="inline-input" style={{width:'95%',marginBottom:'3px'}} value={editUserForm.email} onChange={e=>setEditUserForm({...editUserForm,email:e.target.value})} placeholder="Email" />
+                        <input className="inline-input" style={{width:'95%',fontSize:'0.75rem'}} type="password" value={editUserForm.senha} onChange={e=>setEditUserForm({...editUserForm,senha:e.target.value})} placeholder="Nova senha (deixe vazio para manter)" />
+                      </td>
+                      <td>
+                        <select className="inline-input" value={editUserForm.nivel_acesso} onChange={e=>setEditUserForm({...editUserForm,nivel_acesso:e.target.value})}>
+                          <option value="admin">Admin</option>
+                          <option value="editor">Editor</option>
+                          <option value="leitor">Leitor</option>
+                        </select>
+                      </td>
+                      <td style={{whiteSpace:'nowrap'}}>
+                        <button onClick={handleUpdateUser} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem',marginRight:'4px'}}>💾 Salvar</button>
+                        <button onClick={()=>setEditingUserId(null)} className="btn-danger-text" style={{fontSize:'0.75rem'}}>✖</button>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={u.id}>
+                      <td>{u.nome}</td><td>{u.email}</td>
+                      <td><span className={`badge-role badge-${u.nivel_acesso}`}>{u.nivel_acesso?.toUpperCase()}</span></td>
+                      <td style={{whiteSpace:'nowrap'}}>
+                        {isAdmin && u.id !== 1 && <button onClick={()=>startEditUser(u)} className="btn-submit" style={{padding:'0.25rem 0.5rem',fontSize:'0.75rem',background:'#3b82f6',marginRight:'6px'}}>✏️ Editar</button>}
+                        {u.id !== 1 ? <button onClick={()=>handleDeleteUser(u.id)} className="btn-danger-text">✖ Remover</button> : <span className="text-muted">Root</span>}
+                      </td>
+                    </tr>
+                  )
                 ))}
               </tbody>
             </table>

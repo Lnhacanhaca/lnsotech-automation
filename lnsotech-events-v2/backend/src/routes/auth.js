@@ -96,4 +96,26 @@ router.delete('/usuarios/:id', async (req, res) => {
     }
 });
 
+// Editar Usuário
+router.put('/usuarios/:id', async (req, res) => {
+    const { nome, email, senha, nivel_acesso } = req.body;
+    try {
+        if (senha && senha.trim() !== '') {
+            const hashedPassword = await bcrypt.hash(senha, 10);
+            await req.db.query(
+                'UPDATE usuarios SET nome=$1, email=$2, senha=$3, nivel_acesso=$4 WHERE id=$5',
+                [nome, email, hashedPassword, nivel_acesso, req.params.id]
+            );
+        } else {
+            await req.db.query(
+                'UPDATE usuarios SET nome=$1, email=$2, nivel_acesso=$3 WHERE id=$4',
+                [nome, email, nivel_acesso, req.params.id]
+            );
+        }
+        res.json({ mensagem: 'Utilizador atualizado com sucesso' });
+    } catch (err) {
+        res.status(500).json({ erro: 'Falha ao atualizar utilizador. O email pode já estar em uso.' });
+    }
+});
+
 module.exports = router;
