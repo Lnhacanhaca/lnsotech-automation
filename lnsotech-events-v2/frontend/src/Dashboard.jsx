@@ -497,9 +497,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           <div className="panel-title">Novo Registo Expresso</div>
           {canEdit ? (
             <form className="inline-form" onSubmit={handleCreateEvento}>
-              <input type="text" className="inline-input" placeholder="Nomes (Ex: João e Maria)" value={formNomes} onChange={e=>setFormNomes(e.target.value)} required />
-              <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
-              <select className="inline-input" style={{flex:'0.25'}} value={formTipo} onChange={e=>{
+              {/* 1. Primeiro Escolhe o Tipo */}
+              <select className="inline-input" style={{flex:'0.3'}} value={formTipo} onChange={e=>{
                 if (e.target.value === '__novo__') {
                     const n = prompt('Nome do novo tipo de evento:');
                     if (n) {
@@ -509,14 +508,34 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                     }
                 } else setFormTipo(e.target.value);
               }}>
-                <option value="">-- Tipo --</option>
+                <option value="">-- Seleccione o Tipo --</option>
                 {tiposEvento.map(t => <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>)}
-                <option value="__novo__">➕ Adicionar outro...</option>
+                <option value="__novo__">➕ Criar Novo Tipo...</option>
               </select>
+
+              {/* 2. O Nome adapta-se ao Tipo */}
+              <input 
+                type="text" 
+                className="inline-input" 
+                placeholder={
+                  formTipo === 'casamento' ? "Nomes do Casal (Ex: João & Maria)" :
+                  formTipo === 'aniversario' ? "Nome do Aniversariante" :
+                  formTipo === 'batizado' ? "Nome da Criança" :
+                  formTipo === 'formatura' ? "Nome do Graduado" :
+                  formTipo ? `Nome para ${formTipo}` : "Selecione o tipo primeiro..."
+                }
+                value={formNomes} 
+                onChange={e=>setFormNomes(e.target.value)} 
+                required 
+              />
+
+              <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
+
               <GrupoSelect value={formGrupo} onChange={e => {
                 if (e.target.value === '__manual__') { const id = prompt('Cole o ID do grupo:'); if (id) setFormGrupo(id); }
                 else setFormGrupo(e.target.value);
               }} />
+
               <select className="inline-input" style={{flex:'0.25'}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
                 <option value="anual">📅 Anual</option>
                 <option value="mensal">🔄 Mensal</option>
@@ -561,9 +580,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       </div>
       {canEdit && (
         <form className="inline-form" onSubmit={handleCreateEvento} style={{background:'#f8fafc',padding:'1rem',borderRadius:'8px',border:'1px solid var(--border)'}}>
-          <input type="text" className="inline-input" placeholder="Nomes" value={formNomes} onChange={e=>setFormNomes(e.target.value)} required />
-          <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
-          <select className="inline-input" style={{flex:'0.25'}} value={formTipo} onChange={e=>{
+          <select className="inline-input" style={{flex:'0.3'}} value={formTipo} onChange={e=>{
             if (e.target.value === '__novo__') {
                 const n = prompt('Nome do novo tipo de evento:');
                 if (n) {
@@ -573,10 +590,22 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 }
             } else setFormTipo(e.target.value);
           }}>
-            <option value="">-- Tipo --</option>
+            <option value="">-- Tipo de Evento --</option>
             {tiposEvento.map(t => <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>)}
-            <option value="__novo__">➕ Adicionar outro...</option>
+            <option value="__novo__">➕ Adicionar Novo...</option>
           </select>
+
+          <input 
+            type="text" 
+            className="inline-input" 
+            placeholder={formTipo ? `Nomes para ${formTipo}` : "Selecione o tipo primeiro..."} 
+            value={formNomes} 
+            onChange={e=>setFormNomes(e.target.value)} 
+            required 
+          />
+          
+          <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
+          
           <GrupoSelect value={formGrupo} onChange={e => { if (e.target.value==='__manual__') { const id=prompt('ID:'); if(id)setFormGrupo(id); } else setFormGrupo(e.target.value); }} />
           <select className="inline-input" style={{flex:'0.22'}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
             <option value="anual">📅 Anual</option>
