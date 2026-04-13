@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-
-
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 export default function Dashboard({ token, user: rawUser, onLogout }) {
   // FIX: suportar tanto "nivel" (token antigo) como "nivel_acesso" (token novo)
   const user = { ...rawUser, nivel_acesso: rawUser.nivel_acesso || rawUser.nivel || 'leitor' };
@@ -310,7 +309,26 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   );
 
   /* ========== RENDER: DASHBOARD ========== */
-  const renderDashboard = () => (
+  /* ========== RENDER: DASHBOARD ========== */
+  const renderDashboard = () => {
+    // 1. Data for PieChart
+    const pieData = [
+      { name: 'Bodas', value: stats.totalBodas },
+      { name: 'Aniversários', value: stats.totalAniversarios },
+      { name: 'Outros', value: stats.totalEventos - stats.totalBodas - stats.totalAniversarios }
+    ].filter(d => d.value > 0);
+    const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
+    
+    // 2. Data for BarChart (Events by Month)
+    const monthCounts = Array(12).fill(0);
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    eventos.forEach(ev => {
+        const m = new Date(ev.data_evento).getMonth();
+        if(!isNaN(m)) monthCounts[m]++;
+    });
+    const barData = monthNames.map((m, i) => ({ name: m, Eventos: monthCounts[i] }));
+
+    return (
     <>
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-header">Eventos Totais<div className="stat-icon-wrapper bg-green-light">📈</div></div><div className="stat-value">{stats.totalEventos}</div></div>
@@ -318,9 +336,47 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         <div className="stat-card"><div className="stat-header">Lembretes Enviados<div className="stat-icon-wrapper bg-yellow-light">🔔</div></div><div className="stat-value">{stats.lembretesEnviados}</div></div>
         <div className="stat-card"><div className="stat-header">Falhas<div className="stat-icon-wrapper" style={{background:'#fee2e2'}}>⚠️</div></div><div className="stat-value" style={{color: stats.falhasHoje > 0 ? '#dc2626':'#10b981'}}>{stats.falhasHoje}</div></div>
       </div>
+      
+      {/* SECTION: GRÁFICOS COMPARATIVOS */}
+      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+        <div className="panel-card" style={{ flex: 1, minWidth: '350px' }}>
+          <div className="panel-title">Distribuição de Eventos por Mês</div>
+          <p className="text-muted" style={{fontSize: '0.85rem', marginBottom: '1rem'}}>Análise do volume de agendamentos ao longo do ano para antecipar picos de alertas.</p>
+          <div style={{ width: '100%', height: 260 }}>
+            <ResponsiveContainer>
+              <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
+                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
+                <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                <Bar dataKey="Eventos" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        <div className="panel-card" style={{ flex: 0.6, minWidth: '280px' }}>
+          <div className="panel-title">Proporção de Tipos</div>
+          <p className="text-muted" style={{fontSize: '0.85rem', marginBottom: '1rem'}}>Divisão da natureza dos eventos marcados.</p>
+          <div style={{ width: '100%', height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {stats.totalEventos === 0 ? <p className="text-muted">Sem dados suficientes.</p> : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={65} outerRadius={85} paddingAngle={5} dataKey="value">
+                    {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{fontSize: '12px'}} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="middle-grid">
         <div className="panel-card" style={{gap:'1rem'}}>
-          <div className="panel-title">Novo Registo</div>
+          <div className="panel-title">Novo Registo Expresso</div>
           {canEdit ? (
             <form className="inline-form" onSubmit={handleCreateEvento}>
               <input type="text" className="inline-input" placeholder="Nomes (Ex: João e Maria)" value={formNomes} onChange={e=>setFormNomes(e.target.value)} required />
@@ -342,31 +398,21 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               <button type="submit" className="btn-submit" disabled={loading}>+ Guardar</button>
             </form>
           ) : <div className="text-muted">Apenas admins/editores podem registar.</div>}
-          <div className="panel-title" style={{marginTop:'1rem'}}>Últimos 5 Registos</div>
+          <div className="panel-title" style={{marginTop:'1.5rem'}}>Últimos Registos</div>
           <table className="table-minimal">
             <thead><tr><th>Nomes</th><th>Tipo</th><th style={{textAlign:'right'}}>Data</th></tr></thead>
             <tbody>
               {loading ? <tr><td colSpan="3">A carregar...</td></tr> : eventos.length === 0 ? <tr><td colSpan="3">Sem eventos.</td></tr> :
                 eventos.slice(0,5).map(ev => (
-                  <tr key={ev.id}><td className="fw-bold">{ev.nomes_principais}</td><td><span className="badge-tipo">{ev.tipo_evento}</span></td><td style={{textAlign:'right'}}>{new Date(ev.data_evento).toLocaleDateString()}</td></tr>
+                  <tr key={ev.id}><td className="fw-bold">{ev.nomes_principais}</td><td><span className="badge-tipo">{ev.tipo_evento}</span></td><td style={{textAlign:'right'}}>{new Date(ev.data_evento).toLocaleDateString('pt-PT')}</td></tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div className="panel-card">
-          <div className="panel-title">Distribuição</div>
-          <div className="pie-container">
-            <div className="pie-chart"><div className="pie-inner">{percBodas}%<span style={{fontSize:'0.6rem',color:'#64748b',fontWeight:400}}>Bodas</span></div></div>
-            <div className="pie-legend">
-              <div className="legend-item"><div className="dot blue"></div> Aniversários ({stats.totalAniversarios})</div>
-              <div className="legend-item"><div className="dot green"></div> Bodas ({stats.totalBodas})</div>
-              <div className="legend-item"><div className="dot yellow"></div> Outros ({stats.totalEventos - stats.totalBodas - stats.totalAniversarios})</div>
-            </div>
-          </div>
-        </div>
       </div>
     </>
   );
+  };
 
   /* ========== RENDER: EVENTOS ========== */
   const renderEventos = () => (
