@@ -150,9 +150,22 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (window.confirm('Remover?')) { const res = await fetch(`${apiBase}/api/auth/usuarios/${id}`, { method: 'DELETE', headers }); if (res.ok) fetchData(); }
   };
 
-  const handleTesteConexao = async (grupoId) => {
-    const res = await fetch(`${apiBase}/api/eventos/teste-conexao`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ grupo_id: grupoId }) });
-    const d = await res.json(); alert(d.mensagem || d.erro);
+  const handleTesteConexao = async (grupoId, nomeGrupo) => {
+    const code = Math.floor(1000 + Math.random() * 9000);
+    const userInput = window.prompt(`PERIGO: Você está prestes a enviar uma mensagem de teste para todos os membros do grupo "${nomeGrupo || 'este grupo'}".\n\nIsso pode incomodar os clientes.\nPara confirmar, digite exatamente este código de segurança:\n${code}`);
+    
+    if (userInput !== code.toString()) {
+        if (userInput !== null) alert('Operação cancelada! O código inserido está incorreto.');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${apiBase}/api/eventos/teste-conexao`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ grupo_id: grupoId }) });
+        const d = await res.json();
+        alert(d.mensagem || d.erro);
+    } catch(err) {
+        alert('Erro ao testar comunicação');
+    }
   };
 
   const percBodas = stats.totalEventos > 0 ? Math.round((stats.totalBodas / stats.totalEventos) * 100) : 0;
@@ -318,7 +331,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                   <td className="text-small" style={{fontFamily:'monospace',fontSize:'0.7rem'}}>{g.id}</td>
                   <td>
                     <div className="toolbar-buttons">
-                      {isAdmin && <button onClick={()=>handleTesteConexao(g.id)} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem'}}>🤖 Testar</button>}
+                      {isAdmin && <button onClick={()=>handleTesteConexao(g.id, g.nome)} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem'}}>🤖 Testar</button>}
                       <button onClick={()=>{navigator.clipboard.writeText(g.id); alert('ID copiado!')}} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem',background:'#475569'}}>📋 Copiar ID</button>
                     </div>
                   </td>

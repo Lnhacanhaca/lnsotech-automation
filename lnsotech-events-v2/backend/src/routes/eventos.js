@@ -245,16 +245,28 @@ router.post('/whatsapp-reconectar', async (req, res) => {
         const path = require('path');
         const authDir = path.resolve(__dirname, '../../auth_info_baileys');
         
-        // Apagar sessão para forçar novo QR
+        // Em vez de apagar a pasta toda (que está montada em volume Docker e dá EBUSY), limpamos o conteúdo
         if (fs.existsSync(authDir)) {
-            fs.rmSync(authDir, { recursive: true, force: true });
-            console.log('[Admin] Sessão WhatsApp apagada para reconexão');
+            const files = fs.readdirSync(authDir);
+            for (const file of files) {
+                try {
+                    fs.unlinkSync(path.join(authDir, file));
+                } catch (e) {
+                    console.log(`[Reconectar] Aviso ao apagar ${file}:`, e.message);
+                }
+            }
+            console.log('[Admin] Conteúdo da sessão WhatsApp apagado para reconexão');
+        }
+
+        // Se o socket existe, tentamos fazer logout (destrói as credenciais com mais segurança, se estiver logado)
+        if (global.waSocket) {
+            try { await global.waSocket.logout(); } catch(e) {}
         }
         
         global.waState = { qr: null, status: 'a_reconectar', lastUpdate: new Date().toISOString() };
         
         // Reiniciar o bot (o próprio Docker vai reiniciar o container)
-        res.json({ mensagem: 'Sessão apagada! O container vai reiniciar automaticamente. Aguarde o novo QR Code aparecer no painel (pode demorar 10-30 segundos).' });
+        res.json({ mensagem: 'Sessão apagada! O sistema vai reiniciar para gerar novo QR Code (pode demorar 10 a 20 segundos).' });
         
         // Forçar saída para o Docker reiniciar o container
         setTimeout(() => { process.exit(0); }, 2000);
