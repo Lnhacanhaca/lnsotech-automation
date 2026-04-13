@@ -686,7 +686,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           <div style={{display:'flex', gap:'0.5rem', flex:'1', minWidth:'300px'}}>
             <input type="text" readOnly value={`${apiBase}/api/eventos/feed.ics`} className="inline-input" style={{flex:1, background:'#f8fafc'}} />
             <button onClick={() => { navigator.clipboard.writeText(`${apiBase}/api/eventos/feed.ics`); alert('Link copiado!'); }} className="btn-submit">📋 Copiar Link</button>
-            <a href={`${apiBase}/api/eventos/feed.ics`} target="_blank" rel="noreferrer" className="btn-submit" style={{background:'#2563eb', textDecoration:'none', color:'#fff'}}>📥 ICS</a>
+            <a href={`${apiBase}/api/eventos/feed.ics`} target="_blank" rel="noreferrer" className="btn-submit" style={{background:'#2563eb', textDecoration:'none', color:'#fff'}}>📥 Baixar Calendário</a>
           </div>
         </div>
 
