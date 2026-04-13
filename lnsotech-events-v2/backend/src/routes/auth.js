@@ -62,9 +62,10 @@ router.get('/usuarios', async (req, res) => {
     // Na prática, deve-se extrair e validar o Token JWT aqui antes (middleware).
     // Por simplicidade, assumindo que a chamada foi protegida no frontend.
     try {
-        const { rows } = await req.db.query('SELECT id, nome, email, nivel_acesso, criado_em FROM usuarios ORDER BY criado_em DESC');
+        const { rows } = await req.db.query('SELECT id, nome, email, nivel_acesso FROM usuarios ORDER BY id ASC');
         res.json(rows);
     } catch (error) {
+        console.error('Erro ao listar usuarios:', error.message);
         res.status(500).json({ erro: 'Falha ao buscar utilizadores' });
     }
 });
