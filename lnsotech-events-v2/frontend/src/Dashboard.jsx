@@ -99,7 +99,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         Swal.fire({ icon: 'success', title: 'Sucesso', text: 'Configuração atualizada!', timer: 2000, showConfirmButton: false });
         fetchConfigs();
       }
-    } catch (e) { Swal.fire('Erro', 'Falha ao salvar', 'error'); }
+    } catch (e) { 
+      console.error(e);
+      Swal.fire('Erro', 'Falha ao salvar configuração: ' + e.message, 'error'); 
+    }
   };
 
   const handleTestarLembretes = async () => {
@@ -117,11 +120,18 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (result.isConfirmed) {
       Swal.fire({ title: 'A processar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       try {
-        const r = await fetch(`${apiBase}/api/eventos/testar-lembretes`, { method: 'POST', headers });
+        const r = await fetch(`${apiBase}/api/eventos/testar-lembretes`, { method: 'POST', headers: jsonHeaders });
         const data = await r.json();
-        Swal.fire('Concluído', data.mensagem || 'Disparo finalizado!', 'success');
-        if (isAdmin) fetchLogs();
-      } catch (e) { Swal.fire('Erro', 'Falha na conexão', 'error'); }
+        if (r.ok) {
+            Swal.fire('Concluído', data.mensagem || 'Disparo finalizado!', 'success');
+            if (isAdmin) fetchData();
+        } else {
+            Swal.fire('Erro', data.erro || 'Erro no processamento', 'error');
+        }
+      } catch (e) { 
+        console.error(e);
+        Swal.fire('Erro', 'Falha na conexão com o servidor de lembretes: ' + e.message, 'error'); 
+      }
     }
   };
 
@@ -1077,12 +1087,42 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               <tbody>
                 {usuarios.map(u => (
                   <tr key={u.id}>
-                    <td>{u.nome} {u.id === user.id && '(Eu)'}</td>
-                    <td>{u.email}</td>
-                    <td style={{color: u.nivel_acesso==='admin'?'#ef4444':u.nivel_acesso==='editor'?'#3b82f6':'#64748b', fontWeight:600}}>{u.nivel_acesso.toUpperCase()}</td>
+                    <td>
+                        {editingUserId === u.id ? (
+                            <input className="inline-input" value={editUserForm.nome} onChange={e=>setEditUserForm({...editUserForm, nome: e.target.value})} />
+                        ) : (
+                            <span>{u.nome} {u.id === 1 && <strong style={{color:'#f59e0b', fontSize:'0.7rem'}}>(ROOT)</strong>} {u.id === user.id && '(Eu)'}</span>
+                        )}
+                    </td>
+                    <td>
+                        {editingUserId === u.id ? (
+                            <input className="inline-input" value={editUserForm.email} onChange={e=>setEditUserForm({...editUserForm, email: e.target.value})} />
+                        ) : u.email}
+                    </td>
+                    <td>
+                        {editingUserId === u.id ? (
+                            <select className="inline-input" value={editUserForm.nivel_acesso} onChange={e=>setEditUserForm({...editUserForm, nivel_acesso: e.target.value})}>
+                                <option value="leitor">LEITOR</option>
+                                <option value="editor">EDITOR</option>
+                                <option value="admin">ADMIN</option>
+                            </select>
+                        ) : (
+                            <span style={{color: u.nivel_acesso==='admin'?'#ef4444':u.nivel_acesso==='editor'?'#3b82f6':'#64748b', fontWeight:600}}>{u.nivel_acesso.toUpperCase()}</span>
+                        )}
+                    </td>
                     <td style={{textAlign:'right'}}>
-                      {u.id !== user.id && (
-                        <button onClick={() => handleDeleteUsuario(u.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                      {editingUserId === u.id ? (
+                          <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                              <button onClick={handleUpdateUser} className="btn-action" style={{color:'#10b981'}}>Salvar</button>
+                              <button onClick={()=>setEditingUserId(null)} className="btn-action">Cancelar</button>
+                          </div>
+                      ) : (
+                        <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                          <button onClick={() => startEditUser(u)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
+                          {u.id !== 1 && u.id !== user.id && (
+                            <button onClick={() => handleDeleteUsuario(u.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>
