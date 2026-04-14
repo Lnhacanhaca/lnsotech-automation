@@ -96,6 +96,32 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     } catch (e) { console.error(e); }
   };
 
+  const renderDiff = (oldData, newData) => {
+    try {
+      const old = typeof oldData === 'string' ? JSON.parse(oldData) : oldData;
+      const current = typeof newData === 'string' ? JSON.parse(newData) : newData;
+      const fields = [
+        { key: 'nomes_principais', label: 'Nome' },
+        { key: 'data_evento', label: 'Data' },
+        { key: 'tipo_evento', label: 'Tipo' },
+        { key: 'grupo_id', label: 'Grupo' },
+        { key: 'frequencia_lembrete', label: 'Frequência' },
+        { key: 'prioridade', label: 'Prioridade' }
+      ];
+      const diffs = fields.filter(f => String(old[f.key]||'').trim() !== String(current[f.key]||'').trim());
+      if (diffs.length === 0) return <span className="text-muted" style={{fontSize:'0.7rem'}}>Atualização geral.</span>;
+      return (
+        <ul style={{margin:0, padding:'0 0 0 1rem', fontSize:'0.75rem', color:'#475569'}}>
+          {diffs.map(d => (
+            <li key={d.key} style={{marginBottom:'0.2rem'}}>
+              <span style={{fontWeight:600}}>{d.label}:</span> <span style={{textDecoration:'line-through', color:'#94a3b8'}}>{old[d.key] || 'vazio'}</span> → <span style={{color:'#10b981', fontWeight:600}}>{current[d.key] || 'vazio'}</span>
+            </li>
+          ))}
+        </ul>
+      );
+    } catch (e) { return <span className="text-muted" style={{fontSize:'0.7rem'}}>Registo antigo.</span>; }
+  };
+
   const handleSaveConfig = async (chave, valor) => {
     console.log(`[Config] A salvar ${chave} com valor: ${valor}`);
     try {
@@ -1710,13 +1736,15 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 {historicoAlteracoes.length === 0 ? <p className="text-muted">Nenhuma alteração registada para este evento.</p> : (
                     <div className="table-responsive">
                         <table className="table-minimal">
-                            <thead><tr><th>Data</th><th>Autor</th><th>Ação</th></tr></thead>
+                            <thead><tr><th>Data</th><th>Autor</th><th>Alterações</th></tr></thead>
                             <tbody>
                                 {historicoAlteracoes.map(h => (
                                     <tr key={h.id}>
-                                        <td className="text-small" style={{whiteSpace:'nowrap'}}>{new Date(h.data_alteracao).toLocaleString('pt-PT')}</td>
-                                        <td className="fw-bold">{h.usuario_nome || 'Sistema'}</td>
-                                        <td className="text-small">Atualização de dados</td>
+                                        <td className="text-small" style={{whiteSpace:'nowrap', verticalAlign:'top'}}>{new Date(h.data_alteracao).toLocaleString('pt-PT')}</td>
+                                        <td className="fw-bold" style={{verticalAlign:'top'}}>{h.usuario_nome || 'Sistema'}</td>
+                                        <td>
+                                            {renderDiff(h.dados_anteriores, h.dados_novos)}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>

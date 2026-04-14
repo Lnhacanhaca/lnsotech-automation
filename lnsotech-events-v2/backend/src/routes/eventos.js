@@ -392,27 +392,27 @@ router.get('/logs', async (req, res) => {
 router.delete('/logs', async (req, res) => {
     try {
         await req.db.query('BEGIN');
-        await req.db.query('DELETE FROM logs_envio');
-        await req.db.query('DELETE FROM historico_eventos');
+        // Apenas apagar logs com mais de 7 dias
+        await req.db.query("DELETE FROM logs_envio WHERE criado_em < NOW() - INTERVAL '7 days'");
+        await req.db.query("DELETE FROM historico_eventos WHERE data_alteracao < NOW() - INTERVAL '7 days'");
         await req.db.query('COMMIT');
-        res.json({ sucesso: true, mensagem: 'Histórico limpo' });
+        res.json({ sucesso: true, mensagem: 'Histórico antigo (mais de 7 dias) limpo com sucesso' });
     } catch (error) {
         await req.db.query('ROLLBACK');
-        res.status(500).json({ erro: 'Falha ao limpar' });
+        res.status(500).json({ erro: 'Falha ao aplicar política de retenção' });
     }
 });
 
-// Rota de fallback usando POST (mais compatível com alguns proxies/firewalls)
+// Rota de fallback usando POST
 router.post('/logs/limpar', async (req, res) => {
     try {
         await req.db.query('BEGIN');
-        await req.db.query('DELETE FROM logs_envio');
-        await req.db.query('DELETE FROM historico_eventos');
+        await req.db.query("DELETE FROM logs_envio WHERE criado_em < NOW() - INTERVAL '7 days'");
+        await req.db.query("DELETE FROM historico_eventos WHERE data_alteracao < NOW() - INTERVAL '7 days'");
         await req.db.query('COMMIT');
-        res.json({ sucesso: true, mensagem: 'Histórico completo limpo via POST' });
+        res.json({ sucesso: true, mensagem: 'Limpeza concluída. Registos dos últimos 7 dias foram preservados por segurança.' });
     } catch (error) {
         await req.db.query('ROLLBACK');
-        console.error('Erro ao limpar logs (POST):', error);
         res.status(500).json({ erro: 'Falha ao limpar histórico via POST' });
     }
 });
