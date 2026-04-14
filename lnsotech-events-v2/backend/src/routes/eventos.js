@@ -307,14 +307,18 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// ========== SERVIR FOTO VIA API (Garante que funciona em qualquer Proxy) ========== //
-router.get('/foto/:filename', (req, res) => {
-    const filePath = path.join(__dirname, '../../uploads/', req.params.filename);
-    console.log(`[DEBUG] Tentando carregar foto: ${filePath}`);
+// ========== SERVIR FOTO VIA API (Camuflado para evitar bloqueio de Nginx) ========== //
+router.get('/ver-foto', (req, res) => {
+    const filename = req.query.file;
+    if (!filename) return res.status(400).send('Ficheiro não especificado');
+    
+    // Remover o prefixo /uploads/ se vier no query
+    const cleanName = filename.replace('/uploads/', '');
+    const filePath = path.join(__dirname, '../../uploads/', cleanName);
+    
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
     } else {
-        console.error(`[ERR] Foto não encontrada no disco: ${filePath}`);
         res.status(404).send('Foto não encontrada');
     }
 });
