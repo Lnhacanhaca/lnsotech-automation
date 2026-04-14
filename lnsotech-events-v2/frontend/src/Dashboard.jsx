@@ -485,7 +485,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
     if (res.isConfirmed) {
         try {
-            const r = await fetch(`${apiBase}/api/eventos/logs`, { method: 'DELETE', headers });
+            const r = await fetch(`${apiBase}/api/eventos/logs/limpar`, { method: 'POST', headers });
             console.log('[Logs] Status da resposta:', r.status);
             if (r.ok) {
                 Swal.fire('Limpo!', 'O histórico de logs e alterações foi removido.', 'success');
