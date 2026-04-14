@@ -596,7 +596,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         <div className="stat-card"><div className="stat-header">Eventos Totais<div className="stat-icon-wrapper bg-green-light">📈</div></div><div className="stat-value">{stats.totalEventos}</div></div>
         <div className="stat-card"><div className="stat-header">Grupos Activos<div className="stat-icon-wrapper bg-green-light">💍</div></div><div className="stat-value">{stats.gruposAtivos}</div></div>
         <div className="stat-card"><div className="stat-header">Lembretes Enviados<div className="stat-icon-wrapper bg-yellow-light">🔔</div></div><div className="stat-value">{stats.lembretesEnviados}</div></div>
-        <div className="stat-card"><div className="stat-header">Falhas<div className="stat-icon-wrapper" style={{background:'#fee2e2'}}>⚠️</div></div><div className="stat-value" style={{color: stats.falhasHoje > 0 ? '#dc2626':'#10b981'}}>{stats.falhasHoje}</div></div>
+        <div className="stat-card" onClick={() => { setActiveTab('logs'); setLogFilter('falha'); }} style={{cursor:'pointer'}}>
+          <div className="stat-header">Falhas<div className="stat-icon-wrapper" style={{background:'#fee2e2'}}>⚠️</div></div>
+          <div className="stat-value" style={{color: stats.falhasHoje > 0 ? '#dc2626':'#10b981'}}>{stats.falhasHoje}</div>
+        </div>
       </div>
       
       {/* SECTION: GRÁFICOS COMPARATIVOS */}
@@ -907,19 +910,22 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   /* ========== RENDER: HISTÓRICO (LOGS) ========== */
   const renderLogs = () => {
-    const filteredLogs = logFilter === 'todos' ? logs : logs.filter(l => l.tipo_log === logFilter);
+    const filteredLogs = logFilter === 'todos' ? logs : 
+                         logFilter === 'falha' ? logs.filter(l => l.status === 'falha') :
+                         logs.filter(l => l.tipo_log === logFilter);
     return (
       <div className="panel-card">
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', marginBottom:'1rem'}}>
           <div className="panel-title" style={{margin:0}}>📖 Histórico de Interações (Audit)</div>
           <div style={{display:'flex', gap:'0.5rem'}}>
             <select className="inline-input" value={logFilter} onChange={e=>setLogFilter(e.target.value)} style={{margin:0, width:'200px'}}>
-              <option value="todos">Todos os Eventos</option>
-              <option value="lembrete_enviado">Lembretes Enviados</option>
-              <option value="auto_resposta">Respostas Automáticas</option>
-              <option value="registo_whatsapp">Criação via Bot</option>
-              <option value="erro_registo">Erros do Bot</option>
-              <option value="lembrete_falha">Falhas de Envio</option>
+              <option value="todos">🔍 Todos os Eventos</option>
+              <option value="falha">🚨 Falhas Críticas ({stats.falhasHoje})</option>
+              <option value="lembrete_enviado">✅ Lembretes Enviados</option>
+              <option value="auto_resposta">🤖 Respostas Automáticas</option>
+              <option value="registo_whatsapp">📱 Criação via Bot</option>
+              <option value="erro_registo">⚠️ Erros do Bot</option>
+              <option value="lembrete_falha">❌ Falhas de Envio</option>
             </select>
             <button className="btn-submit" onClick={fetchData} style={{margin:0}}>🔄 Atualizar</button>
           </div>
