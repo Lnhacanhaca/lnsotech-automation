@@ -719,19 +719,19 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                       <button onClick={() => {
                         const copiar = (texto) => {
                           if (navigator.clipboard && window.isSecureContext) {
-                            navigator.clipboard.writeText(texto).then(() => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 ID copiado!', showConfirmButton: false, timer: 6000, timerProgressBar: true })).catch(() => {
+                            navigator.clipboard.writeText(texto).then(() => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 ID copiado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' })).catch(() => {
                               const el = document.createElement('textarea');
                               el.value = texto; el.style.position='fixed'; el.style.opacity='0';
                               document.body.appendChild(el); el.select();
                               document.execCommand('copy'); document.body.removeChild(el);
-                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 ID copiado!', showConfirmButton: false, timer: 6000, timerProgressBar: true });
+                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 ID copiado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
                             });
                           } else {
                             const el = document.createElement('textarea');
                             el.value = texto; el.style.position='fixed'; el.style.opacity='0';
                             document.body.appendChild(el); el.select();
                             document.execCommand('copy'); document.body.removeChild(el);
-                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 ID copiado!', showConfirmButton: false, timer: 6000, timerProgressBar: true });
+                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 ID copiado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
                           }
                         };
                         copiar(g.id);
@@ -969,7 +969,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           </div>
           <div style={{display:'flex', gap:'0.5rem', flex:'1', minWidth:'300px'}}>
             <input type="text" readOnly value={`${apiBase}/api/eventos/feed.ics`} className="inline-input" style={{flex:1, background:'#f8fafc'}} />
-            <button onClick={() => { navigator.clipboard.writeText(`${apiBase}/api/eventos/feed.ics`); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 Link copiado!', showConfirmButton: false, timer: 6000, timerProgressBar: true }); }} className="btn-submit">📋 Copiar Link</button>
+            <button onClick={() => { navigator.clipboard.writeText(`${apiBase}/api/eventos/feed.ics`); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 Link copiado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' }); }} className="btn-submit">📋 Copiar Link</button>
             <a href={`${apiBase}/api/eventos/feed.ics`} target="_blank" rel="noreferrer" className="btn-submit" style={{background:'#2563eb', textDecoration:'none', color:'#fff'}}>📥 Baixar Calendário</a>
           </div>
         </div>
