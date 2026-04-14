@@ -451,6 +451,26 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     }
   };
 
+  const handleRefreshLogs = async () => {
+    try {
+        await fetchData();
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: '📜 Histórico atualizado!',
+            showConfirmButton: false,
+            timer: 2000,
+            timerProgressBar: true,
+            background: '#10b981',
+            color: '#fff',
+            iconColor: '#fff'
+        });
+    } catch (e) {
+        toast.error('Erro ao atualizar histórico');
+    }
+  };
+
   const apagarEvento = async (id) => {
     if (!isAdmin) return toast.warning('Só Admins podem apagar!');
     const result = await Swal.fire({ title: 'Apagar Evento?', text: 'Esta ação não pode ser revertida.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Apagar', cancelButtonText: 'Cancelar' });
@@ -935,7 +955,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               <option value="erro_registo">⚠️ Erros do Bot</option>
               <option value="lembrete_falha">❌ Falhas de Envio</option>
             </select>
-            <button className="btn-submit" onClick={fetchData} style={{margin:0}}>🔄 Atualizar</button>
+            <button className="btn-submit" onClick={handleRefreshLogs} style={{margin:0}}>🔄 Atualizar</button>
           </div>
         </div>
         
