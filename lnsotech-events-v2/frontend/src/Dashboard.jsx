@@ -19,6 +19,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [horaLembrete, setHoraLembrete] = useState('07:00');
+  const [assinaturaBot, setAssinaturaBot] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const changeTab = (tab) => {
@@ -91,6 +92,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       const r = await fetch(`${apiBase}/api/auth/configuracoes`, { headers });
       const data = await r.json();
       if (data.hora_lembrete) setHoraLembrete(data.hora_lembrete);
+      if (data.assinatura_bot) setAssinaturaBot(data.assinatura_bot);
     } catch (e) { console.error(e); }
   };
 
@@ -1335,6 +1337,30 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               style={{width:'100%', background:'#10b981', fontSize:'1rem'}}
             >
               🤖 Disparar Eventos de Hoje
+            </button>
+          </div>
+        </div>
+
+        <div className="panel-card">
+          <div className="panel-title">✍️ Assinatura Automática do Bot</div>
+          <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>
+            Este texto será adicionado ao final de todas as mensagens enviadas pelo CRM (Branding).
+          </p>
+          <div style={{display:'flex', flexDirection:'column', gap:'0.8rem'}}>
+            <textarea 
+              className="inline-input" 
+              rows={3}
+              placeholder="Ex: ⚡ Enviado via LNSOTECH CRM"
+              value={assinaturaBot} 
+              onChange={(e) => setAssinaturaBot(e.target.value)}
+              style={{width:'100%', fontFamily:'monospace', fontSize:'0.9rem', resize:'vertical'}}
+            />
+            <button 
+              onClick={() => handleSaveConfig('assinatura_bot', assinaturaBot)}
+              className="btn-submit"
+              style={{alignSelf:'flex-start', padding:'0.6rem 2rem'}}
+            >
+              💾 Salvar Assinatura
             </button>
           </div>
         </div>

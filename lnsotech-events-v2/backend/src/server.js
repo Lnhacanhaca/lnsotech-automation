@@ -26,11 +26,17 @@ app.use(express.json());
 pool.query(`
     CREATE TABLE IF NOT EXISTS configuracoes (chave TEXT PRIMARY KEY, valor TEXT);
     CREATE TABLE IF NOT EXISTS tipos_evento (id SERIAL PRIMARY KEY, nome TEXT UNIQUE, cor TEXT);
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tentativas_falhas INT DEFAULT 0;
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS bloqueado_ate TIMESTAMP;
 `).then(async () => {
     // Configurações iniciais
     const check = await pool.query("SELECT * FROM configuracoes WHERE chave = 'hora_lembrete'");
     if (check.rowCount === 0) {
         await pool.query("INSERT INTO configuracoes (chave, valor) VALUES ('hora_lembrete', '07:00')");
+    }
+    const checkAssinatura = await pool.query("SELECT * FROM configuracoes WHERE chave = 'assinatura_bot'");
+    if (checkAssinatura.rowCount === 0) {
+        await pool.query("INSERT INTO configuracoes (chave, valor) VALUES ('assinatura_bot', '⚡ Enviado via LNSOTECH Automation')");
     }
     
     // Tipos de evento iniciais (sem formatura)

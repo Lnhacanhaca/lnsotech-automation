@@ -24,11 +24,35 @@ router.post('/login', async (req, res) => {
         }
 
         const usuario = rows[0];
+
+        // 1. Verificar se está bloqueado
+        if (usuario.bloqueado_ate && new Date(usuario.bloqueado_ate) > new Date()) {
+            const minutos = Math.ceil((new Date(usuario.bloqueado_ate) - new Date()) / 60000);
+            return res.status(423).json({ erro: `Conta temporariamente bloqueada. Tente novamente em ${minutos} minutos.` });
+        }
+
         const senhaValida = await bcrypt.compare(senha, usuario.senha);
 
         if (!senhaValida) {
-            return res.status(401).json({ erro: 'Credenciais inválidas' });
+            // Incrementar falhas
+            const novasFalhas = (usuario.tentativas_falhas || 0) + 1;
+            let bloqueio = (usuario.bloqueado_ate);
+
+            if (novasFalhas >= 5) {
+                // Bloquear por 15 minutos
+                bloqueio = new Date(Date.now() + 15 * 60000);
+            }
+
+            await req.db.query(
+                'UPDATE usuarios SET tentativas_falhas = $1, bloqueado_ate = $2 WHERE id = $3',
+                [novasFalhas, bloqueio, usuario.id]
+            );
+
+            return res.status(401).json({ erro: novasFalhas >= 5 ? 'Conta bloqueada por 15 min devido a excesso de tentativas falhadas.' : 'Credenciais inválidas' });
         }
+
+        // Resetar falhas se sucesso
+        await req.db.query('UPDATE usuarios SET tentativas_falhas = 0, bloqueado_ate = NULL WHERE id = $1', [usuario.id]);
 
         const token = jwt.sign(
             { id: usuario.id, nome: usuario.nome, nivel_acesso: usuario.nivel_acesso },

@@ -457,6 +457,9 @@ async function executarLembretes(sock, manual = false) {
         const templatesMap = {};
         templatesRes.rows.forEach(t => { templatesMap[t.tipo_evento] = t.mensagem; });
 
+        const configRes = await pool.query("SELECT valor FROM configuracoes WHERE chave = 'assinatura_bot'");
+        const assinatura = configRes.rows[0]?.valor || '';
+
         for (let evento of res.rows) {
             const freq = evento.frequencia_lembrete || 'anual';
             const anos = new Date().getFullYear() - evento.ano_origem;
@@ -479,6 +482,10 @@ async function executarLembretes(sock, manual = false) {
             } else {
                 const template = templatesMap[evento.tipo_evento] || 'Parabéns {nomes}! 🎉 Celebrando mais um ano!';
                 mensagem = template.replace('{nomes}', evento.nomes_principais);
+            }
+
+            if (assinatura) {
+                mensagem += `\n\n${assinatura}`;
             }
 
             try {
