@@ -1074,7 +1074,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   /* ========== LAYOUT ========== */
   return (
     <div className="dashboard-layout">
-      <ToastContainer position="top-right" autoClose={false} hideProgressBar={true} newestOnTop closeOnClick={false} pauseOnFocusLoss draggable pauseOnHover theme="colored" />
+      <ToastContainer position="top-right" autoClose={6000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
       <aside className="sidebar">
         <div className="sidebar-logo">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
