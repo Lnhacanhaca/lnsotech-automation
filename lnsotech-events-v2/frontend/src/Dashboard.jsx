@@ -703,15 +703,17 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             </form>
           ) : <div className="text-muted">Apenas admins/editores podem registar.</div>}
           <div className="panel-title" style={{marginTop:'1.5rem'}}>Últimos Registos</div>
-          <table className="table-minimal">
-            <thead><tr><th>Nomes</th><th>Tipo</th><th style={{textAlign:'right'}}>Data</th></tr></thead>
-            <tbody>
-              {loading ? <tr><td colSpan="3">A carregar...</td></tr> : eventos.length === 0 ? <tr><td colSpan="3">Sem eventos.</td></tr> :
-                eventos.slice(0,5).map(ev => (
-                  <tr key={ev.id}><td className="fw-bold">{ev.nomes_principais}</td><td><span className="badge-tipo">{ev.tipo_evento}</span></td><td style={{textAlign:'right'}}>{new Date(ev.data_evento).toLocaleDateString('pt-PT')}</td></tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-responsive">
+            <table className="table-minimal">
+                <thead><tr><th>Nomes</th><th>Tipo</th><th style={{textAlign:'right'}}>Data</th></tr></thead>
+                <tbody>
+                {loading ? <tr><td colSpan="3">A carregar...</td></tr> : eventos.length === 0 ? <tr><td colSpan="3">Sem eventos.</td></tr> :
+                    eventos.slice(0,5).map(ev => (
+                    <tr key={ev.id}><td className="fw-bold">{ev.nomes_principais}</td><td><span className="badge-tipo">{ev.tipo_evento}</span></td><td style={{textAlign:'right'}}>{new Date(ev.data_evento).toLocaleDateString('pt-PT')}</td></tr>
+                ))}
+                </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </>
@@ -921,9 +923,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                          logs.filter(l => l.tipo_log === logFilter);
     return (
       <div className="panel-card">
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', marginBottom:'1rem'}}>
+        <div className="audit-toolbar" style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', marginBottom:'1rem'}}>
           <div className="panel-title" style={{margin:0}}>📖 Histórico de Interações (Audit)</div>
-          <div style={{display:'flex', gap:'0.5rem'}}>
+          <div className="audit-controls" style={{display:'flex', gap:'0.5rem'}}>
             <select className="inline-input" value={logFilter} onChange={e=>setLogFilter(e.target.value)} style={{margin:0, width:'200px'}}>
               <option value="todos">🔍 Todos os Eventos</option>
               <option value="falha">🚨 Falhas Críticas ({stats.falhasHoje})</option>
