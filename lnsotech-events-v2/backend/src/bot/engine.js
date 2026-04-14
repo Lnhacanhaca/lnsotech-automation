@@ -332,14 +332,13 @@ async function executarLembretes(sock, manual = false) {
             WHERE grupo_id IS NOT NULL AND (
                 -- ANUAL: mesmo dia e mês
                 ((frequencia_lembrete = 'anual' OR frequencia_lembrete IS NULL)
-                 AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo'))
-                 AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
+                 AND TO_CHAR(data_evento, 'DD-MM') = TO_CHAR(CURRENT_DATE AT TIME ZONE 'Africa/Maputo', 'DD-MM'))
                 OR
                 -- MENSAL: mesmo dia do mês
                 (frequencia_lembrete = 'mensal'
-                 AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
+                 AND TO_CHAR(data_evento, 'DD') = TO_CHAR(CURRENT_DATE AT TIME ZONE 'Africa/Maputo', 'DD'))
                 OR
-                -- SEMANAL: mesmo dia da semana
+                -- SEMANAL: mesmo dia da semana (0-6)
                 (frequencia_lembrete = 'semanal'
                  AND EXTRACT(DOW FROM data_evento) = EXTRACT(DOW FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
                 OR

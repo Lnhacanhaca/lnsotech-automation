@@ -99,6 +99,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       if (r.ok) {
         Swal.fire({ icon: 'success', title: 'Sucesso', text: 'Configuração atualizada!', timer: 2000, showConfirmButton: false });
         fetchConfigs();
+      } else {
+        const data = await r.json();
+        Swal.fire('Erro', data.erro || 'Falha ao salvar no servidor', 'error');
       }
     } catch (e) { 
       console.error(e);
