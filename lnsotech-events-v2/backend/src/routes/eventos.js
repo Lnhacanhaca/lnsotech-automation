@@ -307,6 +307,16 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// ========== SERVIR FOTO VIA API (Garante que funciona em qualquer Proxy) ========== //
+router.get('/foto/:filename', (req, res) => {
+    const filePath = path.join(__dirname, '../../uploads/', req.params.filename);
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).send('Foto não encontrada');
+    }
+});
+
 // ========== UPLOAD DE FOTO ========== //
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
