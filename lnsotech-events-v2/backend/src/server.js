@@ -25,8 +25,13 @@ app.use(express.json());
 // Garantir tabelas base no arranque do servidor
 pool.query(`
     CREATE TABLE IF NOT EXISTS configuracoes (chave TEXT PRIMARY KEY, valor TEXT);
-    INSERT INTO configuracoes (chave, valor) VALUES ('hora_lembrete', '07:00') ON CONFLICT DO NOTHING;
-`).then(() => console.log('✅ [DB] Tabela de configurações verificada.'));
+`).then(async () => {
+    const check = await pool.query("SELECT * FROM configuracoes WHERE chave = 'hora_lembrete'");
+    if (check.rowCount === 0) {
+        await pool.query("INSERT INTO configuracoes (chave, valor) VALUES ('hora_lembrete', '07:00')");
+    }
+    console.log('✅ [DB] Tabela de configurações verificada.');
+});
 
 // Expor pasta de uploads publicamente para fotos dos eventos
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

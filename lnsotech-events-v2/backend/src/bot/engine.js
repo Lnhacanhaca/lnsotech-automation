@@ -56,7 +56,11 @@ async function connectToWhatsApp() {
     console.log(`[Baileys] Ligando com a versão do WA v${version.join('.')}, isLatest: ${isLatest}`);
     
     // Garantir tabela de configurações
-    await pool.query("CREATE TABLE IF NOT EXISTS configuracoes (chave TEXT PRIMARY KEY, valor TEXT); INSERT INTO configuracoes (chave, valor) VALUES ('hora_lembrete', '07:00') ON CONFLICT DO NOTHING;");
+    await pool.query("CREATE TABLE IF NOT EXISTS configuracoes (chave TEXT PRIMARY KEY, valor TEXT)");
+    const hasConfig = await pool.query("SELECT 1 FROM configuracoes WHERE chave = 'hora_lembrete'");
+    if (hasConfig.rowCount === 0) {
+        await pool.query("INSERT INTO configuracoes (chave, valor) VALUES ('hora_lembrete', '07:00')");
+    }
 
     const sock = makeWASocket({
         version,
