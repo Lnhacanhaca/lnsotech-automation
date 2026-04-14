@@ -49,7 +49,7 @@ app.get('/', (req, res) => {
 });
 
 // ========== ROTA DE ARQUIVOS (RAIZ) ========== //
-app.get('/ver-arquivo', (req, res) => {
+app.get('/api/ver-arquivo', (req, res) => {
     const filename = req.query.f;
     if (!filename) return res.status(400).send('Ficheiro não especificado');
     const cleanName = filename.replace('/uploads/', '').replace('uploads/', '');
