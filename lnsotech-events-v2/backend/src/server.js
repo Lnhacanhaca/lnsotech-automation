@@ -22,12 +22,6 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json());
 
-// Logger Global para Debug de rotas
-app.use((req, res, next) => {
-    console.log(`[REQ] ${req.method} ${req.url}`);
-    next();
-});
-
 // Expor pasta de uploads publicamente para fotos dos eventos
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -64,7 +58,6 @@ app.get('/api/imagem-evento/:id', async (req, res) => {
         const filePath = path.join(__dirname, '../uploads/', cleanName);
 
         if (fs.existsSync(filePath)) {
-            console.log(`[OK] Foto encontrada e enviada: ${filePath}`);
             // Detetar tipo de arquivo básico
             if (filePath.endsWith('.png')) res.header('Content-Type', 'image/png');
             else if (filePath.endsWith('.webp')) res.header('Content-Type', 'image/webp');
