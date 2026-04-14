@@ -28,7 +28,7 @@ services:
       # O Baileys guarda as sessões na pasta auth_info_baileys. Mapeamos para persistir
       - ./auth_info_baileys:/app/auth_info_baileys
       # Uploads de fotos persistidos fora do contentor
-      - ./uploads:/app/src/uploads
+      - ./uploads:/app/uploads
     networks:
       - lnso_network
 
