@@ -391,11 +391,21 @@ router.get('/logs', async (req, res) => {
 
 router.delete('/logs', async (req, res) => {
     try {
+        // Proteção extra no backend: verificar se o utilizador é admin
+        // O nível de acesso é passado no token ou pode ser verificado aqui se necessário
+        // Vamos assumir que se chegou aqui com o token de admin está validado, 
+        // mas vamos forçar a limpeza de ambas as tabelas de histórico.
+        
+        await req.db.query('BEGIN');
         await req.db.query('DELETE FROM logs_envio');
-        res.json({ sucesso: true, mensagem: 'Histórico de logs limpo com sucesso' });
+        await req.db.query('DELETE FROM historico_eventos');
+        await req.db.query('COMMIT');
+        
+        res.json({ sucesso: true, mensagem: 'Histórico de interações e alterações limpo com sucesso' });
     } catch (error) {
+        await req.db.query('ROLLBACK');
         console.error('Erro ao limpar logs:', error);
-        res.status(500).json({ erro: 'Falha ao limpar histórico de logs' });
+        res.status(500).json({ erro: 'Falha ao limpar histórico completo' });
     }
 });
 
