@@ -339,6 +339,10 @@ async function executarLembretes(sock, manual = false) {
                 (frequencia_lembrete = 'mensal'
                  AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
                 OR
+                -- SEMANAL: mesmo dia da semana
+                (frequencia_lembrete = 'semanal'
+                 AND EXTRACT(DOW FROM data_evento) = EXTRACT(DOW FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
+                OR
                 -- DIÁRIO
                 frequencia_lembrete = 'diario'
             )
