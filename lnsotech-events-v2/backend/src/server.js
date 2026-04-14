@@ -4,6 +4,7 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const { connectToWhatsApp } = require('./bot/engine');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
