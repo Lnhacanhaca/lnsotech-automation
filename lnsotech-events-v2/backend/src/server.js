@@ -25,12 +25,25 @@ app.use(express.json());
 // Garantir tabelas base no arranque do servidor
 pool.query(`
     CREATE TABLE IF NOT EXISTS configuracoes (chave TEXT PRIMARY KEY, valor TEXT);
+    CREATE TABLE IF NOT EXISTS tipos_evento (id SERIAL PRIMARY KEY, nome TEXT UNIQUE, cor TEXT);
 `).then(async () => {
+    // Configurações iniciais
     const check = await pool.query("SELECT * FROM configuracoes WHERE chave = 'hora_lembrete'");
     if (check.rowCount === 0) {
         await pool.query("INSERT INTO configuracoes (chave, valor) VALUES ('hora_lembrete', '07:00')");
     }
-    console.log('✅ [DB] Tabela de configurações verificada.');
+    
+    // Tipos de evento iniciais (sem formatura)
+    await pool.query("DELETE FROM tipos_evento WHERE nome = 'formatura'");
+    await pool.query(`
+        INSERT INTO tipos_evento (nome, cor) VALUES 
+        ('casamento', '#3b82f6'),
+        ('aniversario', '#10b981'),
+        ('batizado', '#8b5cf6')
+        ON CONFLICT (nome) DO NOTHING
+    `);
+    
+    console.log('✅ [DB] Tabelas e configurações verificadas.');
 });
 
 // Expor pasta de uploads publicamente para fotos dos eventos

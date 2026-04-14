@@ -618,7 +618,6 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                   formTipo === 'casamento' ? "Nomes do Casal (Ex: João & Maria)" :
                   formTipo === 'aniversario' ? "Nome do Aniversariante" :
                   formTipo === 'batizado' ? "Nome da Criança" :
-                  formTipo === 'formatura' ? "Nome do Graduado" :
                   formTipo ? `Nome para ${formTipo}` : "Selecione o tipo primeiro..."
                 }
                 value={formNomes} 
@@ -911,7 +910,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     const diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
     // Criar mapeamento dinâmico de cores baseado nos tipos existentes
     const coresEvento = tiposEvento.reduce((acc, t) => ({ ...acc, [t.nome]: t.cor }), { 
-      casamento:'#3b82f6', aniversario:'#10b981', batizado:'#8b5cf6', formatura:'#f59e0b' 
+      casamento:'#3b82f6', aniversario:'#10b981', batizado:'#8b5cf6' 
     });
     
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
@@ -1010,7 +1009,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             return (
               <div key={ev.id} style={{padding:'0.75rem', borderRadius:'8px', marginBottom:'0.75rem', background:'#f8fafc', border:`2px solid ${coresEvento[ev.tipo_evento]||'#e2e8f0'}`}}>
                 <div style={{display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'4px'}}>
-                  {ev.foto_url && <img src={ev.foto_url} alt="" style={{width:'32px', height:'32px', borderRadius:'50%', objectFit:'cover'}} />}
+                  {ev.foto_url && <img src={`${apiBase}/api/imagem-evento/${ev.id}`} alt="" style={{width:'42px', height:'42px', borderRadius:'50%', objectFit:'cover', border:'2px solid #fff', boxShadow:'0 2px 4px rgba(0,0,0,0.1)'}} />}
                   <div>
                     <div style={{fontWeight:700, fontSize:'0.9rem'}}>{ev.nomes_principais}</div>
                     <div style={{fontSize:'0.75rem', color:'#64748b'}}>{ev.tipo_evento} • {anos > 0 ? `${anos} ano${anos!==1?'s':''}` : 'Ano de origem'}</div>
@@ -1024,7 +1023,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           {/* Resumo do mês */}
           <div style={{marginTop:'1.5rem', borderTop:'1px solid var(--border)', paddingTop:'1rem'}}>
             <div className="panel-title" style={{fontSize:'0.85rem', marginBottom:'0.5rem'}}>Resumo de {mesesPT[calMonth]}</div>
-            {['casamento','aniversario','batizado','formatura'].map(tipo => {
+            {['casamento','aniversario','batizado'].map(tipo => {
               const count = eventos.filter(ev => new Date(ev.data_evento).getMonth() === calMonth && ev.tipo_evento === tipo).length;
               return count > 0 ? (
                 <div key={tipo} style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', padding:'2px 0', color:'#475569'}}>
