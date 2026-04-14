@@ -21,7 +21,7 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json());
 // Expor pasta de uploads publicamente para fotos dos eventos
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Injetar Pool no Request para facilitar uso nas rotas
 app.use((req, res, next) => {
