@@ -692,14 +692,24 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             } else setFormTipo(e.target.value);
           }}>
             <option value="">-- Tipo de Evento --</option>
-            {tiposEvento.map(t => <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>)}
+            <option value="casamento">💍 Casamento</option>
+            <option value="aniversario">🎂 Aniversário</option>
+            <option value="batizado">🕊️ Batizado</option>
+            {tiposEvento.filter(t => !['casamento','aniversario','batizado'].includes(t.nome)).map(t => (
+              <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>
+            ))}
             <option value="__novo__">➕ Adicionar Novo...</option>
           </select>
 
           <input 
             type="text" 
             className="inline-input" 
-            placeholder={formTipo ? `Nomes para ${formTipo}` : "Selecione o tipo primeiro..."} 
+            placeholder={
+                formTipo === 'casamento' ? "Nomes do Casal (Ex: João & Maria)" :
+                formTipo === 'aniversario' ? "Nome do Aniversariante" :
+                formTipo === 'batizado' ? "Nome da Criança" :
+                formTipo ? `Nome para ${formTipo}` : "Selecione o tipo primeiro..."
+            } 
             value={formNomes} 
             onChange={e=>setFormNomes(e.target.value)} 
             required 
