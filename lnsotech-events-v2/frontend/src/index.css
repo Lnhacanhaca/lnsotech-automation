@@ -574,7 +574,7 @@ body {
   
   /* Calendário Navegação */
   .cal-nav { width: 100%; justify-content: space-between; gap: 0.5rem; }
-  .cal-nav button { padding: 0.5rem 1rem !important; font-size: 1.5rem !important; min-width: 50px; }
+  .cal-nav button { padding: 0.4rem 0.6rem !important; font-size: 1.1rem !important; min-width: 40px; }
   .cal-nav .panel-title { font-size: 1.1rem !important; }
 
   /* Auditoria Histórico */
