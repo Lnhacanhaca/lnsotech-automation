@@ -372,7 +372,7 @@ async function executarLembretes(sock, manual = false) {
                     const fotoPath = path.resolve(__dirname, '../../uploads', path.basename(evento.foto_url));
                     if (fs.existsSync(fotoPath)) {
                         await sock.sendMessage(evento.grupo_id, {
-                            image: { url: 'file://' + fotoPath },
+                            image: { url: fotoPath },
                             caption: mensagem
                         });
                     } else {
