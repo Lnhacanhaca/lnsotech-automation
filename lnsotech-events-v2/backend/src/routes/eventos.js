@@ -307,22 +307,6 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// ========== SERVIR FOTO VIA API (Camuflado para evitar bloqueio de Nginx) ========== //
-router.get('/ver-foto', (req, res) => {
-    const filename = req.query.file;
-    if (!filename) return res.status(400).send('Ficheiro não especificado');
-    
-    // Remover o prefixo /uploads/ se vier no query
-    const cleanName = filename.replace('/uploads/', '');
-    const filePath = path.join(__dirname, '../../uploads/', cleanName);
-    
-    if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
-    } else {
-        res.status(404).send('Foto não encontrada');
-    }
-});
-
 // ========== UPLOAD DE FOTO ========== //
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {

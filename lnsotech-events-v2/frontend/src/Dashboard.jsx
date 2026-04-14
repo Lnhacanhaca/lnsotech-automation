@@ -636,10 +636,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                   {ev.foto_url ? (
                     <div style={{display:'flex', alignItems:'center', gap:'0.4rem'}}>
                       <img
-                        src={`${apiBase}/api/eventos/ver-foto?file=${ev.foto_url?.replace('/uploads/', '')}`}
+                        src={`${apiBase}/api/ver-arquivo?f=${ev.foto_url?.replace('/uploads/', '')}`}
                         alt="Foto"
                         title="Clique para ampliar"
-                        onClick={() => window.open(`${apiBase}/api/eventos/ver-foto?file=${ev.foto_url?.replace('/uploads/', '')}`, '_blank')}
+                        onClick={() => window.open(`${apiBase}/api/ver-arquivo?f=${ev.foto_url?.replace('/uploads/', '')}`, '_blank')}
                         style={{width:'38px', height:'38px', borderRadius:'6px', objectFit:'cover', cursor:'pointer', border:'2px solid #e2e8f0'}}
                       />
                       {canEdit && (

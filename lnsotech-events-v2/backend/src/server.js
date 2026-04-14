@@ -48,6 +48,21 @@ app.get('/', (req, res) => {
     res.json({ mensagem: '🚀 API LNSOTECH V2 Funcionando!', botStatus: 'Online' });
 });
 
+// ========== ROTA DE ARQUIVOS (RAIZ) ========== //
+app.get('/ver-arquivo', (req, res) => {
+    const filename = req.query.f;
+    if (!filename) return res.status(400).send('Ficheiro não especificado');
+    const cleanName = filename.replace('/uploads/', '').replace('uploads/', '');
+    const filePath = path.join(__dirname, '../uploads/', cleanName);
+    
+    if (fs.existsSync(filePath)) {
+        res.header('Content-Type', 'image/jpeg'); // Forçar tipo imagem
+        res.sendFile(filePath);
+    } else {
+        res.status(404).send('Arquivo não encontrado');
+    }
+});
+
 // Iniciar Servidor web e Bot simultaneamente
 app.listen(PORT, async () => {
     console.log(`\n🌐 [API] Servidor Express rodando na porta ${PORT}`);
