@@ -281,7 +281,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     } catch (e) { toast.error('Erro ao guardar template'); }
   };
 
-  const handleExportCSV = () => window.open(`${apiBase}/api/eventos?exportCsv=true`, '_blank');
+  // Export CSV ja definido acima
 
   const handleExportExcel = async () => {
     try {
