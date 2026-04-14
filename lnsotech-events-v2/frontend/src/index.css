@@ -148,6 +148,17 @@ body {
 .nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
 .nav-item.active { background: rgba(255,255,255,0.12); color: white; border-left-color: var(--accent); font-weight: 600; }
 
+/* Overlay para mobile quando sidebar está aberta */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 95;
+}
+.sidebar-overlay.visible { display: block; }
+
 .sidebar-footer {
   padding: 1rem 1.25rem;
   border-top: 1px solid rgba(255,255,255,0.1);
@@ -254,6 +265,9 @@ body {
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
   transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 
@@ -490,51 +504,59 @@ body {
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
-    width: 260px;
-    box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+    width: 280px;
+    box-shadow: 10px 0 30px rgba(0,0,0,0.4);
   }
   .sidebar.open { transform: translateX(0); }
 
-  .main-area { margin-left: 0; }
+  .main-area { margin-left: 0; width: 100%; overflow-x: hidden; }
 
   .mobile-menu-btn { display: block; }
 
-  .topbar { padding: 0.75rem 1rem; }
-  .search-bar { max-width: 100%; font-size: 0.85rem; }
+  .topbar { padding: 0.75rem 1rem; position: sticky; top: 0; }
+  .search-bar-container { display: none; } /* Ocultar busca global no mobile para dar espaço */
+  
+  .content-wrapper { padding: 1rem 0.75rem; }
+  .page-title { font-size: 1.4rem; }
+  .page-subtitle { margin-bottom: 1rem; }
 
-  .content-wrapper { padding: 1rem; }
-  .page-title { font-size: 1.25rem; }
-
-  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
-  .stat-card { padding: 1rem; }
-  .stat-value { font-size: 1.4rem; }
+  .stats-grid { 
+    grid-template-columns: 1fr 1fr; 
+    gap: 0.75rem; 
+  }
+  .stat-card { padding: 0.75rem; }
+  .stat-value { font-size: 1.3rem; }
+  .stat-header { font-size: 0.7rem; }
 
   .middle-grid { grid-template-columns: 1fr; gap: 1rem; }
-  .panel-card { padding: 1rem; }
+  .panel-card { padding: 1rem; overflow-x: hidden; }
 
-  .inline-form { flex-direction: column; }
-  .inline-input { min-width: 100%; flex: unset !important; }
-  .btn-submit { width: 100%; }
+  .inline-form { flex-direction: column; gap: 0.75rem; width: 100%; }
+  .inline-input, .btn-submit { width: 100% !important; flex: none !important; margin: 0 !important; }
 
-  .eventos-toolbar { flex-direction: column; align-items: stretch; }
-  .toolbar-buttons { justify-content: stretch; }
-  .toolbar-buttons .btn-submit { flex: 1; }
+  .eventos-toolbar { flex-direction: column; align-items: stretch; gap: 1rem; }
+  .toolbar-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .toolbar-buttons button, .toolbar-buttons a { width: 100%; margin: 0; text-align: center; justify-content: center; }
 
-  .pie-container { flex-direction: column; align-items: center; }
-
-  .table-minimal { font-size: 0.8rem; }
-  .table-minimal th, .table-minimal td { padding: 0.5rem 0.35rem; }
-
-  .login-card { padding: 1.5rem; margin: 1rem; }
+  /* Melhoria das tabelas no mobile */
+  .table-responsive {
+    margin: 0 -1rem;
+    padding: 0 1rem;
+    width: calc(100% + 2rem);
+    border-radius: 0;
+  }
+  .table-minimal { min-width: 600px; } /* Força scroll lateral suave em tabelas longas */
+  
+  .pie-container { flex-direction: column; gap: 1rem; }
+  
+  .login-card { padding: 2rem 1.5rem; }
 }
 
 /* =================== RESPONSIVE: SMALL MOBILE (< 480px) =================== */
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
-  .stat-header { font-size: 0.75rem; }
-  .stat-value { font-size: 1.2rem; }
-  .topbar-icons { gap: 0.25rem; }
-  .topbar-avatar { display: none; }
+  .toolbar-buttons { grid-template-columns: 1fr; }
+  .topbar-icons .icon-btn:not(.notification-badge) { display: none; } /* Ocultar ícones extras */
 }
 
 /* =================== PRINT =================== */

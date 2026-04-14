@@ -16,9 +16,15 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [eventos, setEventos] = useState([]);
   const [stats, setStats] = useState({ totalEventos: 0, totalBodas: 0, totalAniversarios: 0, gruposAtivos: 0, lembretesEnviados: 0, falhasHoje: 0 });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('eventos'); // eventos | logs | backups | configs
+  const [activeTab, setActiveTab] = useState('dashboard'); 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [horaLembrete, setHoraLembrete] = useState('07:00');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const changeTab = (tab) => {
+    setActiveTab(tab);
+    setSidebarOpen(false); // Fecha sidebar no mobile ao trocar
+  };
 
   const [formNomes, setFormNomes] = useState('');
   const [formData, setFormData] = useState('');
@@ -1371,18 +1377,22 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   return (
     <div className="dashboard-layout">
       <ToastContainer position="top-right" autoClose={6000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
-      <aside className="sidebar">
+      
+      {/* Overlay para fechar ao clicar fora no mobile */}
+      <div className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`} onClick={() => setSidebarOpen(false)}></div>
+
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
           <span>LNSOTECH</span>
         </div>
         <nav className="nav-menu">
-          <div className={`nav-item ${activeTab==='dashboard'?'active':''}`} onClick={()=>setActiveTab('dashboard')}><span>📊</span><span>Dashboard</span></div>
-          <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>setActiveTab('eventos')}><span>👥</span><span>Eventos/Casais</span></div>
-          <div className={`nav-item ${activeTab==='calendario'?'active':''}`} onClick={()=>setActiveTab('calendario')}><span>📅</span><span>Calendário</span></div>
-          <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>setActiveTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>
-          {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>setActiveTab('logs')}><span>📖</span><span>Histórico</span></div>}
-          <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>setActiveTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>
+          <div className={`nav-item ${activeTab==='dashboard'?'active':''}`} onClick={()=>changeTab('dashboard')}><span>📊</span><span>Dashboard</span></div>
+          <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>changeTab('eventos')}><span>👥</span><span>Eventos/Casais</span></div>
+          <div className={`nav-item ${activeTab==='calendario'?'active':''}`} onClick={()=>changeTab('calendario')}><span>📅</span><span>Calendário</span></div>
+          <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>changeTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>
+          {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>changeTab('logs')}><span>📖</span><span>Histórico</span></div>}
+          <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>changeTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>
         </nav>
         <div className="sidebar-footer" style={{padding:'1rem', borderTop:'1px solid #1e293b', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
           <div style={{display:'flex', alignItems:'center', gap:'0.8rem'}}>
@@ -1398,7 +1408,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
       <main className="main-area">
         <header className="topbar">
-          <button className="mobile-menu-btn" onClick={() => document.querySelector('.sidebar').classList.toggle('open')}>☰</button>
+          <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>☰</button>
           <div className="search-bar-container">
             <input type="text" className="search-bar" placeholder="🔍 Buscar nomes, datas, tipos..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} />
           </div>
@@ -1407,7 +1417,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             
             {!isOnline && <span className="icon-btn notification-badge" style={{background:'#f59e0b'}} title="Sistma Offline. Lembretes pendentes.">📴</span>}
             {offlineQueueLength > 0 && <span className="icon-btn notification-badge" style={{background:'#3b82f6'}} title={`${offlineQueueLength} registos por sincronizar.`}>⏳ {offlineQueueLength}</span>}
-            {stats.falhasHoje > 0 && <span className="icon-btn notification-badge" title="Existem falhas!">🔔</span>}
+            {stats.falhasHoje > 0 && <span className="icon-btn notification-badge" onClick={() => changeTab('logs')} title="Existem falhas!">🔔</span>}
             
             <div className="user-avatar topbar-avatar">{user?.nome?.charAt(0) || 'U'}</div>
           </div>
