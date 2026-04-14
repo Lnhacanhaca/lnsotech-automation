@@ -377,6 +377,25 @@ body {
 .btn-submit:hover { background: var(--accent-hover); }
 .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.cal-btn-nav-isolated {
+  padding: 0;
+  font-size: 1.2rem;
+  background: #475569;
+  color: white;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.cal-btn-nav-isolated:hover { opacity: 0.8; }
+.cal-nav-title { font-size: 1.1rem; font-weight: 700; color: #1e293b; }
+
 .btn-danger-text {
   color: var(--danger);
   background: transparent;
@@ -583,15 +602,17 @@ body {
   .sync-controls input { width: 100% !important; min-width: 100% !important; }
   .sync-controls > div { width: 100% !important; display: grid !important; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
   
-  /* Calendário Navegação */
-  .cal-nav { width: 100%; justify-content: space-between; gap: 0.5rem; }
-  .cal-btn-nav { 
-    padding: 0.2rem 0.5rem !important; 
-    font-size: 1.1rem !important; 
-    min-width: 38px !important; 
-    height: 38px !important;
+  /* Calendário Navegação Ultra-Compacta */
+  .cal-nav { gap: 0.25rem !important; }
+  .cal-btn-nav-isolated { 
+    width: 34px !important; 
+    height: 34px !important;
+    min-width: 34px !important;
+    font-size: 1rem !important;
+    border-radius: 6px !important;
+    padding: 0 !important;
   }
-  .cal-nav .panel-title { font-size: 1rem !important; }
+  .cal-nav-title { font-size: 0.9rem !important; }
 
   /* Auditoria Histórico */
   .audit-toolbar { flex-direction: column !important; align-items: stretch !important; gap: 1rem; }
