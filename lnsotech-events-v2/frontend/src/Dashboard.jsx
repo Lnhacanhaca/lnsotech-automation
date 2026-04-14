@@ -127,6 +127,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         if (resLogs.ok) setLogs(await resLogs.json());
         const resBkps = await fetch(`${apiBase}/api/auth/backups`, { headers });
         if (resBkps.ok) setBackups(await resBkps.json());
+        fetchConfigs();
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -240,6 +241,42 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         if (isAdmin) fetchLogs();
       } catch (e) { Swal.fire('Erro', 'Falha na conexão', 'error'); }
     }
+  };
+
+  const handleCreateUsuario = async () => {
+    if (!newUserNome || !newUserEmail || !newUserSenha) return toast.warning('Preencha os dados!');
+    try {
+      const r = await fetch(`${apiBase}/api/auth/usuarios`, {
+        method: 'POST',
+        headers: jsonHeaders,
+        body: JSON.stringify({ nome: newUserNome, email: newUserEmail, senha: newUserSenha, nivel_acesso: newUserRole })
+      });
+      if (r.ok) {
+        toast.success('Utilizador criado!');
+        setNewUserNome(''); setNewUserEmail(''); setNewUserSenha('');
+        fetchData();
+      } else { const d = await r.json(); toast.error(d.erro || 'Falha ao criar'); }
+    } catch (e) { toast.error('Erro de rede'); }
+  };
+
+  const handleDeleteUsuario = async (id) => {
+    const res = await Swal.fire({ title: 'Eliminar?', text: 'Cuidado! Ação irreversível.', icon: 'warning', showCancelButton: true });
+    if (!res.isConfirmed) return;
+    try {
+      const r = await fetch(`${apiBase}/api/auth/usuarios/${id}`, { method: 'DELETE', headers });
+      if (r.ok) { toast.success('Removido!'); fetchData(); }
+    } catch (e) { toast.error('Falha ao remover'); }
+  };
+
+  const handleUpdateTemplate = async (id, mensagem) => {
+    try {
+      const r = await fetch(`${apiBase}/api/eventos/templates/${id}`, {
+        method: 'PUT',
+        headers: jsonHeaders,
+        body: JSON.stringify({ mensagem })
+      });
+      if (r.ok) toast.success('Template guardado!');
+    } catch (e) { toast.error('Erro ao guardar template'); }
   };
 
   const handleExportCSV = () => window.open(`${apiBase}/api/eventos?exportCsv=true`, '_blank');
