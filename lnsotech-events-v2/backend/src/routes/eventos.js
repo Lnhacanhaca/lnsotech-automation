@@ -424,6 +424,27 @@ router.get('/grupos', async (req, res) => {
         res.status(500).json({ erro: 'Falha ao obter grupos' });
     }
 });
+
+// ========== TESTAR COMUNICAÇÃO COM GRUPO ESPECÍFICO ========== //
+router.post('/teste-conexao', async (req, res) => {
+    try {
+        const { grupo_id } = req.body;
+        if (!grupo_id) return res.status(400).json({ erro: 'ID do grupo é necessário' });
+        
+        if (!global.waSocket) {
+            return res.status(503).json({ erro: 'Bot não está conectado ao WhatsApp' });
+        }
+
+        await global.waSocket.sendMessage(grupo_id, { 
+            text: '🤖 *LNSOTECH BOT - TESTE DE COMUNICAÇÃO*\n\n✅ A conexão com este grupo está ativa e funcionando perfeitamente!' 
+        });
+
+        res.json({ mensagem: 'Mensagem de teste enviada com sucesso!' });
+    } catch (err) {
+        console.error('Erro no teste de conexão:', err);
+        res.status(500).json({ erro: 'Falha ao enviar mensagem de teste: ' + err.message });
+    }
+});
 // ========== ESTADO DA CONEXÃO WHATSAPP + QR CODE ========== //
 router.get('/whatsapp-status', (req, res) => {
     res.json(global.waState || { qr: null, status: 'desconhecido', lastUpdate: null });
