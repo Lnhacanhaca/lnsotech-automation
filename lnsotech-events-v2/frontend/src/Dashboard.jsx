@@ -172,10 +172,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   };
 
   const handleRestoreBackup = async (filename) => {
-    const step1 = await Swal.fire({ title: '⚠️ ATENÇÃO EXTREMA!', html: `Isto irá substituir <strong>TODA</strong> a base de dados atual pelo backup <b>"${filename}"</b>.<br/><br/>Todos os dados criados desde essa data serão <span style="color:#dc2626;font-weight:bold">PERDIDOS</span>.`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, quero restaurar', cancelButtonText: 'Cancelar' });
+    const step1 = await Swal.fire({ title: '⚠️ ATENÇÃO EXTREMA!', html: `Isto irá substituir <strong>TODA</strong> a base de dados atual pelo backup <b>"${filename}"</b>.<br/><br/>Todos os dados criados desde essa data serão <span style="color:#dc2626;font-weight:bold">PERDIDOS</span>.`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#10b981', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, quero restaurar', cancelButtonText: 'Cancelar' });
     if (!step1.isConfirmed) return;
     
-    const step2 = await Swal.fire({ title: 'Confirmação Final', input: 'text', inputLabel: 'Escreva "RESTAURAR" para confirmar:', inputPlaceholder: 'RESTAURAR', showCancelButton: true, confirmButtonColor: '#dc2626', inputValidator: (v) => v !== 'RESTAURAR' ? 'Escreva exactamente RESTAURAR' : null });
+    const step2 = await Swal.fire({ title: 'Confirmação Final', input: 'text', inputLabel: 'Escreva "RESTAURAR" para confirmar:', inputPlaceholder: 'RESTAURAR', showCancelButton: true, confirmButtonColor: '#10b981', inputValidator: (v) => v !== 'RESTAURAR' ? 'Escreva exactamente RESTAURAR' : null });
     if (!step2.isConfirmed) { toast.info('Operação cancelada.'); return; }
 
     try {
@@ -1074,7 +1074,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   /* ========== LAYOUT ========== */
   return (
     <div className="dashboard-layout">
-      <ToastContainer position="top-right" autoClose={8000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
+      <ToastContainer position="top-right" autoClose={15000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
       <aside className="sidebar">
         <div className="sidebar-logo">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
