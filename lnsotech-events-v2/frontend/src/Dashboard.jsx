@@ -401,38 +401,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (res.ok) { Swal.fire({ title: 'Foto Anexada!', icon: 'success', timer: 5000, timerProgressBar: true, confirmButtonColor: '#10b981' }); fetchData(); } else toast.error('Erro ao anexar foto');
   };
   
-  // Template handler removido (usando versao centralizada)
 
-  const handleCreateTipo = async (e) => {
-    e.preventDefault();
-    if (!isAdmin) return;
-    const res = await fetch(`${apiBase}/api/eventos/tipos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: newTipoNome, cor: newTipoCor }) });
-    if (res.ok) { setNewTipoNome(''); fetchData(); toast.success('🎨 Tipo criado!', { autoClose: 10000 }); }
-    else toast.error('Erro ao criar tipo');
-  };
-
-  const handleDeletarTipo = async (id) => {
-    if (!isAdmin) return;
-    const result = await Swal.fire({ title: 'Apagar Tipo de Evento?', text: 'Isto também apagará o template de mensagem associado.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Apagar', cancelButtonText: 'Cancelar' });
-    if (!result.isConfirmed) return;
-    const res = await fetch(`${apiBase}/api/eventos/tipos/${id}`, { method: 'DELETE', headers });
-    if (res.ok) { fetchData(); toast.success('Tipo apagado.'); }
-  };
-
-  const startEditTipo = (t) => {
-    setEditingTipoId(t.id);
-    setEditTipoForm({ nome: t.nome, cor: t.cor });
-  };
-
-  const handleUpdateTipo = async () => {
-    const res = await fetch(`${apiBase}/api/eventos/tipos/${editingTipoId}`, { 
-        method: 'PUT', 
-        headers: jsonHeaders, 
-        body: JSON.stringify(editTipoForm) 
-    });
-    if (res.ok) { setEditingTipoId(null); fetchData(); toast.success('🎨 Tipo atualizado!'); }
-    else toast.error('Erro ao atualizar tipo');
-  };
 
   const startEditEvento = (ev) => {
     setEditingEvento(ev.id);
