@@ -2,7 +2,9 @@ const CACHE_NAME = 'lnso-cache-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/logo192.png',
+  '/logo512.png'
 ];
 
 self.addEventListener('install', event => {
