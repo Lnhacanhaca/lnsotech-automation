@@ -389,26 +389,19 @@ router.get('/logs', async (req, res) => {
     }
 });
 
-// ========== TESTE DE CONEXÃO MANUAL (Admin) ========== //
-router.post('/teste-conexao', async (req, res) => {
-    const { grupo_id } = req.body;
+// ========== DISPARO MANUAL DE LEMBRETES (REAL) ========== //
+router.post('/testar-lembretes', async (req, res) => {
     try {
         if (global.waSocket) {
-            const targetGroup = grupo_id || process.env.GRUPO_ID;
-            await global.waSocket.sendMessage(targetGroup, { text: "🤖 Teste de conexão manual: O bot está ativo!" });
-            
-            // Registar log
-            await req.db.query(
-                'INSERT INTO logs_envio (grupo_id, tipo_log, mensagem, status) VALUES ($1, $2, $3, $4)',
-                [targetGroup, 'teste_manual', 'Teste de conexão via painel admin', 'sucesso']
-            );
-            
-            res.json({ sucesso: true, mensagem: 'Mensagem de teste enviada!' });
+            const { executarLembretes } = require('../bot/engine');
+            await executarLembretes(global.waSocket, true); // true = force manual
+            res.json({ mensagem: 'Lembretes disparados manualmente com sucesso!' });
         } else {
-            res.status(503).json({ erro: 'Bot não está conectado ao WhatsApp' });
+            res.status(503).json({ erro: 'WhatsApp não está conectado ao Bot.' });
         }
     } catch (err) {
-        res.status(500).json({ erro: 'Falha ao enviar teste: ' + err.message });
+        console.error('Erro lembretes manuais:', err);
+        res.status(500).json({ erro: err.message });
     }
 });
 

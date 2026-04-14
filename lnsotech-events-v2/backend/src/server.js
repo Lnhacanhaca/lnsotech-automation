@@ -74,37 +74,6 @@ app.get('/api/imagem-evento/:id', async (req, res) => {
     }
 });
 
-// ========== CONFIGURAÇÕES SISTEMA ========== //
-app.get('/api/configuracoes', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT * FROM configuracoes');
-        const configs = {};
-        result.rows.forEach(r => configs[r.chave] = r.valor);
-        res.json(configs);
-    } catch (err) { res.status(500).json({ erro: err.message }); }
-});
-
-app.post('/api/configuracoes', async (req, res) => {
-    try {
-        const { chave, valor } = req.body;
-        await pool.query('INSERT INTO configuracoes (chave, valor) ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor', [chave, valor]);
-        res.json({ mensagem: 'Configuração atualizada!' });
-    } catch (err) { res.status(500).json({ erro: err.message }); }
-});
-
-// ========== DISPARO MANUAL DE LEMBRETES (DICA) ========== //
-app.post('/api/eventos/testar-lembretes', async (req, res) => {
-    try {
-        if (global.waSocket) {
-            const { executarLembretes } = require('./bot/engine');
-            await executarLembretes(global.waSocket, true); // true = force manual
-            res.json({ mensagem: 'Lembretes disparados manualmente com sucesso!' });
-        } else {
-            res.status(500).json({ erro: 'WhatsApp não está conectado' });
-        }
-    } catch (err) { res.status(500).json({ erro: err.message }); }
-});
-
 // Iniciar Servidor web e Bot simultaneamente
 app.listen(PORT, async () => {
     console.log(`\n🌐 [API] Servidor Express rodando na porta ${PORT}`);

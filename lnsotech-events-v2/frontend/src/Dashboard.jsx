@@ -200,7 +200,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const fetchConfigs = async () => {
     try {
-      const r = await fetch(`${apiBase}/api/configuracoes`, { headers });
+      const r = await fetch(`${apiBase}/api/auth/configuracoes`, { headers });
       const data = await r.json();
       if (data.hora_lembrete) setHoraLembrete(data.hora_lembrete);
     } catch (e) { console.error(e); }
@@ -208,7 +208,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const handleSaveConfig = async (chave, valor) => {
     try {
-      const r = await fetch(`${apiBase}/api/configuracoes`, {
+      const r = await fetch(`${apiBase}/api/auth/configuracoes`, {
         method: 'POST',
         headers: jsonHeaders,
         body: JSON.stringify({ chave, valor })

@@ -181,4 +181,22 @@ router.post('/backups/restore/:filename', (req, res) => {
     });
 });
 
+// ========== CONFIGURAÇÕES DO SISTEMA (Via Auth para Nginx) ========== //
+router.get('/configuracoes', async (req, res) => {
+    try {
+        const result = await req.db.query('SELECT * FROM configuracoes');
+        const configs = {};
+        result.rows.forEach(r => configs[r.chave] = r.valor);
+        res.json(configs);
+    } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
+router.post('/configuracoes', async (req, res) => {
+    try {
+        const { chave, valor } = req.body;
+        await req.db.query('INSERT INTO configuracoes (chave, valor) ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor', [chave, valor]);
+        res.json({ mensagem: 'Configuração atualizada!' });
+    } catch (err) { res.status(500).json({ erro: err.message }); }
+});
+
 module.exports = router;
