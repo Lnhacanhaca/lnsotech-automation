@@ -216,7 +216,7 @@ body {
   color: var(--text);
 }
 
-.search-bar-container { flex: 1; }
+.search-bar-container { flex: 1; min-width: 200px; }
 
 .search-bar {
   width: 100%;
@@ -320,6 +320,15 @@ body {
   gap: 0.5rem;
   flex-wrap: wrap;
   align-items: flex-end;
+  width: 100%;
+}
+
+/* Utilitário para toolbars horizontais que devem quebrar no mobile */
+.flex-wrap-responsive {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .inline-input {
@@ -513,8 +522,9 @@ body {
 
   .mobile-menu-btn { display: block; }
 
-  .topbar { padding: 0.75rem 1rem; position: sticky; top: 0; }
-  .search-bar-container { display: none; } /* Ocultar busca global no mobile para dar espaço */
+  .topbar { padding: 0.75rem 1rem; position: sticky; top: 0; flex-wrap: wrap; }
+  .search-bar-container { order: 3; width: 100%; min-width: 100%; margin-top: 0.5rem; }
+  .search-bar { max-width: 100%; }
   
   .content-wrapper { padding: 1rem 0.75rem; }
   .page-title { font-size: 1.4rem; }
@@ -531,12 +541,13 @@ body {
   .middle-grid { grid-template-columns: 1fr; gap: 1rem; }
   .panel-card { padding: 1rem; overflow-x: hidden; }
 
-  .inline-form { flex-direction: column; gap: 0.75rem; width: 100%; }
+  .inline-form { flex-direction: column; gap: 0.75rem; width: 100%; align-items: stretch; }
   .inline-input, .btn-submit { width: 100% !important; flex: none !important; margin: 0 !important; }
 
   .eventos-toolbar { flex-direction: column; align-items: stretch; gap: 1rem; }
-  .toolbar-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-  .toolbar-buttons button, .toolbar-buttons a { width: 100%; margin: 0; text-align: center; justify-content: center; }
+  .toolbar-buttons { flex-direction: column; align-items: stretch; gap: 0.75rem; width: 100%; }
+  .toolbar-buttons > div { width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .toolbar-buttons button, .toolbar-buttons a { width: 100%; margin: 0; text-align: center; justify-content: center; display: flex; align-items: center; }
 
   /* Melhoria das tabelas no mobile */
   .table-responsive {
@@ -544,8 +555,17 @@ body {
     padding: 0 1rem;
     width: calc(100% + 2rem);
     border-radius: 0;
+    border-left: none;
+    border-right: none;
   }
-  .table-minimal { min-width: 600px; } /* Força scroll lateral suave em tabelas longas */
+  .table-minimal { min-width: 700px; } /* Força scroll lateral suave em tabelas longas */
+  
+  /* Seção de Sincronização Calendário */
+  .sync-container { flex-direction: column !important; align-items: stretch !important; }
+  .sync-controls { flex-direction: column !important; width: 100%; }
+  
+  /* Calendário Navegação */
+  .cal-nav { width: 100%; justify-content: space-between; }
   
   .pie-container { flex-direction: column; gap: 1rem; }
   
@@ -555,7 +575,7 @@ body {
 /* =================== RESPONSIVE: SMALL MOBILE (< 480px) =================== */
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
-  .toolbar-buttons { grid-template-columns: 1fr; }
+  .toolbar-buttons > div { grid-template-columns: 1fr; }
   .topbar-icons .icon-btn:not(.notification-badge) { display: none; } /* Ocultar ícones extras */
 }
 

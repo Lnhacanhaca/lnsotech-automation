@@ -724,7 +724,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       <div className="eventos-toolbar">
         <div className="panel-title" style={{margin:0}}>Base de Dados de Clientes</div>
         <div className="toolbar-buttons">
-          <div style={{display:'flex', gap:'0.5rem'}}>
+          <div className="flex-wrap-responsive">
             <button onClick={handleExportCSV} className="btn-submit" style={{background:'#1e293b'}}>📥 CSV</button>
             <button onClick={handleExportExcel} className="btn-submit" style={{background:'#047857'}}>📊 Excel</button>
             <button onClick={handleExportPDF} className="btn-submit" style={{background:'#be123c'}}>📄 PDF</button>
@@ -1007,22 +1007,24 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     
     return (
       <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
-        <div className="panel-card" style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'1rem'}}>
+        <div className="panel-card sync-container" style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'1rem'}}>
           <div>
             <h3 style={{margin:'0 0 0.5rem 0', display:'flex', alignItems:'center', gap:'0.5rem'}}>📅 Sincronização Google Calendar / Apple</h3>
             <p className="text-muted" style={{margin:0, fontSize:'0.85rem'}}>Adicione este link à sua aplicação de calendário para ver todos os eventos do CRM lá.</p>
           </div>
-          <div style={{display:'flex', gap:'0.5rem', flex:'1', minWidth:'300px'}}>
-            <input type="text" readOnly value={`${apiBase}/api/eventos/feed.ics`} className="inline-input" style={{flex:1, background:'#f8fafc'}} />
-            <button onClick={() => { navigator.clipboard.writeText(`${apiBase}/api/eventos/feed.ics`); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 Link copiado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' }); }} className="btn-submit">📋 Copiar Link</button>
-            <a href={`${apiBase}/api/eventos/feed.ics`} target="_blank" rel="noreferrer" className="btn-submit" style={{background:'#2563eb', textDecoration:'none', color:'#fff'}}>📥 Baixar Calendário</a>
+          <div className="sync-controls" style={{display:'flex', gap:'0.5rem', flex:'1', minWidth:'300px'}}>
+            <input type="text" readOnly value={`${apiBase}/api/eventos/feed.ics`} className="inline-input" style={{flex:1, background:'#f8fafc', minWidth:'100%'}} />
+            <div style={{display:'flex', gap:'0.5rem', width:'100%'}}>
+                <button onClick={() => { navigator.clipboard.writeText(`${apiBase}/api/eventos/feed.ics`); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 Link copiado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' }); }} className="btn-submit" style={{flex:1}}>📋 Copiar</button>
+                <a href={`${apiBase}/api/eventos/feed.ics`} target="_blank" rel="noreferrer" className="btn-submit" style={{background:'#2563eb', textDecoration:'none', color:'#fff', flex:1, textAlign:'center'}}>📥 Baixar</a>
+            </div>
           </div>
         </div>
 
         <div style={{display:'flex', gap:'1.5rem', flexWrap:'wrap', alignItems:'flex-start'}}>
         <div className="panel-card" style={{flex:'1', minWidth:'320px'}}>
           {/* Header do calendário */}
-          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem'}}>
+          <div className="cal-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem'}}>
             <button onClick={prevMonth} className="btn-submit" style={{padding:'0.3rem 0.8rem', fontSize:'1rem', background:'#475569'}}>&#8249;</button>
             <div className="panel-title" style={{margin:0}}>{mesesPT[calMonth]} {calYear}</div>
             <button onClick={nextMonth} className="btn-submit" style={{padding:'0.3rem 0.8rem', fontSize:'1rem', background:'#475569'}}>&#8250;</button>
@@ -1124,7 +1126,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           <div className="panel-card" style={{flex:1, minWidth:'300px'}}>
             <div className="panel-title">⏰ Hora de Envio Automático</div>
             <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>Defina a que horas o sistema deve disparar as mensagens diárias.</p>
-            <div style={{display:'flex', gap:'0.8rem', alignItems:'center'}}>
+            <div className="flex-wrap-responsive">
               <input 
                 type="time" 
                 className="inline-input" 
@@ -1133,14 +1135,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 style={{fontSize:'1.2rem', padding:'0.5rem', flex:1}}
               />
               <button 
-                onClick={() => {
-                    console.log('Clique detetado no Botao de Hora');
-                    handleSaveConfig('hora_lembrete', horaLembrete);
-                }}
+                onClick={() => handleSaveConfig('hora_lembrete', horaLembrete)}
                 className="btn-submit"
-                style={{padding:'0.6rem 1.5rem'}}
+                style={{padding:'0.6rem 1.5rem', flex:1}}
               >
-                💾 Actualizar Hora v2.2
+                💾 Actualizar Hora
               </button>
             </div>
           </div>
@@ -1162,53 +1161,55 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         {isAdmin && (
           <div className="panel-card">
             <div className="panel-title">👥 Gestão de Utilizadores</div>
-            <table className="table-minimal">
-              <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
-              <tbody>
-                {usuarios.map(u => (
-                  <tr key={u.id}>
-                    <td>
-                        {editingUserId === u.id ? (
-                            <input className="inline-input" value={editUserForm.nome} onChange={e=>setEditUserForm({...editUserForm, nome: e.target.value})} />
-                        ) : (
-                            <span>{u.nome} {u.id === 1 && <strong style={{color:'#f59e0b', fontSize:'0.7rem'}}>(ROOT)</strong>} {u.id === user.id && '(Eu)'}</span>
-                        )}
-                    </td>
-                    <td>
-                        {editingUserId === u.id ? (
-                            <input className="inline-input" value={editUserForm.email} onChange={e=>setEditUserForm({...editUserForm, email: e.target.value})} />
-                        ) : u.email}
-                    </td>
-                    <td>
-                        {editingUserId === u.id ? (
-                            <select className="inline-input" value={editUserForm.nivel_acesso} onChange={e=>setEditUserForm({...editUserForm, nivel_acesso: e.target.value})}>
-                                <option value="leitor">LEITOR</option>
-                                <option value="editor">EDITOR</option>
-                                <option value="admin">ADMIN</option>
-                            </select>
-                        ) : (
-                            <span style={{color: u.nivel_acesso==='admin'?'#ef4444':u.nivel_acesso==='editor'?'#3b82f6':'#64748b', fontWeight:600}}>{u.nivel_acesso.toUpperCase()}</span>
-                        )}
-                    </td>
-                    <td style={{textAlign:'right'}}>
-                      {editingUserId === u.id ? (
-                          <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
-                              <button onClick={handleUpdateUser} className="btn-action" style={{color:'#10b981'}}>Salvar</button>
-                              <button onClick={()=>setEditingUserId(null)} className="btn-action">Cancelar</button>
-                          </div>
-                      ) : (
-                        <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
-                          <button onClick={() => startEditUser(u)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
-                          {u.id !== 1 && u.id !== user.id && (
-                            <button onClick={() => handleDeleteUsuario(u.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+            <div className="table-responsive">
+              <table className="table-minimal">
+                <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
+                <tbody>
+                  {usuarios.map(u => (
+                    <tr key={u.id}>
+                      <td>
+                          {editingUserId === u.id ? (
+                              <input className="inline-input" value={editUserForm.nome} onChange={e=>setEditUserForm({...editUserForm, nome: e.target.value})} />
+                          ) : (
+                              <span>{u.nome} {u.id === 1 && <strong style={{color:'#f59e0b', fontSize:'0.7rem'}}>(ROOT)</strong>} {u.id === user.id && '(Eu)'}</span>
                           )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </td>
+                      <td>
+                          {editingUserId === u.id ? (
+                              <input className="inline-input" value={editUserForm.email} onChange={e=>setEditUserForm({...editUserForm, email: e.target.value})} />
+                          ) : u.email}
+                      </td>
+                      <td>
+                          {editingUserId === u.id ? (
+                              <select className="inline-input" value={editUserForm.nivel_acesso} onChange={e=>setEditUserForm({...editUserForm, nivel_acesso: e.target.value})}>
+                                  <option value="leitor">LEITOR</option>
+                                  <option value="editor">EDITOR</option>
+                                  <option value="admin">ADMIN</option>
+                              </select>
+                          ) : (
+                              <span style={{color: u.nivel_acesso==='admin'?'#ef4444':u.nivel_acesso==='editor'?'#3b82f6':'#64748b', fontWeight:600}}>{u.nivel_acesso.toUpperCase()}</span>
+                          )}
+                      </td>
+                      <td style={{textAlign:'right'}}>
+                        {editingUserId === u.id ? (
+                            <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                                <button onClick={handleUpdateUser} className="btn-action" style={{color:'#10b981'}}>Salvar</button>
+                                <button onClick={()=>setEditingUserId(null)} className="btn-action">Cancelar</button>
+                            </div>
+                        ) : (
+                          <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                            <button onClick={() => startEditUser(u)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
+                            {u.id !== 1 && u.id !== user.id && (
+                              <button onClick={() => handleDeleteUsuario(u.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div style={{marginTop:'1.5rem', borderTop:'1px solid #e2e8f0', paddingTop:'1rem'}}>
               <div className="panel-title" style={{fontSize:'1rem'}}>+ Novo Utilizador</div>
               <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
@@ -1229,50 +1230,52 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         <div className="panel-card">
           <div className="panel-title">🎨 Gestão de Tipos de Evento</div>
           <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1rem'}}>Personalize os nomes e as cores dos eventos que aparecem no calendário e no dashboard.</p>
-          <table className="table-minimal">
-            <thead><tr><th>Nome</th><th>Cor</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
-            <tbody>
-              {tiposEvento.map(t => (
-                <tr key={t.id}>
-                  <td>
-                    {editingTipoId === t.id ? (
-                      <input className="inline-input" value={editTipoForm.nome} onChange={e=>setEditTipoForm({...editTipoForm, nome: e.target.value.toLowerCase()})} />
-                    ) : (
-                      <span className="badge-tipo" style={{background: t.cor, color:'#fff'}}>{t.nome.toUpperCase()}</span>
-                    )}
-                  </td>
-                  <td>
-                    {editingTipoId === t.id ? (
-                      <div style={{display:'flex', gap:'0.4rem', alignItems:'center'}}>
-                        <input type="color" value={editTipoForm.cor} onChange={e=>setEditTipoForm({...editTipoForm, cor: e.target.value})} style={{width:'30px', height:'30px', border:'none', padding:0}} />
-                        <input className="inline-input" value={editTipoForm.cor} onChange={e=>setEditTipoForm({...editTipoForm, cor: e.target.value})} style={{width:'80px'}} />
-                      </div>
-                    ) : (
-                      <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
-                        <div style={{width:'16px', height:'16px', borderRadius:'50%', background:t.cor, border:'1px solid #e2e8f0'}} />
-                        <span style={{fontFamily:'monospace', fontSize:'0.8rem'}}>{t.cor}</span>
-                      </div>
-                    )}
-                  </td>
-                  <td style={{textAlign:'right'}}>
-                    {editingTipoId === t.id ? (
-                      <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
-                        <button onClick={handleUpdateTipo} className="btn-action" style={{color:'#10b981'}}>Salvar</button>
-                        <button onClick={()=>setEditingTipoId(null)} className="btn-action">Cancelar</button>
-                      </div>
-                    ) : (
-                      <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
-                        <button onClick={() => startEditTipo(t)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
-                        {!['casamento','aniversario','batizado'].includes(t.nome) && (
-                          <button onClick={() => handleDeleteTipo(t.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-responsive">
+            <table className="table-minimal">
+              <thead><tr><th>Nome</th><th>Cor</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
+              <tbody>
+                {tiposEvento.map(t => (
+                  <tr key={t.id}>
+                    <td>
+                      {editingTipoId === t.id ? (
+                        <input className="inline-input" value={editTipoForm.nome} onChange={e=>setEditTipoForm({...editTipoForm, nome: e.target.value.toLowerCase()})} />
+                      ) : (
+                        <span className="badge-tipo" style={{background: t.cor, color:'#fff'}}>{t.nome.toUpperCase()}</span>
+                      )}
+                    </td>
+                    <td>
+                      {editingTipoId === t.id ? (
+                        <div style={{display:'flex', gap:'0.4rem', alignItems:'center'}}>
+                          <input type="color" value={editTipoForm.cor} onChange={e=>setEditTipoForm({...editTipoForm, cor: e.target.value})} style={{width:'30px', height:'30px', border:'none', padding:0}} />
+                          <input className="inline-input" value={editTipoForm.cor} onChange={e=>setEditTipoForm({...editTipoForm, cor: e.target.value})} style={{width:'80px'}} />
+                        </div>
+                      ) : (
+                        <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                          <div style={{width:'16px', height:'16px', borderRadius:'50%', background:t.cor, border:'1px solid #e2e8f0'}} />
+                          <span style={{fontFamily:'monospace', fontSize:'0.8rem'}}>{t.cor}</span>
+                        </div>
+                      )}
+                    </td>
+                    <td style={{textAlign:'right'}}>
+                      {editingTipoId === t.id ? (
+                        <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                          <button onClick={handleUpdateTipo} className="btn-action" style={{color:'#10b981'}}>Salvar</button>
+                          <button onClick={()=>setEditingTipoId(null)} className="btn-action">Cancelar</button>
+                        </div>
+                      ) : (
+                        <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                          <button onClick={() => startEditTipo(t)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
+                          {!['casamento','aniversario','batizado'].includes(t.nome) && (
+                            <button onClick={() => handleDeleteTipo(t.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div style={{marginTop:'1.5rem', borderTop:'1px solid #e2e8f0', paddingTop:'1rem'}}>
             <div className="panel-title" style={{fontSize:'1rem'}}>+ Novo Tipo</div>
             <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
@@ -1302,8 +1305,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
         {isAdmin && (
           <div className="panel-card">
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.2rem'}}>
-                <div>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.2rem', flexWrap:'wrap', gap:'1rem'}}>
+                <div style={{minWidth:'200px', flex:1}}>
                     <div className="panel-title">🗄️ Base de Dados & Backups</div>
                     <p className="text-muted" style={{fontSize:'0.85rem', margin:0}}>Gerencie cópias de segurança do seu CRM para evitar perda de dados.</p>
                 </div>
