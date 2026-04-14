@@ -1300,7 +1300,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 defaultValue={t.mensagem}
                 onBlur={(e) => handleUpdateTemplate(t.id, e.target.value)}
               />
-              <div style={{fontSize:'0.7rem', color:'#94a3b8', marginTop:'0.4rem'}}>Usa {"{nomes}"} e {"{bodas}"} para personalização automática.</div>
+              <div style={{fontSize:'0.7rem', color:'#94a3b8', marginTop:'0.4rem'}}>Usa {"{nomes}"}, {"{bodas}"} e {"{significado}"} para personalização automática.</div>
             </div>
           ))}
         </div>

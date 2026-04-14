@@ -18,13 +18,35 @@ const PDFDocument = require('pdfkit');
 // Estado global da conexão WhatsApp
 global.waState = { qr: null, status: 'desconectado', lastUpdate: null };
 
-// 1. Objeto de Bodas
+// 1. Objeto de Bodas com Significados
 const listaBodas = {
-    1: "Papel", 2: "Algodão", 3: "Couro", 4: "Flores e Frutas", 5: "Madeira",
-    6: "Perfume ou Açúcar", 7: "Lã ou Latão", 8: "Papoula ou Barro", 9: "Cerâmica ou Vime", 10: "Estanho",
-    11: "Aço", 12: "Seda ou Ônix", 13: "Renda", 14: "Marfim", 15: "Cristal",
-    20: "Porcelana", 25: "Prata", 30: "Pérola", 35: "Coral", 40: "Esmeralda",
-    45: "Rubi", 50: "Ouro", 60: "Diamante"
+    1: { nome: "Papel", significado: "Simboliza a fragilidade e a flexibilidade do início da relação." },
+    2: { nome: "Algodão", significado: "Representa o conforto e a suavidade de dois anos de convivência." },
+    3: { nome: "Couro", significado: "Simboliza a resistência e a durabilidade que o casal está a construir." },
+    4: { nome: "Flores e Frutas", significado: "Indica a vitalidade e a doçura da união que está a florescer." },
+    5: { nome: "Madeira", significado: "Representa raízes fortes e um crescimento sólido." },
+    6: { nome: "Perfume ou Açúcar", significado: "Celebra o aroma doce e a essência suave da vida a dois." },
+    7: { nome: "Lã ou Latão", significado: "Simboliza o calor que protege o lar e a resistência dos laços." },
+    8: { nome: "Papoula ou Barro", significado: "Representa a fertilidade e a união que ganha forma com o tempo." },
+    9: { nome: "Cerâmica ou Vime", significado: "Indica a arte de moldar a convivência com paciência e dedicação." },
+    10: { nome: "Estanho", significado: "Simboliza a maleabilidade necessária para manter a união por uma década." },
+    11: { nome: "Aço", significado: "Representa uma união que se tornou inquebrável sob pressão." },
+    12: { nome: "Seda ou Ônix", significado: "Simboliza a suavidade, a sofisticação e a proteção mútua." },
+    13: { nome: "Renda", significado: "Representa a delicadeza e a transparência de 13 anos de história." },
+    14: { nome: "Marfim", significado: "Um símbolo de nobreza e da força acumulada ao longo dos anos." },
+    15: { nome: "Cristal", significado: "Representa a transparência, confiança e clareza da relação." },
+    16: { nome: "Turmalina", significado: "Simboliza a vitalidade e a pedra que revigora as energias do casal." },
+    17: { nome: "Rosa", significado: "A celebração do amor que continua a florescer e a exalar perfume." },
+    18: { nome: "Turquesa", significado: "Símbolo de tranquilidade e o azul profundo da união serena." },
+    19: { nome: "Cretone", significado: "Representa a força de um tecido resistente que une as partes." },
+    20: { nome: "Porcelana", significado: "Simboliza a beleza e o cuidado necessário para manter a união preciosa." },
+    25: { nome: "Prata", significado: "Um marco de brilho e resistência após um quarto de século." },
+    30: { nome: "Pérola", significado: "Representa algo precioso construído camada por camada ao longo do tempo." },
+    35: { nome: "Coral", significado: "Símbolo de amadurecimento e a beleza das profundezas marinhas." },
+    40: { nome: "Esmeralda", significado: "Simboliza o amor incondicional e a paciência eterna." },
+    45: { nome: "Rubi", significado: "A cor da paixão que permanece viva e ardente após décadas." },
+    50: { nome: "Ouro", significado: "O metal mais precioso para celebrar uma vida inteira de partilha." },
+    60: { nome: "Diamante", significado: "Representa a indestrutibilidade absoluta da vossa união." }
 };
 
 // 2. Configuração do Banco de Dados
@@ -369,9 +391,12 @@ async function executarLembretes(sock, manual = false) {
 
             let mensagem;
             if (evento.tipo_evento === 'casamento') {
-                const nomeBoda = listaBodas[anos] || "União e Amor";
-                const template = templatesMap['casamento'] || 'Feliz Aniversário de Casamento, {nomes}! 💍 Bodas de {bodas}!';
-                mensagem = template.replace('{nomes}', evento.nomes_principais).replace('{bodas}', nomeBoda);
+                const bodaObj = listaBodas[anos] || { nome: "União e Amor", significado: "Um momento especial para renovar os vossos votos." };
+                const template = templatesMap['casamento'] || 'Feliz Aniversário de Casamento, {nomes}! 💍 Bodas de {bodas}!\n✨ *Significado:* {significado}';
+                mensagem = template
+                    .replace('{nomes}', evento.nomes_principais)
+                    .replace('{bodas}', bodaObj.nome)
+                    .replace('{significado}', bodaObj.significado);
             } else {
                 const template = templatesMap[evento.tipo_evento] || 'Parabéns {nomes}! 🎉 Celebrando mais um ano!';
                 mensagem = template.replace('{nomes}', evento.nomes_principais);
