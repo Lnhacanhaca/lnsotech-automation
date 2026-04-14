@@ -8,9 +8,9 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 export default function Dashboard({ token, user: rawUser, onLogout }) {
   // FIX: suportar tanto "nivel" (token antigo) como "nivel_acesso" (token novo)
-  const user = { ...rawUser, nivel_acesso: rawUser.nivel_acesso || rawUser.nivel || 'leitor' };
-  const isAdmin = user.nivel_acesso === 'admin';
-  const isEditor = user.nivel_acesso === 'editor';
+  const user = { ...(rawUser || {}), nivel_acesso: rawUser?.nivel_acesso || rawUser?.nivel || 'leitor' };
+  const isAdmin = user?.nivel_acesso === 'admin';
+  const isEditor = user?.nivel_acesso === 'editor';
   const canEdit = isAdmin || isEditor;
 
   const [eventos, setEventos] = useState([]);
@@ -192,13 +192,24 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   // =================== FETCH DATA =================== //
   const fetchData = async (search = '') => {
     try {
+      console.log('[fetchData] Iniciando busca de dados...');
       setLoading(true);
       const url = search ? `${apiBase}/api/eventos?search=${search}` : `${apiBase}/api/eventos`;
       const resEv = await fetch(url, { headers });
-      if (resEv.ok) setEventos(await resEv.json());
+      if (resEv.ok) {
+          const evs = await resEv.json();
+          console.log('[fetchData] Eventos recebidos:', evs.length);
+          setEventos(evs);
+      } else {
+          console.warn('[fetchData] Falha ao buscar eventos:', resEv.status);
+      }
 
       const resStats = await fetch(`${apiBase}/api/eventos/stats`, { headers });
-      if (resStats.ok) setStats(await resStats.json());
+      if (resStats.ok) {
+          const st = await resStats.json();
+          console.log('[fetchData] Stats recebidas:', st);
+          setStats(st);
+      }
       
       if (canEdit) {
         const resUsr = await fetch(`${apiBase}/api/auth/usuarios`, { headers });
@@ -206,7 +217,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           const usrData = await resUsr.json();
           setUsuarios(usrData);
         } else {
-          console.error('[fetchData] Falha ao buscar utilizadores. Status:', resUsr.status, await resUsr.text().catch(()=>''));
+          console.error('[fetchData] Falha ao buscar utilizadores. Status:', resUsr.status);
         }
         const resTp = await fetch(`${apiBase}/api/eventos/templates`, { headers });
         if (resTp.ok) setTemplates(await resTp.json());
