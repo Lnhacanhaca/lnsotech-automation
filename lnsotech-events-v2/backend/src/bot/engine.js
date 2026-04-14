@@ -225,7 +225,7 @@ function iniciarCron(sock) {
                 try {
                     // Se o evento tem foto, envia imagem + legenda. Caso contrário, só texto.
                     if (evento.foto_url) {
-                        const fotoPath = path.resolve(__dirname, '../../src/uploads', path.basename(evento.foto_url));
+                        const fotoPath = path.resolve(__dirname, '../../uploads', path.basename(evento.foto_url));
                         if (fs.existsSync(fotoPath)) {
                             await sock.sendMessage(evento.grupo_id, {
                                 image: { url: 'file://' + fotoPath },
