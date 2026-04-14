@@ -80,6 +80,51 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
   }, []);
 
+  const fetchConfigs = async () => {
+    try {
+      const r = await fetch(`${apiBase}/api/auth/configuracoes`, { headers });
+      const data = await r.json();
+      if (data.hora_lembrete) setHoraLembrete(data.hora_lembrete);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleSaveConfig = async (chave, valor) => {
+    try {
+      const r = await fetch(`${apiBase}/api/auth/configuracoes`, {
+        method: 'POST',
+        headers: jsonHeaders,
+        body: JSON.stringify({ chave, valor })
+      });
+      if (r.ok) {
+        Swal.fire({ icon: 'success', title: 'Sucesso', text: 'Configuração atualizada!', timer: 2000, showConfirmButton: false });
+        fetchConfigs();
+      }
+    } catch (e) { Swal.fire('Erro', 'Falha ao salvar', 'error'); }
+  };
+
+  const handleTestarLembretes = async () => {
+    const result = await Swal.fire({
+      title: 'Disparar Lembretes?',
+      text: "Isto vai enviar as mensagens para todos os aniversários/eventos de HOJE imediatamente.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Sim, disparar!',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+      Swal.fire({ title: 'A processar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      try {
+        const r = await fetch(`${apiBase}/api/eventos/testar-lembretes`, { method: 'POST', headers });
+        const data = await r.json();
+        Swal.fire('Concluído', data.mensagem || 'Disparo finalizado!', 'success');
+        if (isAdmin) fetchLogs();
+      } catch (e) { Swal.fire('Erro', 'Falha na conexão', 'error'); }
+    }
+  };
+
   const syncOfflineQueue = async () => {
     const queue = JSON.parse(localStorage.getItem('offline_events') || '[]');
     if (queue.length === 0) return;
@@ -198,50 +243,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     }
   };
 
-  const fetchConfigs = async () => {
-    try {
-      const r = await fetch(`${apiBase}/api/auth/configuracoes`, { headers });
-      const data = await r.json();
-      if (data.hora_lembrete) setHoraLembrete(data.hora_lembrete);
-    } catch (e) { console.error(e); }
-  };
-
-  const handleSaveConfig = async (chave, valor) => {
-    try {
-      const r = await fetch(`${apiBase}/api/auth/configuracoes`, {
-        method: 'POST',
-        headers: jsonHeaders,
-        body: JSON.stringify({ chave, valor })
-      });
-      if (r.ok) {
-        Swal.fire({ icon: 'success', title: 'Sucesso', text: 'Configuração atualizada!', timer: 2000, showConfirmButton: false });
-        fetchConfigs();
-      }
-    } catch (e) { Swal.fire('Erro', 'Falha ao salvar', 'error'); }
-  };
-
-  const handleTestarLembretes = async () => {
-    const result = await Swal.fire({
-      title: 'Disparar Lembretes?',
-      text: "Isto vai enviar as mensagens para todos os aniversários/eventos de HOJE imediatamente.",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#10b981',
-      cancelButtonColor: '#64748b',
-      confirmButtonText: 'Sim, disparar!',
-      cancelButtonText: 'Cancelar'
-    });
-
-    if (result.isConfirmed) {
-      Swal.fire({ title: 'A processar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-      try {
-        const r = await fetch(`${apiBase}/api/eventos/testar-lembretes`, { method: 'POST', headers });
-        const data = await r.json();
-        Swal.fire('Concluído', data.mensagem || 'Disparo finalizado!', 'success');
-        if (isAdmin) fetchLogs();
-      } catch (e) { Swal.fire('Erro', 'Falha na conexão', 'error'); }
-    }
-  };
+  const handleExportCSV = () => window.open(`${apiBase}/api/eventos?exportCsv=true`, '_blank');
 
   const handleCreateUsuario = async () => {
     if (!newUserNome || !newUserEmail || !newUserSenha) return toast.warning('Preencha os dados!');
