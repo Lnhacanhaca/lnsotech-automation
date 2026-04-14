@@ -194,13 +194,17 @@ router.get('/configuracoes', async (req, res) => {
 router.post('/configuracoes', async (req, res) => {
     try {
         const { chave, valor } = req.body;
+        console.log(`⚙️ [Config] A atualizar ${chave} para: ${valor}`);
         // Upsert compatível: tenta update, se não der faz insert
         const resUpnd = await req.db.query('UPDATE configuracoes SET valor = $1 WHERE chave = $2', [valor, chave]);
         if (resUpnd.rowCount === 0) {
             await req.db.query('INSERT INTO configuracoes (chave, valor) VALUES ($1, $2)', [chave, valor]);
         }
         res.json({ mensagem: 'Configuração atualizada!' });
-    } catch (err) { res.status(500).json({ erro: err.message }); }
+    } catch (err) { 
+        console.error('❌ Erro ao salvar config:', err.message);
+        res.status(500).json({ erro: err.message }); 
+    }
 });
 
 module.exports = router;

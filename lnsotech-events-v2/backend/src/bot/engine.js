@@ -351,7 +351,11 @@ async function executarLembretes(sock, manual = false) {
             )
         `;
         const res = await pool.query(query);
-        if (res.rows.length > 0) console.log(`📊 Encontrados ${res.rows.length} eventos para processar.`);
+        console.log(`📊 [DB Query] Eventos encontrados para hoje: ${res.rows.length}`);
+        
+        if (res.rows.length === 0) {
+            console.log("ℹ️ Nenhum evento corresponde aos critérios de data de hoje.");
+        }
 
         const templatesRes = await pool.query('SELECT * FROM templates_mensagem');
         const templatesMap = {};
