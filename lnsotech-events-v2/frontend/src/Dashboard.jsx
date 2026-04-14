@@ -718,6 +718,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                       {isAdmin && <button onClick={()=>handleTesteConexao(g.id, g.nome)} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem'}}>🤖 Testar</button>}
                       <button onClick={() => {
                         const copiar = (texto) => {
+                          if (navigator.clipboard && window.isSecureContext) {
                             navigator.clipboard.writeText(texto).then(() => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 ID copiado!', showConfirmButton: false, timer: 6000, timerProgressBar: true })).catch(() => {
                               const el = document.createElement('textarea');
                               el.value = texto; el.style.position='fixed'; el.style.opacity='0';
