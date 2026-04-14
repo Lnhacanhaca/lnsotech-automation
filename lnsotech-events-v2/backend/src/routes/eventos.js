@@ -310,9 +310,11 @@ router.delete('/:id', async (req, res) => {
 // ========== SERVIR FOTO VIA API (Garante que funciona em qualquer Proxy) ========== //
 router.get('/foto/:filename', (req, res) => {
     const filePath = path.join(__dirname, '../../uploads/', req.params.filename);
+    console.log(`[DEBUG] Tentando carregar foto: ${filePath}`);
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
     } else {
+        console.error(`[ERR] Foto não encontrada no disco: ${filePath}`);
         res.status(404).send('Foto não encontrada');
     }
 });
