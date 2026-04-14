@@ -1120,6 +1120,45 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     );
   };
 
+  const renderBodaGlossary = () => {
+    const list = {
+        1: { n: "Papel", s: "Simboliza a fragilidade e a flexibilidade do início da relação." },
+        2: { n: "Algodão", s: "Representa o conforto e a suavidade de dois anos de convivência." },
+        3: { n: "Couro", s: "Simboliza a resistência e a durabilidade que o casal está a construir." },
+        4: { n: "Flores e Frutas", s: "Indica a vitalidade e a doçura da união que está a florescer." },
+        5: { n: "Madeira", s: "Representa raízes fortes e um crescimento sólido." },
+        10: { n: "Estanho", s: "Simboliza a maleabilidade necessária para manter a união por uma década." },
+        15: { n: "Cristal", s: "Representa a transparência, confiança e clareza da relação." },
+        20: { n: "Porcelana", s: "Simboliza a beleza e o cuidado necessário para manter a união preciosa." },
+        25: { n: "Prata", s: "Um marco de brilho e resistência após um quarto de século." },
+        30: { n: "Pérola", s: "Representa algo precioso construído camada por camada ao longo do tempo." },
+        40: { n: "Esmeralda", s: "Simboliza o amor incondicional e a paciência eterna." },
+        50: { n: "Ouro", s: "O metal mais precioso para celebrar uma vida inteira de partilha." },
+        60: { n: "Diamante", s: "Representa a indestrutibilidade absoluta da vossa união." }
+    };
+    return (
+        <div style={{marginTop:'1.5rem', background:'#fff', padding:'1rem', borderRadius:'12px', border:'1px solid #e2e8f0'}}>
+            <details>
+                <summary style={{fontWeight:700, cursor:'pointer', color:'#1e293b', fontSize:'0.9rem'}}>📚 Ver Dicionário de Bodas & Significados</summary>
+                <div style={{marginTop:'1rem', maxHeight:'250px', overflowY:'auto'}}>
+                    <table className="table-minimal" style={{fontSize:'0.75rem'}}>
+                        <thead><tr><th>Ano</th><th>Boda</th><th>Significado</th></tr></thead>
+                        <tbody>
+                            {Object.entries(list).map(([ano, info]) => (
+                                <tr key={ano}>
+                                    <td style={{fontWeight:700}}>{ano}</td>
+                                    <td><span className="badge-tipo" style={{background:'#ebf5ff', color:'#3b82f6', border:'1px solid #3b82f6'}}>{info.n.toUpperCase()}</span></td>
+                                    <td className="text-muted">{info.s}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        </div>
+    );
+  };
+
   const renderConfig = () => {
     return (
       <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
@@ -1303,6 +1342,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               <div style={{fontSize:'0.7rem', color:'#94a3b8', marginTop:'0.4rem'}}>Usa {"{nomes}"}, {"{bodas}"} e {"{significado}"} para personalização automática.</div>
             </div>
           ))}
+          {renderBodaGlossary()}
         </div>
 
         {isAdmin && (
