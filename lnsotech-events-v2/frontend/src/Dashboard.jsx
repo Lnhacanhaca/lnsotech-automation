@@ -385,10 +385,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (res.ok) { Swal.fire({ title: 'Foto Anexada!', icon: 'success', timer: 5000, timerProgressBar: true, confirmButtonColor: '#10b981' }); fetchData(); } else toast.error('Erro ao anexar foto');
   };
   
-  const handleUpdateTemplate = async (id, msg) => {
-    await fetch(`${apiBase}/api/eventos/templates/${id}`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({mensagem: msg}) });
-    Swal.fire({ title: 'Template Salvo!', icon: 'success', timer: 5000, timerProgressBar: true, confirmButtonColor: '#10b981' });
-  };
+  // Template handler removido (usando versao centralizada)
 
   const handleCreateTipo = async (e) => {
     e.preventDefault();
