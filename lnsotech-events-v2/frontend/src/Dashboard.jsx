@@ -89,6 +89,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   };
 
   const handleSaveConfig = async (chave, valor) => {
+    console.log(`[Config] A salvar ${chave} com valor: ${valor}`);
     try {
       const r = await fetch(`${apiBase}/api/auth/configuracoes`, {
         method: 'POST',
@@ -1056,11 +1057,14 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 style={{fontSize:'1.2rem', padding:'0.5rem', flex:1}}
               />
               <button 
-                onClick={() => handleSaveConfig('hora_lembrete', horaLembrete)}
+                onClick={() => {
+                    console.log('Clique detetado no Botao de Hora');
+                    handleSaveConfig('hora_lembrete', horaLembrete);
+                }}
                 className="btn-submit"
                 style={{padding:'0.6rem 1.5rem'}}
               >
-                💾 Guardar Hora
+                💾 Actualizar Hora v2.2
               </button>
             </div>
           </div>

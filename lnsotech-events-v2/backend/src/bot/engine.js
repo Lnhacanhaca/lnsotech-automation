@@ -183,8 +183,9 @@ function iniciarCron(sock) {
             const horaAgendada = configRes.rows[0]?.valor || '07:00';
 
             if (dataMaputo === horaAgendada) {
-                console.log(`⏰ Hora de enviar lembretes! (${dataMaputo})`);
-                await executarLembretes(sock);
+                console.log(`⏰ Hora de enviar lembretes automático! (${dataMaputo})`);
+                const total = await executarLembretes(sock);
+                console.log(`✅ Ciclo automático finalizado. Total: ${total}`);
             }
         } catch (err) {
             console.error('❌ Erro no monitor de Cron:', err);
@@ -320,6 +321,7 @@ if (require.main === module) {
 async function executarLembretes(sock, manual = false) {
     const agoraMaputo = new Date().toLocaleString("pt-PT", {timeZone: "Africa/Maputo"});
     console.log(`🔍 [${agoraMaputo}] ${manual ? 'DISPARO MANUAL' : 'SISTEMA'}: Verificando eventos...`);
+    let enviados = 0;
     
     try {
         const query = `
@@ -328,18 +330,14 @@ async function executarLembretes(sock, manual = false) {
                    EXTRACT(YEAR FROM data_evento) as ano_origem 
             FROM eventos 
             WHERE grupo_id IS NOT NULL AND (
-                -- ANUAL: mesmo dia e mês do ano
+                -- ANUAL: mesmo dia e mês
                 ((frequencia_lembrete = 'anual' OR frequencia_lembrete IS NULL)
-                 AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (NOW() AT TIME ZONE 'Africa/Maputo'))
-                 AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
+                 AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo'))
+                 AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
                 OR
                 -- MENSAL: mesmo dia do mês
                 (frequencia_lembrete = 'mensal'
-                 AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
-                OR
-                -- SEMANAL: mesmo dia da semana
-                (frequencia_lembrete = 'semanal'
-                 AND EXTRACT(DOW FROM data_evento) = EXTRACT(DOW FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
+                 AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
                 OR
                 -- DIÁRIO
                 frequencia_lembrete = 'diario'
@@ -387,9 +385,12 @@ async function executarLembretes(sock, manual = false) {
                 await registarLog(evento.id, evento.grupo_id, 'lembrete_falha', sendErr.message, 'falha');
                 console.error(`❌ Falha ao enviar para ${evento.grupo_id}:`, sendErr.message);
             }
+            enviados++;
         }
+        return enviados;
     } catch (err) {
         console.error('❌ Erro na execução de lembretes:', err);
+        return 0;
     }
 }
 

@@ -394,8 +394,8 @@ router.post('/testar-lembretes', async (req, res) => {
     try {
         if (global.waSocket) {
             const { executarLembretes } = require('../bot/engine');
-            await executarLembretes(global.waSocket, true); // true = force manual
-            res.json({ mensagem: 'Lembretes disparados manualmente com sucesso!' });
+            const total = await executarLembretes(global.waSocket, true); // true = force manual
+            res.json({ mensagem: `Lembretes disparados manualmente com sucesso! Total: ${total}` });
         } else {
             res.status(503).json({ erro: 'WhatsApp não está conectado ao Bot.' });
         }
