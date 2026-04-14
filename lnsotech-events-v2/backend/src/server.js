@@ -64,6 +64,7 @@ app.get('/api/imagem-evento/:id', async (req, res) => {
         const filePath = path.join(__dirname, '../uploads/', cleanName);
 
         if (fs.existsSync(filePath)) {
+            console.log(`[OK] Foto encontrada e enviada: ${filePath}`);
             // Detetar tipo de arquivo básico
             if (filePath.endsWith('.png')) res.header('Content-Type', 'image/png');
             else if (filePath.endsWith('.webp')) res.header('Content-Type', 'image/webp');
@@ -71,6 +72,7 @@ app.get('/api/imagem-evento/:id', async (req, res) => {
 
             res.sendFile(filePath);
         } else {
+            console.error(`[404] Foto NÃO encontrada em: ${filePath}`);
             res.status(404).send('Arquivo físico não encontrado');
         }
     } catch (err) {
