@@ -363,6 +363,17 @@ body {
   transition: var(--transition);
   white-space: nowrap;
 }
+
+.cal-btn-nav {
+  padding: 0.3rem 0.6rem !important;
+  font-size: 1rem !important;
+  background: #475569 !important;
+  min-width: 44px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
 .btn-submit:hover { background: var(--accent-hover); }
 .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -574,8 +585,13 @@ body {
   
   /* Calendário Navegação */
   .cal-nav { width: 100%; justify-content: space-between; gap: 0.5rem; }
-  .cal-nav button { padding: 0.4rem 0.6rem !important; font-size: 1.1rem !important; min-width: 40px; }
-  .cal-nav .panel-title { font-size: 1.1rem !important; }
+  .cal-btn-nav { 
+    padding: 0.2rem 0.5rem !important; 
+    font-size: 1.1rem !important; 
+    min-width: 38px !important; 
+    height: 38px !important;
+  }
+  .cal-nav .panel-title { font-size: 1rem !important; }
 
   /* Auditoria Histórico */
   .audit-toolbar { flex-direction: column !important; align-items: stretch !important; gap: 1rem; }

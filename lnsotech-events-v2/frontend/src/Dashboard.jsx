@@ -1027,9 +1027,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         <div className="panel-card" style={{flex:'1', minWidth:'320px'}}>
           {/* Header do calendário */}
           <div className="cal-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem'}}>
-            <button onClick={prevMonth} className="btn-submit" style={{padding:'0.3rem 0.8rem', fontSize:'1rem', background:'#475569'}}>&#8249;</button>
+            <button onClick={prevMonth} className="btn-submit cal-btn-nav">&#8249;</button>
             <div className="panel-title" style={{margin:0}}>{mesesPT[calMonth]} {calYear}</div>
-            <button onClick={nextMonth} className="btn-submit" style={{padding:'0.3rem 0.8rem', fontSize:'1rem', background:'#475569'}}>&#8250;</button>
+            <button onClick={nextMonth} className="btn-submit cal-btn-nav">&#8250;</button>
           </div>
           {/* Dias da semana */}
           <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'2px', marginBottom:'4px'}}>
