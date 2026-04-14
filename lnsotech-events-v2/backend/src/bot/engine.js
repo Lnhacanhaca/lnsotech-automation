@@ -54,6 +54,9 @@ async function connectToWhatsApp() {
     const { version, isLatest } = await fetchLatestBaileysVersion();
 
     console.log(`[Baileys] Ligando com a versão do WA v${version.join('.')}, isLatest: ${isLatest}`);
+    
+    // Garantir tabela de configurações
+    await pool.query("CREATE TABLE IF NOT EXISTS configuracoes (chave TEXT PRIMARY KEY, valor TEXT); INSERT INTO configuracoes (chave, valor) VALUES ('hora_lembrete', '07:00') ON CONFLICT DO NOTHING;");
 
     const sock = makeWASocket({
         version,
@@ -166,91 +169,27 @@ async function connectToWhatsApp() {
     return sock;
 }
 
-// 5. Função agendada com cron
+// 5. Função agendada com cron (Dinâmica)
 function iniciarCron(sock) {
-    console.log('⏳ Cron Job iniciado (Horário: 07:00 Maputo)');
+    console.log('⏳ Monitor de Cron Job iniciado (Verificação a cada minuto)');
     
-    cron.schedule('0 7 * * *', async () => {
-        const agoraMaputo = new Date().toLocaleString("pt-PT", {timeZone: "Africa/Maputo"});
-        console.log(`🔍 [${agoraMaputo}] LNSOTECH: Verificando eventos do dia...`);
+    // Verifica a cada minuto se é a hora de enviar
+    cron.schedule('* * * * *', async () => {
         try {
-            // Buscar eventos conforme frequência de lembrete configurada
-            const query = `
-                SELECT id, nomes_principais, grupo_id, tipo_evento, foto_url,
-                       frequencia_lembrete,
-                       EXTRACT(YEAR FROM data_evento) as ano_origem 
-                FROM eventos 
-                WHERE grupo_id IS NOT NULL AND (
-                    -- ANUAL: mesmo dia e mês do ano
-                    ((frequencia_lembrete = 'anual' OR frequencia_lembrete IS NULL)
-                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (NOW() AT TIME ZONE 'Africa/Maputo'))
-                     AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
-                    OR
-                    -- MENSAL: mesmo dia do mês
-                    (frequencia_lembrete = 'mensal'
-                     AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
-                    OR
-                    -- SEMANAL: mesmo dia da semana
-                    (frequencia_lembrete = 'semanal'
-                     AND EXTRACT(DOW FROM data_evento) = EXTRACT(DOW FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
-                    OR
-                    -- DIÁRIO
-                    frequencia_lembrete = 'diario'
-                )
-            `;
-            const res = await pool.query(query);
-            if (res.rows.length > 0) console.log(`📊 Encontrados ${res.rows.length} eventos para hoje.`);
+            const dataMaputo = new Date().toLocaleTimeString("pt-PT", {timeZone: "Africa/Maputo", hour: '2-digit', minute: '2-digit'});
+            
+            // Buscar hora configurada
+            const configRes = await pool.query("SELECT valor FROM configuracoes WHERE chave = 'hora_lembrete'");
+            const horaAgendada = configRes.rows[0]?.valor || '07:00';
 
-            // Buscar templates dinâmicos
-            const templatesRes = await pool.query('SELECT * FROM templates_mensagem');
-            const templatesMap = {};
-            templatesRes.rows.forEach(t => { templatesMap[t.tipo_evento] = t.mensagem; });
-
-            for (let evento of res.rows) {
-                const freq = evento.frequencia_lembrete || 'anual';
-                const anos = new Date().getFullYear() - evento.ano_origem;
-                // Para frequência anual, pular eventos do ano de criação
-                if (freq === 'anual' && anos <= 0) continue;
-
-                let mensagem;
-                if (evento.tipo_evento === 'casamento') {
-                    const nomeBoda = listaBodas[anos] || "União e Amor";
-                    const template = templatesMap['casamento'] || 'Feliz Aniversário de Casamento, {nomes}! 💍 Bodas de {bodas}!';
-                    mensagem = template.replace('{nomes}', evento.nomes_principais).replace('{bodas}', nomeBoda);
-                } else {
-                    const template = templatesMap[evento.tipo_evento] || 'Parabéns {nomes}! 🎉 Celebrando mais um ano!';
-                    mensagem = template.replace('{nomes}', evento.nomes_principais);
-                }
-
-                try {
-                    // Se o evento tem foto, envia imagem + legenda. Caso contrário, só texto.
-                    if (evento.foto_url) {
-                        const fotoPath = path.resolve(__dirname, '../../uploads', path.basename(evento.foto_url));
-                        if (fs.existsSync(fotoPath)) {
-                            await sock.sendMessage(evento.grupo_id, {
-                                image: { url: 'file://' + fotoPath },
-                                caption: mensagem
-                            });
-                        } else {
-                            // Ficheiro não encontrado localmente, envia só texto
-                            await sock.sendMessage(evento.grupo_id, { text: mensagem });
-                        }
-                    } else {
-                        await sock.sendMessage(evento.grupo_id, { text: mensagem });
-                    }
-                    await registarLog(evento.id, evento.grupo_id, 'lembrete_enviado', mensagem, 'sucesso');
-                    console.log(`✅ Enviado para: ${evento.nomes_principais} (Grupo: ${evento.grupo_id})`);
-                } catch (sendErr) {
-                    await registarLog(evento.id, evento.grupo_id, 'lembrete_falha', sendErr.message, 'falha');
-                    console.error(`❌ Falha ao enviar para ${evento.grupo_id}:`, sendErr.message);
-                }
+            if (dataMaputo === horaAgendada) {
+                console.log(`⏰ Hora de enviar lembretes! (${dataMaputo})`);
+                await executarLembretes(sock);
             }
         } catch (err) {
-            console.error('❌ Erro no Cron Job:', err);
+            console.error('❌ Erro no monitor de Cron:', err);
         }
-    }, {
-        timezone: "Africa/Maputo"
-    });
+    }, { timezone: "Africa/Maputo" });
 
     // ========== CRON JOB PARA BACKUP DA BASE DE DADOS (00:00) ========== //
     cron.schedule('0 0 * * *', () => {
@@ -378,4 +317,80 @@ if (require.main === module) {
     connectToWhatsApp().catch(err => console.log('Erro inesperado: ' + err));
 }
 
-module.exports = { connectToWhatsApp };
+async function executarLembretes(sock, manual = false) {
+    const agoraMaputo = new Date().toLocaleString("pt-PT", {timeZone: "Africa/Maputo"});
+    console.log(`🔍 [${agoraMaputo}] ${manual ? 'DISPARO MANUAL' : 'SISTEMA'}: Verificando eventos...`);
+    
+    try {
+        const query = `
+            SELECT id, nomes_principais, grupo_id, tipo_evento, foto_url,
+                   frequencia_lembrete,
+                   EXTRACT(YEAR FROM data_evento) as ano_origem 
+            FROM eventos 
+            WHERE grupo_id IS NOT NULL AND (
+                -- ANUAL: mesmo dia e mês do ano
+                ((frequencia_lembrete = 'anual' OR frequencia_lembrete IS NULL)
+                 AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (NOW() AT TIME ZONE 'Africa/Maputo'))
+                 AND EXTRACT(MONTH FROM data_evento) = EXTRACT(MONTH FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
+                OR
+                -- MENSAL: mesmo dia do mês
+                (frequencia_lembrete = 'mensal'
+                 AND EXTRACT(DAY FROM data_evento) = EXTRACT(DAY FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
+                OR
+                -- SEMANAL: mesmo dia da semana
+                (frequencia_lembrete = 'semanal'
+                 AND EXTRACT(DOW FROM data_evento) = EXTRACT(DOW FROM (NOW() AT TIME ZONE 'Africa/Maputo')))
+                OR
+                -- DIÁRIO
+                frequencia_lembrete = 'diario'
+            )
+        `;
+        const res = await pool.query(query);
+        if (res.rows.length > 0) console.log(`📊 Encontrados ${res.rows.length} eventos para processar.`);
+
+        const templatesRes = await pool.query('SELECT * FROM templates_mensagem');
+        const templatesMap = {};
+        templatesRes.rows.forEach(t => { templatesMap[t.tipo_evento] = t.mensagem; });
+
+        for (let evento of res.rows) {
+            const freq = evento.frequencia_lembrete || 'anual';
+            const anos = new Date().getFullYear() - evento.ano_origem;
+            if (freq === 'anual' && anos <= 0 && !manual) continue;
+
+            let mensagem;
+            if (evento.tipo_evento === 'casamento') {
+                const nomeBoda = listaBodas[anos] || "União e Amor";
+                const template = templatesMap['casamento'] || 'Feliz Aniversário de Casamento, {nomes}! 💍 Bodas de {bodas}!';
+                mensagem = template.replace('{nomes}', evento.nomes_principais).replace('{bodas}', nomeBoda);
+            } else {
+                const template = templatesMap[evento.tipo_evento] || 'Parabéns {nomes}! 🎉 Celebrando mais um ano!';
+                mensagem = template.replace('{nomes}', evento.nomes_principais);
+            }
+
+            try {
+                if (evento.foto_url) {
+                    const fotoPath = path.resolve(__dirname, '../../uploads', path.basename(evento.foto_url));
+                    if (fs.existsSync(fotoPath)) {
+                        await sock.sendMessage(evento.grupo_id, {
+                            image: { url: 'file://' + fotoPath },
+                            caption: mensagem
+                        });
+                    } else {
+                        await sock.sendMessage(evento.grupo_id, { text: mensagem });
+                    }
+                } else {
+                    await sock.sendMessage(evento.grupo_id, { text: mensagem });
+                }
+                await registarLog(evento.id, evento.grupo_id, manual ? 'teste_manual' : 'lembrete_enviado', mensagem, 'sucesso');
+                console.log(`✅ Enviado para: ${evento.nomes_principais} (Grupo: ${evento.grupo_id})`);
+            } catch (sendErr) {
+                await registarLog(evento.id, evento.grupo_id, 'lembrete_falha', sendErr.message, 'falha');
+                console.error(`❌ Falha ao enviar para ${evento.grupo_id}:`, sendErr.message);
+            }
+        }
+    } catch (err) {
+        console.error('❌ Erro na execução de lembretes:', err);
+    }
+}
+
+module.exports = { connectToWhatsApp, executarLembretes };

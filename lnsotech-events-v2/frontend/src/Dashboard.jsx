@@ -16,7 +16,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [eventos, setEventos] = useState([]);
   const [stats, setStats] = useState({ totalEventos: 0, totalBodas: 0, totalAniversarios: 0, gruposAtivos: 0, lembretesEnviados: 0, falhasHoje: 0 });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('eventos'); // eventos | logs | backups | configs
+  const [horaLembrete, setHoraLembrete] = useState('07:00');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [formNomes, setFormNomes] = useState('');
@@ -193,6 +194,51 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         Swal.fire('Erro', 'Erro na comunicação com o servidor.', 'error');
     } finally {
         setLoading(false);
+    }
+  };
+
+  const fetchConfigs = async () => {
+    try {
+      const r = await fetch(`${apiBase}/api/configuracoes`, { headers });
+      const data = await r.json();
+      if (data.hora_lembrete) setHoraLembrete(data.hora_lembrete);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleSaveConfig = async (chave, valor) => {
+    try {
+      const r = await fetch(`${apiBase}/api/configuracoes`, {
+        method: 'POST',
+        headers: jsonHeaders,
+        body: JSON.stringify({ chave, valor })
+      });
+      if (r.ok) {
+        Swal.fire({ icon: 'success', title: 'Sucesso', text: 'Configuração atualizada!', timer: 2000, showConfirmButton: false });
+        fetchConfigs();
+      }
+    } catch (e) { Swal.fire('Erro', 'Falha ao salvar', 'error'); }
+  };
+
+  const handleTestarLembretes = async () => {
+    const result = await Swal.fire({
+      title: 'Disparar Lembretes?',
+      text: "Isto vai enviar as mensagens para todos os aniversários/eventos de HOJE imediatamente.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Sim, disparar!',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+      Swal.fire({ title: 'A processar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      try {
+        const r = await fetch(`${apiBase}/api/eventos/testar-lembretes`, { method: 'POST', headers });
+        const data = await r.json();
+        Swal.fire('Concluído', data.mensagem || 'Disparo finalizado!', 'success');
+        if (isAdmin) fetchLogs();
+      } catch (e) { Swal.fire('Erro', 'Falha na conexão', 'error'); }
     }
   };
 
@@ -1067,6 +1113,103 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           </div>
         </div>
       </div>
+      </div>
+    );
+  };
+
+  const renderConfig = () => {
+    return (
+      <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
+        <div style={{display:'flex', gap:'1.5rem', flexWrap:'wrap'}}>
+          {/* CONFIG: HORA DO LEMBRETE */}
+          <div className="panel-card" style={{flex:1, minWidth:'300px'}}>
+            <div className="panel-title">⏰ Hora de Envio Automático</div>
+            <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>Defina a que horas o sistema deve disparar as mensagens diárias.</p>
+            <div style={{display:'flex', gap:'0.8rem', alignItems:'center'}}>
+              <input 
+                type="time" 
+                className="inline-input" 
+                value={horaLembrete} 
+                onChange={(e) => setHoraLembrete(e.target.value)}
+                style={{fontSize:'1.2rem', padding:'0.5rem', flex:1}}
+              />
+              <button 
+                onClick={() => handleSaveConfig('hora_lembrete', horaLembrete)}
+                className="btn-submit"
+                style={{padding:'0.6rem 1.5rem'}}
+              >
+                💾 Guardar Hora
+              </button>
+            </div>
+          </div>
+
+          {/* DICA: TESTAR AGORA */}
+          <div className="panel-card" style={{flex:1, minWidth:'300px', border:'2px dashed #10b981', background:'#f0fdf4'}}>
+            <div className="panel-title" style={{color:'#059669'}}>🚀 Testar Lembretes Agora</div>
+            <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>Quer verificar se as fotos e mensagens estão a sair bem? Dispare o lembrete de hoje agora mesmo para todos os destinatários.</p>
+            <button 
+              onClick={handleTestarLembretes}
+              className="btn-submit"
+              style={{width:'100%', background:'#10b981', fontSize:'1rem'}}
+            >
+              🤖 Disparar Eventos de Hoje
+            </button>
+          </div>
+        </div>
+
+        {isAdmin && (
+          <div className="panel-card">
+            <div className="panel-title">👥 Gestão de Utilizadores</div>
+            <table className="table-minimal">
+              <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
+              <tbody>
+                {usuarios.map(u => (
+                  <tr key={u.id}>
+                    <td>{u.nome} {u.id === user.id && '(Eu)'}</td>
+                    <td>{u.email}</td>
+                    <td style={{color: u.nivel_acesso==='admin'?'#ef4444':u.nivel_acesso==='editor'?'#3b82f6':'#64748b', fontWeight:600}}>{u.nivel_acesso.toUpperCase()}</td>
+                    <td style={{textAlign:'right'}}>
+                      {u.id !== user.id && (
+                        <button onClick={() => handleDeleteUsuario(u.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{marginTop:'1.5rem', borderTop:'1px solid #e2e8f0', paddingTop:'1rem'}}>
+              <div className="panel-title" style={{fontSize:'1rem'}}>+ Novo Utilizador</div>
+              <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
+                <input className="inline-input" placeholder="Nome" value={newUserNome} onChange={e=>setNewUserNome(e.target.value)} style={{flex:1}} />
+                <input className="inline-input" placeholder="Email" value={newUserEmail} onChange={e=>setNewUserEmail(e.target.value)} style={{flex:1}} />
+                <input type="password" className="inline-input" placeholder="Senha" value={newUserSenha} onChange={e=>setNewUserSenha(e.target.value)} style={{flex:1}} />
+                <select className="inline-input" value={newUserRole} onChange={e=>setNewUserRole(e.target.value)} style={{flex:0.5}}>
+                  <option value="leitor">Leitor</option>
+                  <option value="editor">Editor</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button onClick={handleCreateUsuario} className="btn-submit">Criar</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="panel-card">
+          <div className="panel-title">📝 Templates de Mensagem</div>
+          <p className="text-muted" style={{fontSize:'0.85rem'}}>Edite os modelos de mensagem que o robô envia automaticamente.</p>
+          {templates.map(t => (
+            <div key={t.id} style={{marginBottom:'1rem', padding:'1rem', background:'#f8fafc', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
+              <div style={{fontWeight:700, marginBottom:'0.5rem', color:'#1e293b'}}>{t.tipo_evento.toUpperCase()}</div>
+              <textarea 
+                className="inline-input" 
+                style={{width:'100%', minHeight:'60px', background:'#fff', fontSize:'0.9rem'}} 
+                defaultValue={t.mensagem}
+                onBlur={(e) => handleUpdateTemplate(t.id, e.target.value)}
+              />
+              <div style={{fontSize:'0.7rem', color:'#94a3b8', marginTop:'0.4rem'}}>Usa {"{nomes}"} e {"{bodas}"} para personalização automática.</div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
