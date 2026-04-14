@@ -161,7 +161,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   // =================== HANDLERS =================== //
   const handleReconectarWA = async () => {
-    const result = await Swal.fire({ title: 'Reconectar WhatsApp?', text: 'Isto irá desconectar o WhatsApp atual e pedir um novo QR code. O bot vai reiniciar.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#f59e0b', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Reconectar', cancelButtonText: 'Cancelar' });
+    const result = await Swal.fire({ title: 'Reconectar WhatsApp?', text: 'Isto irá desconectar o WhatsApp atual e pedir um novo QR code. O bot vai reiniciar.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#10b981', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Reconectar', cancelButtonText: 'Cancelar' });
     if (!result.isConfirmed) return;
     try {
       const res = await fetch(`${apiBase}/api/eventos/whatsapp-reconectar`, { method: 'POST', headers: jsonHeaders });
@@ -404,7 +404,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const handleTesteConexao = async (grupoId, nomeGrupo) => {
     const code = Math.floor(1000 + Math.random() * 9000);
-    const result = await Swal.fire({ title: '⚠️ Testar Conexão', html: `Você está prestes a enviar uma mensagem de teste para <strong>todos os membros</strong> do grupo "<b>${nomeGrupo || 'este grupo'}</b>".<br/><br/>Para confirmar, digite o código: <strong style="color:#dc2626;font-size:1.3rem">${code}</strong>`, input: 'text', inputPlaceholder: 'Digite o código...', showCancelButton: true, confirmButtonColor: '#f59e0b', cancelButtonColor: '#64748b', confirmButtonText: '🤖 Enviar Teste', cancelButtonText: 'Cancelar', inputValidator: (v) => v !== code.toString() ? 'Código incorreto!' : null });
+    const result = await Swal.fire({ title: '⚠️ Testar Conexão', html: `Você está prestes a enviar uma mensagem de teste para <strong>todos os membros</strong> do grupo "<b>${nomeGrupo || 'este grupo'}</b>".<br/><br/>Para confirmar, digite o código: <strong style="color:#dc2626;font-size:1.3rem">${code}</strong>`, input: 'text', inputPlaceholder: 'Digite o código...', showCancelButton: true, confirmButtonColor: '#10b981', cancelButtonColor: '#64748b', confirmButtonText: '🤖 Enviar Teste', cancelButtonText: 'Cancelar', inputValidator: (v) => v !== code.toString() ? 'Código incorreto!' : null });
     if (!result.isConfirmed) return;
 
     try {
@@ -1074,7 +1074,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   /* ========== LAYOUT ========== */
   return (
     <div className="dashboard-layout">
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
+      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
       <aside className="sidebar">
         <div className="sidebar-logo">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
