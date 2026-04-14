@@ -91,7 +91,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     }
     localStorage.removeItem('offline_events');
     setOfflineQueueLength(0);
-    toast.success(`📶 Ligação restabelecida! ${successCount} registos sincronizados.`);
+    toast.success(`📶 Ligação restabelecida! ${successCount} registos sincronizados.`, { autoClose: 10000 });
     fetchData();
   };
 
@@ -291,7 +291,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
     const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
     const data = await res.json();
-    if (res.ok) { setFormNomes(''); setFormData(''); setFormFrequencia('anual'); toast.success('✅ Registado com sucesso!'); fetchData(); }
+    if (res.ok) { setFormNomes(''); setFormData(''); setFormFrequencia('anual'); Swal.fire({ title: 'Sucesso!', text: 'Evento registado com sucesso.', icon: 'success', timer: 3000, confirmButtonColor: '#10b981' }); fetchData(); }
     else toast.error('Erro ao guardar: ' + (data.erro || 'Falha desconhecida.'));
   };
 
@@ -311,7 +311,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     e.preventDefault();
     if (!isAdmin) return;
     const res = await fetch(`${apiBase}/api/eventos/tipos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: newTipoNome, cor: newTipoCor }) });
-    if (res.ok) { setNewTipoNome(''); fetchData(); toast.success('🎨 Tipo criado!'); }
+    if (res.ok) { setNewTipoNome(''); fetchData(); toast.success('🎨 Tipo criado!', { autoClose: 10000 }); }
     else toast.error('Erro ao criar tipo');
   };
 
