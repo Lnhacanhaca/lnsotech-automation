@@ -486,14 +486,17 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (res.isConfirmed) {
         try {
             const r = await fetch(`${apiBase}/api/eventos/logs`, { method: 'DELETE', headers });
+            console.log('[Logs] Status da resposta:', r.status);
             if (r.ok) {
-                Swal.fire('Limpo!', 'O histórico de logs foi removido.', 'success');
+                Swal.fire('Limpo!', 'O histórico de logs e alterações foi removido.', 'success');
                 fetchData();
             } else {
-                toast.error('Falha ao limpar logs');
+                const data = await r.json().catch(() => ({}));
+                toast.error('Falha ao limpar logs: ' + (data.erro || r.status));
             }
         } catch (e) {
-            toast.error('Erro de conexão');
+            console.error('[Logs] Erro:', e);
+            toast.error('Erro de conexão ao remover logs');
         }
     }
   };
