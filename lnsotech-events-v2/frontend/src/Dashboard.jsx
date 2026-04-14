@@ -3,6 +3,9 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
+import Swal from 'sweetalert2';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 export default function Dashboard({ token, user: rawUser, onLogout }) {
   // FIX: suportar tanto "nivel" (token antigo) como "nivel_acesso" (token novo)
   const user = { ...rawUser, nivel_acesso: rawUser.nivel_acesso || rawUser.nivel || 'leitor' };
@@ -88,7 +91,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     }
     localStorage.removeItem('offline_events');
     setOfflineQueueLength(0);
-    alert(`📶 Ligação restabelecida! ${successCount} registos que estavam offline foram sincronizados com o servidor.`);
+    toast.success(`📶 Ligação restabelecida! ${successCount} registos sincronizados.`);
     fetchData();
   };
 
@@ -133,8 +136,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     try {
       const res = await fetch(`${apiBase}/api/eventos/grupos`, { headers });
       if (res.ok) setGrupos(await res.json());
-      else { const d = await res.json(); alert(d.erro || 'Bot offline'); }
-    } catch (e) { alert('Falha ao carregar grupos'); }
+      else { const d = await res.json(); toast.error(d.erro || 'Bot offline'); }
+    } catch (e) { toast.error('Falha ao carregar grupos'); }
     setGruposLoading(false);
   };
 
@@ -158,23 +161,22 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   // =================== HANDLERS =================== //
   const handleReconectarWA = async () => {
-    if (!window.confirm('Isto irá desconectar o WhatsApp atual e pedir um novo QR code. O bot vai reiniciar. Continuar?')) return;
+    const result = await Swal.fire({ title: 'Reconectar WhatsApp?', text: 'Isto irá desconectar o WhatsApp atual e pedir um novo QR code. O bot vai reiniciar.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#f59e0b', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Reconectar', cancelButtonText: 'Cancelar' });
+    if (!result.isConfirmed) return;
     try {
       const res = await fetch(`${apiBase}/api/eventos/whatsapp-reconectar`, { method: 'POST', headers: jsonHeaders });
       const d = await res.json();
-      alert(d.mensagem || 'A reiniciar...');
+      toast.info(d.mensagem || 'A reiniciar...');
       fetchWaStatus();
-    } catch (e) { alert('Erro ao pedir reconexão'); }
+    } catch (e) { toast.error('Erro ao pedir reconexão'); }
   };
 
   const handleRestoreBackup = async (filename) => {
-    if (!window.confirm(`⚠️ ATENÇÃO EXTREMA!\n\nIsto irá substituir TODA a base de dados atual pelo backup "${filename}".\nTodos os dados criados desde essa data serão PERDIDOS.\n\nTem ABSOLUTA certeza que deseja restaurar este ficheiro?`)) return;
+    const step1 = await Swal.fire({ title: '⚠️ ATENÇÃO EXTREMA!', html: `Isto irá substituir <strong>TODA</strong> a base de dados atual pelo backup <b>"${filename}"</b>.<br/><br/>Todos os dados criados desde essa data serão <span style="color:#dc2626;font-weight:bold">PERDIDOS</span>.`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, quero restaurar', cancelButtonText: 'Cancelar' });
+    if (!step1.isConfirmed) return;
     
-    // Double confirmation for safety
-    if (window.prompt('Escreva "RESTAURAR" para confirmar a operação:') !== 'RESTAURAR') {
-        alert('Operação cancelada.');
-        return;
-    }
+    const step2 = await Swal.fire({ title: 'Confirmação Final', input: 'text', inputLabel: 'Escreva "RESTAURAR" para confirmar:', inputPlaceholder: 'RESTAURAR', showCancelButton: true, confirmButtonColor: '#dc2626', inputValidator: (v) => v !== 'RESTAURAR' ? 'Escreva exactamente RESTAURAR' : null });
+    if (!step2.isConfirmed) { toast.info('Operação cancelada.'); return; }
 
     try {
         setLoading(true);
@@ -182,13 +184,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         const data = await res.json();
         
         if (res.ok) {
-            alert('✅ Backup restaurado com sucesso! A página será atualizada.');
+            await Swal.fire({ title: 'Restaurado!', text: 'Backup restaurado com sucesso. A página será atualizada.', icon: 'success', timer: 2000, showConfirmButton: false });
             window.location.reload();
         } else {
-            alert('❌ Erro: ' + (data.erro || 'Falha ao restaurar'));
+            Swal.fire('Erro', data.erro || 'Falha ao restaurar', 'error');
         }
     } catch (err) {
-        alert('❌ Erro na comunicação com o servidor.');
+        Swal.fire('Erro', 'Erro na comunicação com o servidor.', 'error');
     } finally {
         setLoading(false);
     }
@@ -222,7 +224,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       const wsStats = XLSX.utils.aoa_to_sheet(statsData);
       XLSX.utils.book_append_sheet(wb, wsStats, 'Estatisticas');
       XLSX.writeFile(wb, `lnsotech-relatorio-${new Date().toISOString().slice(0,10)}.xlsx`);
-    } catch (err) { console.error(err); alert('Erro ao gerar Excel: ' + err.message); }
+    } catch (err) { console.error(err); toast.error('Erro ao gerar Excel: ' + err.message); }
   };
 
   const handleExportPDF = async () => {
@@ -258,7 +260,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 60 }, 2: { cellWidth: 25 }, 3: { cellWidth: 22 }, 4: { cellWidth: 22 }, 5: { cellWidth: 50 } },
       });
       doc.save('lnsotech-relatorio-' + new Date().toISOString().slice(0, 10) + '.pdf');
-    } catch (err) { console.error(err); alert('Erro ao gerar PDF: ' + err.message); }
+    } catch (err) { console.error(err); toast.error('Erro ao gerar PDF: ' + err.message); }
   };
 
 
@@ -266,58 +268,59 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     const file = e.target.files[0]; if (!file) return;
     const fd = new FormData(); fd.append('csv', file);
     const res = await fetch(`${apiBase}/api/eventos/importar`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
-    const data = await res.json(); alert(data.mensagem || 'Concluído'); fetchData();
+    const data = await res.json(); toast.success(data.mensagem || 'Concluído'); fetchData();
     e.target.value = '';
   };
 
   const handleCreateEvento = async (e) => {
     e.preventDefault();
-    if (!canEdit) return alert("Permissão negada!");
-    if (!formGrupo) return alert("Seleccione um grupo WhatsApp!");
+    if (!canEdit) return toast.warning('Permissão negada!');
+    if (!formGrupo) return toast.warning('Seleccione um grupo WhatsApp!');
     const payload = { nomes_principais: formNomes, data_evento: formData, tipo_evento: formTipo, grupo_id: formGrupo, criado_por: user.id, frequencia_lembrete: formFrequencia };
 
     if (!isOnline) {
-       // Guardar no localStorage para sincronizar depois (Modo Offline / PWA)
        const queue = JSON.parse(localStorage.getItem('offline_events') || '[]');
        queue.push(payload);
        localStorage.setItem('offline_events', JSON.stringify(queue));
        setOfflineQueueLength(queue.length);
        
        setFormNomes(''); setFormData(''); setFormFrequencia('anual');
-       alert('📴 Guardado Offline! Será sincronizado assim que tiveres Internet.');
+       toast.info('📴 Guardado Offline! Será sincronizado assim que tiveres Internet.');
        return;
     }
 
     const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
     const data = await res.json();
-    if (res.ok) { setFormNomes(''); setFormData(''); setFormFrequencia('anual'); alert('Registado com sucesso!'); fetchData(); }
-    else alert('Erro ao guardar: ' + (data.erro || 'Falha desconhecida.'));
+    if (res.ok) { setFormNomes(''); setFormData(''); setFormFrequencia('anual'); toast.success('✅ Registado com sucesso!'); fetchData(); }
+    else toast.error('Erro ao guardar: ' + (data.erro || 'Falha desconhecida.'));
   };
 
   const handleUploadFoto = async (eventoId, file) => {
     if (!file) return;
     const fd = new FormData(); fd.append('foto', file);
     const res = await fetch(`${apiBase}/api/eventos/${eventoId}/foto`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
-    if (res.ok) { alert('Foto anexada!'); fetchData(); } else alert('Erro');
+    if (res.ok) { toast.success('📸 Foto anexada!'); fetchData(); } else toast.error('Erro ao anexar foto');
   };
   
   const handleUpdateTemplate = async (id, msg) => {
     await fetch(`${apiBase}/api/eventos/templates/${id}`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({mensagem: msg}) });
-    alert('Template Salvo!');
+    toast.success('💾 Template Salvo!');
   };
 
   const handleCreateTipo = async (e) => {
     e.preventDefault();
     if (!isAdmin) return;
     const res = await fetch(`${apiBase}/api/eventos/tipos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: newTipoNome, cor: newTipoCor }) });
-    if (res.ok) { setNewTipoNome(''); fetchData(); alert('Tipo criado!'); }
-    else alert('Erro ao criar tipo');
+    if (res.ok) { setNewTipoNome(''); fetchData(); toast.success('🎨 Tipo criado!'); }
+    else toast.error('Erro ao criar tipo');
   };
 
   const handleDeletarTipo = async (id) => {
-    if (!isAdmin || !window.confirm('Apagar tipo de evento? (Isto também apagará o template de mensagem associado)')) return;
+    if (!isAdmin) return;
+    const result = await Swal.fire({ title: 'Apagar Tipo de Evento?', text: 'Isto também apagará o template de mensagem associado.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Apagar', cancelButtonText: 'Cancelar' });
+    if (!result.isConfirmed) return;
     const res = await fetch(`${apiBase}/api/eventos/tipos/${id}`, { method: 'DELETE', headers });
-    if (res.ok) fetchData();
+    if (res.ok) { fetchData(); toast.success('Tipo apagado.'); }
   };
 
   const startEditTipo = (t) => {
@@ -331,8 +334,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         headers: jsonHeaders, 
         body: JSON.stringify(editTipoForm) 
     });
-    if (res.ok) { setEditingTipoId(null); fetchData(); alert('Tipo atualizado!'); }
-    else alert('Erro ao atualizar tipo');
+    if (res.ok) { setEditingTipoId(null); fetchData(); toast.success('🎨 Tipo atualizado!'); }
+    else toast.error('Erro ao atualizar tipo');
   };
 
   const startEditEvento = (ev) => {
@@ -353,8 +356,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         headers: jsonHeaders,
         body: JSON.stringify({ ...editEventoForm, usuario_id: user.id })
     });
-    if (res.ok) { alert('Evento atualizado!'); setEditingEvento(null); fetchData(); }
-    else alert('Falha ao atualizar');
+    if (res.ok) { toast.success('✅ Evento atualizado!'); setEditingEvento(null); fetchData(); }
+    else toast.error('Falha ao atualizar');
   };
 
   const fetchHistorico = async (id) => {
@@ -366,20 +369,22 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   };
 
   const apagarEvento = async (id) => {
-    if (!isAdmin) return alert('Só Admins!');
-    if (window.confirm('Apagar?')) { await fetch(`${apiBase}/api/eventos/${id}`, { method: 'DELETE', headers }); fetchData(); }
+    if (!isAdmin) return toast.warning('Só Admins podem apagar!');
+    const result = await Swal.fire({ title: 'Apagar Evento?', text: 'Esta ação não pode ser revertida.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Apagar', cancelButtonText: 'Cancelar' });
+    if (result.isConfirmed) { await fetch(`${apiBase}/api/eventos/${id}`, { method: 'DELETE', headers }); fetchData(); toast.success('Evento apagado.'); }
   };
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
     const res = await fetch(`${apiBase}/api/auth/usuarios`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: newUserNome, email: newUserEmail, senha: newUserSenha, nivel_acesso: newUserRole }) });
     const d = await res.json();
-    if (res.ok) { alert('Criado!'); setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserRole('leitor'); fetchData(); }
-    else alert(d.erro || 'Erro');
+    if (res.ok) { toast.success('👤 Utilizador criado!'); setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserRole('leitor'); fetchData(); }
+    else toast.error(d.erro || 'Erro ao criar utilizador');
   };
 
   const handleDeleteUser = async (id) => {
-    if (window.confirm('Remover?')) { const res = await fetch(`${apiBase}/api/auth/usuarios/${id}`, { method: 'DELETE', headers }); if (res.ok) fetchData(); }
+    const result = await Swal.fire({ title: 'Remover Utilizador?', text: 'Esta ação é permanente.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Remover', cancelButtonText: 'Cancelar' });
+    if (result.isConfirmed) { const res = await fetch(`${apiBase}/api/auth/usuarios/${id}`, { method: 'DELETE', headers }); if (res.ok) { fetchData(); toast.success('Utilizador removido.'); } }
   };
 
   const startEditUser = (u) => {
@@ -393,25 +398,21 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       body: JSON.stringify(editUserForm)
     });
     const d = await res.json();
-    if (res.ok) { alert('✅ ' + d.mensagem); setEditingUserId(null); fetchData(); }
-    else alert('❌ ' + (d.erro || 'Erro ao atualizar'));
+    if (res.ok) { toast.success('✅ ' + d.mensagem); setEditingUserId(null); fetchData(); }
+    else toast.error(d.erro || 'Erro ao atualizar');
   };
 
   const handleTesteConexao = async (grupoId, nomeGrupo) => {
     const code = Math.floor(1000 + Math.random() * 9000);
-    const userInput = window.prompt(`PERIGO: Você está prestes a enviar uma mensagem de teste para todos os membros do grupo "${nomeGrupo || 'este grupo'}".\n\nIsso pode incomodar os clientes.\nPara confirmar, digite exatamente este código de segurança:\n${code}`);
-    
-    if (userInput !== code.toString()) {
-        if (userInput !== null) alert('Operação cancelada! O código inserido está incorreto.');
-        return;
-    }
+    const result = await Swal.fire({ title: '⚠️ Testar Conexão', html: `Você está prestes a enviar uma mensagem de teste para <strong>todos os membros</strong> do grupo "<b>${nomeGrupo || 'este grupo'}</b>".<br/><br/>Para confirmar, digite o código: <strong style="color:#dc2626;font-size:1.3rem">${code}</strong>`, input: 'text', inputPlaceholder: 'Digite o código...', showCancelButton: true, confirmButtonColor: '#f59e0b', cancelButtonColor: '#64748b', confirmButtonText: '🤖 Enviar Teste', cancelButtonText: 'Cancelar', inputValidator: (v) => v !== code.toString() ? 'Código incorreto!' : null });
+    if (!result.isConfirmed) return;
 
     try {
         const res = await fetch(`${apiBase}/api/eventos/teste-conexao`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ grupo_id: grupoId }) });
         const d = await res.json();
-        alert(d.mensagem || d.erro);
+        if (res.ok) toast.success(d.mensagem || 'Teste enviado!'); else toast.error(d.erro || 'Falha no teste');
     } catch(err) {
-        alert('Erro ao testar comunicação');
+        toast.error('Erro ao testar comunicação');
     }
   };
 
@@ -498,13 +499,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           {canEdit ? (
             <form className="inline-form" onSubmit={handleCreateEvento}>
               {/* 1. Primeiro Escolhe o Tipo */}
-              <select className="inline-input" style={{flex:'0.3'}} value={formTipo} onChange={e=>{
+              <select className="inline-input" style={{flex:'0.3'}} value={formTipo} onChange={async (e)=>{
                 if (e.target.value === '__novo__') {
-                    const n = prompt('Nome do novo tipo de evento:');
+                    const { value: n } = await Swal.fire({ title: 'Novo Tipo de Evento', input: 'text', inputLabel: 'Nome do tipo:', inputPlaceholder: 'Ex: Inauguração', showCancelButton: true, confirmButtonText: 'Criar', cancelButtonText: 'Cancelar' });
                     if (n) {
-                        const c = prompt('Cor para este tipo (Ex: #ff0000 ou red):', '#3b82f6');
-                        fetch(`${apiBase}/api/eventos/tipos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: n, cor: c }) })
-                        .then(res => { if(res.ok) { fetchData(); setFormTipo(n.toLowerCase()); } });
+                        const { value: c } = await Swal.fire({ title: 'Cor do Tipo', input: 'text', inputLabel: 'Cor (Ex: #ff0000):', inputValue: '#3b82f6', showCancelButton: true });
+                        fetch(`${apiBase}/api/eventos/tipos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: n, cor: c || '#3b82f6' }) })
+                        .then(res => { if(res.ok) { fetchData(); setFormTipo(n.toLowerCase()); toast.success('Tipo criado!'); } });
                     }
                 } else setFormTipo(e.target.value);
               }}>
@@ -531,8 +532,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
               <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
 
-              <GrupoSelect value={formGrupo} onChange={e => {
-                if (e.target.value === '__manual__') { const id = prompt('Cole o ID do grupo:'); if (id) setFormGrupo(id); }
+              <GrupoSelect value={formGrupo} onChange={async (e) => {
+                if (e.target.value === '__manual__') { const { value: id } = await Swal.fire({ title: 'ID do Grupo', input: 'text', inputLabel: 'Cole o ID do grupo WhatsApp:', showCancelButton: true }); if (id) setFormGrupo(id); }
                 else setFormGrupo(e.target.value);
               }} />
 
@@ -580,13 +581,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       </div>
       {canEdit && (
         <form className="inline-form" onSubmit={handleCreateEvento} style={{background:'#f8fafc',padding:'1rem',borderRadius:'8px',border:'1px solid var(--border)'}}>
-          <select className="inline-input" style={{flex:'0.3'}} value={formTipo} onChange={e=>{
+          <select className="inline-input" style={{flex:'0.3'}} value={formTipo} onChange={async (e)=>{
             if (e.target.value === '__novo__') {
-                const n = prompt('Nome do novo tipo de evento:');
+                const { value: n } = await Swal.fire({ title: 'Novo Tipo de Evento', input: 'text', inputLabel: 'Nome do tipo:', showCancelButton: true });
                 if (n) {
-                    const c = prompt('Cor para este tipo:', '#3b82f6');
-                    fetch(`${apiBase}/api/eventos/tipos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: n, cor: c }) })
-                    .then(res => { if(res.ok) { fetchData(); setFormTipo(n.toLowerCase()); } });
+                    const { value: c } = await Swal.fire({ title: 'Cor do Tipo', input: 'text', inputValue: '#3b82f6', showCancelButton: true });
+                    fetch(`${apiBase}/api/eventos/tipos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: n, cor: c || '#3b82f6' }) })
+                    .then(res => { if(res.ok) { fetchData(); setFormTipo(n.toLowerCase()); toast.success('Tipo criado!'); } });
                 }
             } else setFormTipo(e.target.value);
           }}>
@@ -606,7 +607,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           
           <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
           
-          <GrupoSelect value={formGrupo} onChange={e => { if (e.target.value==='__manual__') { const id=prompt('ID:'); if(id)setFormGrupo(id); } else setFormGrupo(e.target.value); }} />
+          <GrupoSelect value={formGrupo} onChange={async (e) => { if (e.target.value==='__manual__') { const { value: id } = await Swal.fire({ title: 'ID do Grupo', input: 'text', inputLabel: 'Cole o ID:', showCancelButton: true }); if(id) setFormGrupo(id); } else setFormGrupo(e.target.value); }} />
           <select className="inline-input" style={{flex:'0.22'}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
             <option value="anual">📅 Anual</option>
             <option value="mensal">🔄 Mensal</option>
@@ -716,23 +717,21 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                     <div className="toolbar-buttons">
                       {isAdmin && <button onClick={()=>handleTesteConexao(g.id, g.nome)} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem'}}>🤖 Testar</button>}
                       <button onClick={() => {
-                        // Tenta clipboard moderno, mas tem fallback para HTTP/contextos não-seguros
                         const copiar = (texto) => {
                           if (navigator.clipboard && window.isSecureContext) {
-                            navigator.clipboard.writeText(texto).then(() => alert('✅ ID copiado!')).catch(() => {
-                              // fallback manual
+                            navigator.clipboard.writeText(texto).then(() => toast.success('📋 ID copiado!')).catch(() => {
                               const el = document.createElement('textarea');
                               el.value = texto; el.style.position='fixed'; el.style.opacity='0';
                               document.body.appendChild(el); el.select();
                               document.execCommand('copy'); document.body.removeChild(el);
-                              alert('✅ ID copiado!');
+                              toast.success('📋 ID copiado!');
                             });
                           } else {
                             const el = document.createElement('textarea');
                             el.value = texto; el.style.position='fixed'; el.style.opacity='0';
                             document.body.appendChild(el); el.select();
                             document.execCommand('copy'); document.body.removeChild(el);
-                            alert('✅ ID copiado!');
+                            toast.success('📋 ID copiado!');
                           }
                         };
                         copiar(g.id);
@@ -970,7 +969,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           </div>
           <div style={{display:'flex', gap:'0.5rem', flex:'1', minWidth:'300px'}}>
             <input type="text" readOnly value={`${apiBase}/api/eventos/feed.ics`} className="inline-input" style={{flex:1, background:'#f8fafc'}} />
-            <button onClick={() => { navigator.clipboard.writeText(`${apiBase}/api/eventos/feed.ics`); alert('Link copiado!'); }} className="btn-submit">📋 Copiar Link</button>
+            <button onClick={() => { navigator.clipboard.writeText(`${apiBase}/api/eventos/feed.ics`); toast.success('📋 Link copiado!'); }} className="btn-submit">📋 Copiar Link</button>
             <a href={`${apiBase}/api/eventos/feed.ics`} target="_blank" rel="noreferrer" className="btn-submit" style={{background:'#2563eb', textDecoration:'none', color:'#fff'}}>📥 Baixar Calendário</a>
           </div>
         </div>
@@ -1075,6 +1074,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   /* ========== LAYOUT ========== */
   return (
     <div className="dashboard-layout">
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
       <aside className="sidebar">
         <div className="sidebar-logo">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
