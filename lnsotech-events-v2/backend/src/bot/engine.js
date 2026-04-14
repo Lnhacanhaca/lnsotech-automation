@@ -94,6 +94,7 @@ async function connectToWhatsApp() {
                 console.log('[Connection] Utilizador desconectou-se. Apague a pasta auth_info_baileys e reinicie para ler um novo QR Code.');
             }
         } else if (connection === 'open') {
+            global.waSocket = sock; // GUARDAR SOCKET GLOBALMENTE PARA O PAINEL PODER TESTAR
             console.log("🚀 LNSOTECH Bot v2 (Baileys) Online!");
             global.waState = { qr: null, status: 'conectado', lastUpdate: new Date().toISOString() };
 
