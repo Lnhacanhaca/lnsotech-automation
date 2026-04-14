@@ -443,7 +443,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     e.preventDefault();
     const res = await fetch(`${apiBase}/api/auth/usuarios`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: newUserNome, email: newUserEmail, senha: newUserSenha, nivel_acesso: newUserRole }) });
     const d = await res.json();
-    if (res.ok) { Swal.fire({ title: 'Utilizador Criado!', icon: 'success', timer: 8000, timerProgressBar: true, confirmButtonColor: '#10b981' }); setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserRole('leitor'); fetchData(); }
+    if (res.ok) { 
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '👤 Utilizador Criado!', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
+        setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserRole('leitor'); 
+        fetchData(); 
+    }
     else toast.error(d.erro || 'Erro ao criar utilizador');
   };
 
@@ -463,7 +467,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       body: JSON.stringify(editUserForm)
     });
     const d = await res.json();
-    if (res.ok) { toast.success('✅ ' + d.mensagem); setEditingUserId(null); fetchData(); }
+    if (res.ok) { 
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '💾 Dados guardados!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#3b82f6', color: '#fff', iconColor: '#fff' });
+        setEditingUserId(null); 
+        fetchData(); 
+    }
     else toast.error(d.erro || 'Erro ao atualizar');
   };
 
@@ -475,7 +483,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       headers: jsonHeaders,
       body: JSON.stringify({ nome: newTipoNome.toLowerCase(), cor: newTipoCor })
     });
-    if (r.ok) { toast.success('Tipo criado!'); setNewTipoNome(''); fetchData(); }
+    if (r.ok) { 
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '🎨 Tipo criado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
+        setNewTipoNome(''); 
+        fetchData(); 
+    }
   };
 
   const startEditTipo = (t) => {
@@ -489,14 +501,21 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       headers: jsonHeaders,
       body: JSON.stringify(editTipoForm)
     });
-    if (r.ok) { toast.success('Tipo atualizado!'); setEditingTipoId(null); fetchData(); }
+    if (r.ok) { 
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Tipo atualizado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#3b82f6', color: '#fff', iconColor: '#fff' });
+        setEditingTipoId(null); 
+        fetchData(); 
+    }
   };
 
   const handleDeleteTipo = async (id) => {
     const result = await Swal.fire({ title: 'Apagar Tipo?', text: 'Cuidado!', icon: 'warning', showCancelButton: true });
     if (result.isConfirmed) {
       const r = await fetch(`${apiBase}/api/eventos/tipos/${id}`, { method: 'DELETE', headers });
-      if (r.ok) { toast.success('Removido'); fetchData(); }
+      if (r.ok) { 
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '🗑️ Tipo removido!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
+        fetchData(); 
+      }
     }
   };
 
