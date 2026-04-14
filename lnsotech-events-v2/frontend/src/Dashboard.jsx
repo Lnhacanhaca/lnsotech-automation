@@ -91,7 +91,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     }
     localStorage.removeItem('offline_events');
     setOfflineQueueLength(0);
-    toast.success(`📶 Ligação restabelecida! ${successCount} registos sincronizados.`, { autoClose: 10000 });
+    Swal.fire({ title: 'Sincronizado!', text: `${successCount} registos offline foram enviados para o servidor.`, icon: 'success', timer: 10000, timerProgressBar: true, confirmButtonColor: '#10b981' });
     fetchData();
   };
 
@@ -268,7 +268,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     const file = e.target.files[0]; if (!file) return;
     const fd = new FormData(); fd.append('csv', file);
     const res = await fetch(`${apiBase}/api/eventos/importar`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
-    const data = await res.json(); toast.success(data.mensagem || 'Concluído'); fetchData();
+    const data = await res.json(); Swal.fire({ title: 'Importado!', text: data.mensagem || 'Dados importados com sucesso.', icon: 'success', timer: 10000, timerProgressBar: true, confirmButtonColor: '#10b981' }); fetchData();
     e.target.value = '';
   };
 
@@ -299,12 +299,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (!file) return;
     const fd = new FormData(); fd.append('foto', file);
     const res = await fetch(`${apiBase}/api/eventos/${eventoId}/foto`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
-    if (res.ok) { toast.success('📸 Foto anexada!'); fetchData(); } else toast.error('Erro ao anexar foto');
+    if (res.ok) { Swal.fire({ title: 'Foto Anexada!', icon: 'success', timer: 5000, timerProgressBar: true, confirmButtonColor: '#10b981' }); fetchData(); } else toast.error('Erro ao anexar foto');
   };
   
   const handleUpdateTemplate = async (id, msg) => {
     await fetch(`${apiBase}/api/eventos/templates/${id}`, { method: 'PUT', headers: jsonHeaders, body: JSON.stringify({mensagem: msg}) });
-    toast.success('💾 Template Salvo!');
+    Swal.fire({ title: 'Template Salvo!', icon: 'success', timer: 5000, timerProgressBar: true, confirmButtonColor: '#10b981' });
   };
 
   const handleCreateTipo = async (e) => {
@@ -378,7 +378,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     e.preventDefault();
     const res = await fetch(`${apiBase}/api/auth/usuarios`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: newUserNome, email: newUserEmail, senha: newUserSenha, nivel_acesso: newUserRole }) });
     const d = await res.json();
-    if (res.ok) { toast.success('👤 Utilizador criado!'); setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserRole('leitor'); fetchData(); }
+    if (res.ok) { Swal.fire({ title: 'Utilizador Criado!', icon: 'success', timer: 8000, timerProgressBar: true, confirmButtonColor: '#10b981' }); setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserRole('leitor'); fetchData(); }
     else toast.error(d.erro || 'Erro ao criar utilizador');
   };
 
