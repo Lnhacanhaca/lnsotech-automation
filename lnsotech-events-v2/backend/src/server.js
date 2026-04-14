@@ -48,18 +48,33 @@ app.get('/', (req, res) => {
     res.json({ mensagem: '🚀 API LNSOTECH V2 Funcionando!', botStatus: 'Online' });
 });
 
-// ========== ROTA DE ARQUIVOS (RAIZ) ========== //
-app.get('/api/ver-arquivo', (req, res) => {
-    const filename = req.query.f;
-    if (!filename) return res.status(400).send('Ficheiro não especificado');
-    const cleanName = filename.replace('/uploads/', '').replace('uploads/', '');
-    const filePath = path.join(__dirname, '../uploads/', cleanName);
-    
-    if (fs.existsSync(filePath)) {
-        res.header('Content-Type', 'image/jpeg'); // Forçar tipo imagem
-        res.sendFile(filePath);
-    } else {
-        res.status(404).send('Arquivo não encontrado');
+// ========== ROTA DE IMAGEM POR ID (Infalível contra Nginx) ========== //
+app.get('/api/imagem-evento/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query('SELECT foto_url FROM eventos WHERE id = $1', [id]);
+        
+        if (result.rows.length === 0 || !result.rows[0].foto_url) {
+            return res.status(404).send('Evento ou foto não encontrada');
+        }
+
+        const fotoUrl = result.rows[0].foto_url;
+        const cleanName = fotoUrl.replace('/uploads/', '').replace('uploads/', '');
+        const filePath = path.join(__dirname, '../uploads/', cleanName);
+
+        if (fs.existsSync(filePath)) {
+            // Detetar tipo de arquivo básico
+            if (filePath.endsWith('.png')) res.header('Content-Type', 'image/png');
+            else if (filePath.endsWith('.webp')) res.header('Content-Type', 'image/webp');
+            else res.header('Content-Type', 'image/jpeg');
+
+            res.sendFile(filePath);
+        } else {
+            res.status(404).send('Arquivo físico não encontrado');
+        }
+    } catch (err) {
+        console.error('Erro ao servir imagem:', err);
+        res.status(500).send('Erro interno');
     }
 });
 
