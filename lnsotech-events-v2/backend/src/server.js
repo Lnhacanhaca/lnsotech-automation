@@ -20,6 +20,13 @@ const pool = new Pool({
 // Middlewares
 app.use(cors());
 app.use(express.json());
+
+// Logger Global para Debug de rotas
+app.use((req, res, next) => {
+    console.log(`[REQ] ${req.method} ${req.url}`);
+    next();
+});
+
 // Expor pasta de uploads publicamente para fotos dos eventos
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
