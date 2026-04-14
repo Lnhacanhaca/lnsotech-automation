@@ -606,7 +606,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 } else setFormTipo(e.target.value);
               }}>
                 <option value="">-- Seleccione o Tipo --</option>
-                {tiposEvento.map(t => <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>)}
+                <option value="casamento">💍 Casamento</option>
+                <option value="aniversario">🎂 Aniversário</option>
+                <option value="batizado">🕊️ Batizado</option>
+                {tiposEvento.filter(t => !['casamento','aniversario','batizado'].includes(t.nome)).map(t => (
+                  <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>
+                ))}
                 <option value="__novo__">➕ Criar Novo Tipo...</option>
               </select>
 
@@ -1250,7 +1255,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                     <div style={{flex:1}}>
                         <label style={{display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem', color:'#475569'}}>Tipo</label>
                         <select className="inline-input" style={{width:'100%'}} value={editEventoForm.tipo_evento} onChange={e=>setEditEventoForm({...editEventoForm, tipo_evento: e.target.value})}>
-                            {tiposEvento.map(t => <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>)}
+                            <option value="casamento">💍 Casamento</option>
+                            <option value="aniversario">🎂 Aniversário</option>
+                            <option value="batizado">🕊️ Batizado</option>
+                            {tiposEvento.filter(t => !['casamento','aniversario','batizado'].includes(t.nome)).map(t => (
+                                <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>
+                            ))}
                         </select>
                     </div>
                 </div>
