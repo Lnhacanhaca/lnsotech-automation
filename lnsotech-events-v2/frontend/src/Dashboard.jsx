@@ -291,7 +291,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         headers: jsonHeaders,
         body: JSON.stringify({ mensagem })
       });
-      if (r.ok) toast.success('Template guardado!');
+      if (r.ok) {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📝 Template guardado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#3b82f6', color: '#fff', iconColor: '#fff' });
+      }
     } catch (e) { toast.error('Erro ao guardar template'); }
   };
 
@@ -398,7 +400,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (!file) return;
     const fd = new FormData(); fd.append('foto', file);
     const res = await fetch(`${apiBase}/api/eventos/${eventoId}/foto`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
-    if (res.ok) { Swal.fire({ title: 'Foto Anexada!', icon: 'success', timer: 5000, timerProgressBar: true, confirmButtonColor: '#10b981' }); fetchData(); } else toast.error('Erro ao anexar foto');
+    if (res.ok) { 
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '🖼️ Foto Anexada!', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
+        fetchData(); 
+    } else {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao anexar foto', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
+    }
   };
   
 
@@ -421,8 +428,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         headers: jsonHeaders,
         body: JSON.stringify({ ...editEventoForm, usuario_id: user.id })
     });
-    if (res.ok) { toast.success('✅ Evento atualizado!'); setEditingEvento(null); fetchData(); }
-    else toast.error('Falha ao atualizar');
+    if (res.ok) { 
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Evento atualizado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#3b82f6', color: '#fff', iconColor: '#fff' });
+        setEditingEvento(null); fetchData(); 
+    }
+    else {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Falha ao atualizar', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
+    }
   };
 
   const fetchHistorico = async (id) => {
@@ -436,7 +448,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const apagarEvento = async (id) => {
     if (!isAdmin) return toast.warning('Só Admins podem apagar!');
     const result = await Swal.fire({ title: 'Apagar Evento?', text: 'Esta ação não pode ser revertida.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Apagar', cancelButtonText: 'Cancelar' });
-    if (result.isConfirmed) { await fetch(`${apiBase}/api/eventos/${id}`, { method: 'DELETE', headers }); fetchData(); toast.success('Evento apagado.'); }
+    if (result.isConfirmed) { 
+        await fetch(`${apiBase}/api/eventos/${id}`, { method: 'DELETE', headers }); 
+        fetchData(); 
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '🗑️ Evento apagado.', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
+    }
   };
 
   const handleCreateUser = async (e) => {
@@ -453,7 +469,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const handleDeleteUser = async (id) => {
     const result = await Swal.fire({ title: 'Remover Utilizador?', text: 'Esta ação é permanente.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Remover', cancelButtonText: 'Cancelar' });
-    if (result.isConfirmed) { const res = await fetch(`${apiBase}/api/auth/usuarios/${id}`, { method: 'DELETE', headers }); if (res.ok) { fetchData(); toast.success('Utilizador removido.'); } }
+    if (result.isConfirmed) { 
+        const res = await fetch(`${apiBase}/api/auth/usuarios/${id}`, { method: 'DELETE', headers }); 
+        if (res.ok) { 
+            fetchData(); 
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '👤 Utilizador removido.', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
+        } 
+    }
   };
 
   const startEditUser = (u) => {
@@ -527,9 +549,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     try {
         const res = await fetch(`${apiBase}/api/eventos/teste-conexao`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ grupo_id: grupoId }) });
         const d = await res.json();
-        if (res.ok) toast.success(d.mensagem || 'Teste enviado!'); else toast.error(d.erro || 'Falha no teste');
+        if (res.ok) {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '🤖 Teste enviado com sucesso!', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
+        } else {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: d.erro || 'Falha no teste', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
+        }
     } catch(err) {
-        toast.error('Erro ao testar comunicação');
+        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro de conexão no teste', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
     }
   };
 
