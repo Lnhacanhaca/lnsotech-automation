@@ -498,6 +498,39 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     else toast.error(d.erro || 'Erro ao atualizar');
   };
 
+  // ========== GESTÃO DE TIPOS ==========
+  const handleCreateTipo = async () => {
+    if (!newTipoNome) return toast.warning('Nome é obrigatório');
+    const r = await fetch(`${apiBase}/api/eventos/tipos`, {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({ nome: newTipoNome.toLowerCase(), cor: newTipoCor })
+    });
+    if (r.ok) { toast.success('Tipo criado!'); setNewTipoNome(''); fetchData(); }
+  };
+
+  const startEditTipo = (t) => {
+    setEditingTipoId(t.id);
+    setEditTipoForm({ nome: t.nome, cor: t.cor });
+  };
+
+  const handleUpdateTipo = async () => {
+    const r = await fetch(`${apiBase}/api/eventos/tipos/${editingTipoId}`, {
+      method: 'PUT',
+      headers: jsonHeaders,
+      body: JSON.stringify(editTipoForm)
+    });
+    if (r.ok) { toast.success('Tipo atualizado!'); setEditingTipoId(null); fetchData(); }
+  };
+
+  const handleDeleteTipo = async (id) => {
+    const result = await Swal.fire({ title: 'Apagar Tipo?', text: 'Cuidado!', icon: 'warning', showCancelButton: true });
+    if (result.isConfirmed) {
+      const r = await fetch(`${apiBase}/api/eventos/tipos/${id}`, { method: 'DELETE', headers });
+      if (r.ok) { toast.success('Removido'); fetchData(); }
+    }
+  };
+
   const handleTesteConexao = async (grupoId, nomeGrupo) => {
     const code = Math.floor(1000 + Math.random() * 9000);
     const result = await Swal.fire({ title: '⚠️ Testar Conexão', html: `Você está prestes a enviar uma mensagem de teste para <strong>todos os membros</strong> do grupo "<b>${nomeGrupo || 'este grupo'}</b>".<br/><br/>Para confirmar, digite o código: <strong style="color:#dc2626;font-size:1.3rem">${code}</strong>`, input: 'text', inputPlaceholder: 'Digite o código...', showCancelButton: true, confirmButtonColor: '#10b981', cancelButtonColor: '#64748b', confirmButtonText: '🤖 Enviar Teste', cancelButtonText: 'Cancelar', inputValidator: (v) => v !== code.toString() ? 'Código incorreto!' : null });
@@ -1166,6 +1199,63 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             </div>
           </div>
         )}
+
+        <div className="panel-card">
+          <div className="panel-title">🎨 Gestão de Tipos de Evento</div>
+          <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1rem'}}>Personalize os nomes e as cores dos eventos que aparecem no calendário e no dashboard.</p>
+          <table className="table-minimal">
+            <thead><tr><th>Nome</th><th>Cor</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
+            <tbody>
+              {tiposEvento.map(t => (
+                <tr key={t.id}>
+                  <td>
+                    {editingTipoId === t.id ? (
+                      <input className="inline-input" value={editTipoForm.nome} onChange={e=>setEditTipoForm({...editTipoForm, nome: e.target.value.toLowerCase()})} />
+                    ) : (
+                      <span className="badge-tipo" style={{background: t.cor, color:'#fff'}}>{t.nome.toUpperCase()}</span>
+                    )}
+                  </td>
+                  <td>
+                    {editingTipoId === t.id ? (
+                      <div style={{display:'flex', gap:'0.4rem', alignItems:'center'}}>
+                        <input type="color" value={editTipoForm.cor} onChange={e=>setEditTipoForm({...editTipoForm, cor: e.target.value})} style={{width:'30px', height:'30px', border:'none', padding:0}} />
+                        <input className="inline-input" value={editTipoForm.cor} onChange={e=>setEditTipoForm({...editTipoForm, cor: e.target.value})} style={{width:'80px'}} />
+                      </div>
+                    ) : (
+                      <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
+                        <div style={{width:'16px', height:'16px', borderRadius:'50%', background:t.cor, border:'1px solid #e2e8f0'}} />
+                        <span style={{fontFamily:'monospace', fontSize:'0.8rem'}}>{t.cor}</span>
+                      </div>
+                    )}
+                  </td>
+                  <td style={{textAlign:'right'}}>
+                    {editingTipoId === t.id ? (
+                      <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                        <button onClick={handleUpdateTipo} className="btn-action" style={{color:'#10b981'}}>Salvar</button>
+                        <button onClick={()=>setEditingTipoId(null)} className="btn-action">Cancelar</button>
+                      </div>
+                    ) : (
+                      <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                        <button onClick={() => startEditTipo(t)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
+                        {!['casamento','aniversario','batizado'].includes(t.nome) && (
+                          <button onClick={() => handleDeleteTipo(t.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{marginTop:'1.5rem', borderTop:'1px solid #e2e8f0', paddingTop:'1rem'}}>
+            <div className="panel-title" style={{fontSize:'1rem'}}>+ Novo Tipo</div>
+            <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
+              <input className="inline-input" placeholder="Ex: Inauguração" value={newTipoNome} onChange={e=>setNewTipoNome(e.target.value)} style={{flex:1}} />
+              <input type="color" className="inline-input" value={newTipoCor} onChange={e=>setNewTipoCor(e.target.value)} style={{width:'50px', padding:0, border:'none'}} />
+              <button onClick={handleCreateTipo} className="btn-submit">Adicionar Tipo</button>
+            </div>
+          </div>
+        </div>
 
         <div className="panel-card">
           <div className="panel-title">📝 Templates de Mensagem</div>
