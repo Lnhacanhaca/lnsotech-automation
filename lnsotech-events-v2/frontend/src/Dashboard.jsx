@@ -1293,6 +1293,76 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             </div>
           ))}
         </div>
+
+        {isAdmin && (
+          <div className="panel-card">
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.2rem'}}>
+                <div>
+                    <div className="panel-title">🗄️ Base de Dados & Backups</div>
+                    <p className="text-muted" style={{fontSize:'0.85rem', margin:0}}>Gerencie cópias de segurança do seu CRM para evitar perda de dados.</p>
+                </div>
+                <button 
+                  onClick={async () => {
+                    Swal.fire({ title: '📦 Gerando Backup...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const r = await fetch(`${apiBase}/api/auth/backups/gerar`, { method: 'POST', headers });
+                    if (r.ok) {
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Backup Gerado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
+                        fetchData();
+                    } else {
+                        const d = await r.json();
+                        Swal.fire('Erro', d.erro || 'Falha ao gerar backup', 'error');
+                    }
+                  }}
+                  className="btn-submit" 
+                  style={{margin:0, background:'#6366f1'}}
+                >
+                    ➕ Gerar Backup Agora
+                </button>
+            </div>
+
+            <div className="table-responsive">
+              <table className="table-minimal">
+                <thead>
+                  <tr>
+                    <th>Arquivo</th>
+                    <th>Data</th>
+                    <th>Tamanho</th>
+                    <th style={{textAlign:'right'}}>Acções</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {backups.length === 0 ? (
+                    <tr><td colSpan="4" className="text-muted" style={{textAlign:'center', padding:'2rem'}}>Nenhum backup encontrado. Configure a rotina diária ou gere um manualmente.</td></tr>
+                  ) : backups.map(b => (
+                    <tr key={b.name}>
+                      <td style={{fontWeight:600, fontSize:'0.9rem', color:'#1e293b'}}>📄 {b.name}</td>
+                      <td className="text-small">{new Date(b.date).toLocaleString('pt-PT')}</td>
+                      <td className="text-small">{Math.round(b.size / 1024)} KB</td>
+                      <td style={{textAlign:'right'}}>
+                        <div style={{display:'flex', gap:'0.5rem', justifyContent:'flex-end'}}>
+                          <a href={`${apiBase}/api/auth/backups/download/${b.name}?token=${token}`} download className="btn-action" style={{color:'#3b82f6', textDecoration:'none'}}>Baixar</a>
+                          <button onClick={async () => {
+                              const result = await Swal.fire({ title: 'Restaurar Sistema?', text: 'Esta ação irá substituir TODOS os dados atuais!', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sim, Restaurar', confirmButtonColor: '#ef4444' });
+                              if (result.isConfirmed) {
+                                  Swal.fire({ title: 'Restaurando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                                  const r = await fetch(`${apiBase}/api/auth/backups/restore/${b.name}`, { method: 'POST', headers });
+                                  if (r.ok) {
+                                      Swal.fire('Restaurado!', 'O sistema foi restaurado com sucesso. A página irá recarregar.', 'success').then(() => window.location.reload());
+                                  } else {
+                                      const d = await r.json();
+                                      Swal.fire('Erro', d.erro || 'Falha no restauro', 'error');
+                                  }
+                              }
+                          }} className="btn-action" style={{color:'#ef4444'}}>Restaurar</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

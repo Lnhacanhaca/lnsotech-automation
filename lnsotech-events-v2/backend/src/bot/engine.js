@@ -200,7 +200,7 @@ function iniciarCron(sock) {
     // ========== CRON JOB PARA BACKUP DA BASE DE DADOS (00:00) ========== //
     cron.schedule('0 0 * * *', () => {
         console.log('💾 LNSOTECH: Iniciando backup diário da base de dados...');
-        const backupDir = path.resolve(__dirname, '../../src/uploads/backups');
+        const backupDir = path.resolve(__dirname, '../../../uploads/backups');
         
         // Garante que a directoria de backups existe
         if (!fs.existsSync(backupDir)) {
@@ -212,9 +212,9 @@ function iniciarCron(sock) {
         const filePath = path.join(backupDir, fileName);
 
         // O POSTGRES_URL do pool.options ou process.env.DATABASE_URL
-        const host = process.env.DB_HOST || 'lnsotech-db-bot-v2';
+        const host = process.env.DB_HOST || 'database';
         const user = process.env.DB_USER || 'lnso_admin';
-        const pass = process.env.DB_PASS || 'n4VbB6#SjG';
+        const pass = process.env.DB_PASSWORD || 'luis@nhaca';
         const db   = process.env.DB_NAME || 'lnsotech_db';
 
         // Usa pg_dump para exportar

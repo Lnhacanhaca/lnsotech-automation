@@ -125,7 +125,7 @@ router.put('/usuarios/:id', async (req, res) => {
 
 // Listar Backups (apenas Admin idealmente, assumindo UI auth gorfed)
 router.get('/backups', (req, res) => {
-    const backupDir = path.resolve(__dirname, '../../src/uploads/backups');
+    const backupDir = path.resolve(__dirname, '../../../uploads/backups');
     if (!fs.existsSync(backupDir)) return res.json([]);
     
     fs.readdir(backupDir, (err, files) => {
@@ -142,9 +142,40 @@ router.get('/backups', (req, res) => {
     });
 });
 
+// ========== AUXILIAR: GERAR BACKUP AGORA ========== //
+router.post('/backups/gerar', async (req, res) => {
+    try {
+        const { exec } = require('child_process');
+        const backupDir = path.resolve(__dirname, '../../../uploads/backups');
+        if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+        const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const fileName = `manual_backup_${dateStr}.sql`;
+        const filePath = path.join(backupDir, fileName);
+
+        const host = process.env.DB_HOST || 'database';
+        const user = process.env.DB_USER || 'lnso_admin';
+        const pass = process.env.DB_PASSWORD || 'luis@nhaca';
+        const db   = process.env.DB_NAME || 'lnsotech_db';
+
+        // Comando pg_dump
+        const dumpCommand = `PGPASSWORD='${pass}' pg_dump -h ${host} -U ${user} -d ${db} -F c -f "${filePath}"`;
+
+        exec(dumpCommand, (error) => {
+            if (error) {
+                console.error('Erro backup manual:', error);
+                return res.status(500).json({ erro: 'Falha ao executar dump: ' + error.message });
+            }
+            res.json({ mensagem: 'Backup gerado!', ficheiro: fileName });
+        });
+    } catch (err) {
+        res.status(500).json({ erro: err.message });
+    }
+});
+
 // Download de Backup
 router.get('/backups/download/:filename', (req, res) => {
-    const backupDir = path.resolve(__dirname, '../../src/uploads/backups');
+    const backupDir = path.resolve(__dirname, '../../../uploads/backups');
     const file = path.join(backupDir, req.params.filename);
     if (fs.existsSync(file)) {
         res.download(file);
@@ -155,7 +186,7 @@ router.get('/backups/download/:filename', (req, res) => {
 
 // Restaurar Backup
 router.post('/backups/restore/:filename', (req, res) => {
-    const backupDir = path.resolve(__dirname, '../../src/uploads/backups');
+    const backupDir = path.resolve(__dirname, '../../../uploads/backups');
     const filePath = path.join(backupDir, req.params.filename);
 
     if (!fs.existsSync(filePath)) {
