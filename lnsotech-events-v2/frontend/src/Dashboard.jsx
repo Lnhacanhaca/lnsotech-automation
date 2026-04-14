@@ -471,6 +471,33 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     }
   };
 
+  const handleClearLogs = async () => {
+    const res = await Swal.fire({
+        title: 'Limpar Histórico?',
+        text: 'Isto irá apagar permanentemente todos os registros de interações do bot.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sim, limpar tudo!',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (res.isConfirmed) {
+        try {
+            const r = await fetch(`${apiBase}/api/eventos/logs`, { method: 'DELETE', headers });
+            if (r.ok) {
+                Swal.fire('Limpo!', 'O histórico de logs foi removido.', 'success');
+                fetchData();
+            } else {
+                toast.error('Falha ao limpar logs');
+            }
+        } catch (e) {
+            toast.error('Erro de conexão');
+        }
+    }
+  };
+
   const apagarEvento = async (id) => {
     if (!isAdmin) return toast.warning('Só Admins podem apagar!');
     const result = await Swal.fire({ title: 'Apagar Evento?', text: 'Esta ação não pode ser revertida.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Apagar', cancelButtonText: 'Cancelar' });
@@ -956,6 +983,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               <option value="lembrete_falha">❌ Falhas de Envio</option>
             </select>
             <button className="btn-submit" onClick={handleRefreshLogs} style={{margin:0}}>🔄 Atualizar</button>
+            {isAdmin && (
+                <button className="btn-submit" onClick={handleClearLogs} style={{margin:0, background:'#ef4444'}}>🗑️ Limpar Tudo</button>
+            )}
           </div>
         </div>
         

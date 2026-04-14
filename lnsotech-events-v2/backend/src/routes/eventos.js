@@ -389,6 +389,16 @@ router.get('/logs', async (req, res) => {
     }
 });
 
+router.delete('/logs', async (req, res) => {
+    try {
+        await req.db.query('DELETE FROM logs_envio');
+        res.json({ sucesso: true, mensagem: 'Histórico de logs limpo com sucesso' });
+    } catch (error) {
+        console.error('Erro ao limpar logs:', error);
+        res.status(500).json({ erro: 'Falha ao limpar histórico de logs' });
+    }
+});
+
 // ========== DISPARO MANUAL DE LEMBRETES (REAL) ========== //
 router.post('/testar-lembretes', async (req, res) => {
     try {
