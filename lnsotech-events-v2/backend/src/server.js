@@ -23,12 +23,15 @@ app.use(cors());
 app.use(express.json());
 
 // Garantir tabelas base no arranque do servidor
+console.log('⏳ [DB] Verificando ligação e tabelas...');
 pool.query(`
     CREATE TABLE IF NOT EXISTS configuracoes (chave TEXT PRIMARY KEY, valor TEXT);
     CREATE TABLE IF NOT EXISTS tipos_evento (id SERIAL PRIMARY KEY, nome TEXT UNIQUE, cor TEXT);
-    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tentativas_falhas INT DEFAULT 0;
-    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS bloqueado_ate TIMESTAMP;
-`).then(async () => {
+    -- Garante que pelo menos as tabelas respondem
+    SELECT COUNT(*) FROM eventos;
+`).then(async (res) => {
+    console.log(`✅ [DB] Ligação estabelecida. Eventos encontrados no arranque: ${res[2]?.rows[0]?.count || 0}`);
+    
     // Configurações iniciais
     const check = await pool.query("SELECT * FROM configuracoes WHERE chave = 'hora_lembrete'");
     if (check.rowCount === 0) {
@@ -39,25 +42,27 @@ pool.query(`
         await pool.query("INSERT INTO configuracoes (chave, valor) VALUES ('assinatura_bot', '⚡ Enviado via LNSOTECH Automation')");
     }
     
-    // Tipos de evento iniciais (sem formatura)
-    await pool.query("DELETE FROM tipos_evento WHERE nome = 'formatura'");
-    await pool.query(`
-        INSERT INTO tipos_evento (nome, cor) VALUES 
-        ('casamento', '#3b82f6'),
-        ('aniversario', '#10b981'),
-        ('batizado', '#8b5cf6')
-        ON CONFLICT (nome) DO NOTHING
-    `);
-    
-    console.log('✅ [DB] Tabelas e configurações verificadas.');
+    console.log('✅ [DB] Configurações de sistema verificadas.');
+}).catch(err => {
+    console.error('❌ [DB FATAL] Erro ao conectar ou verificar tabelas:', err.message);
 });
 
 // Expor pasta de uploads publicamente para fotos dos eventos
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Injetar Pool no Request para facilitar uso nas rotas
+// Injetar Pool no Request com log de erro para cada query falhada
 app.use((req, res, next) => {
-    req.db = pool;
+    const originalQuery = pool.query.bind(pool);
+    req.db = {
+        query: async (text, params) => {
+            try {
+                return await originalQuery(text, params);
+            } catch (err) {
+                console.error(`❌ [DB Query Error] SQL: ${text.substring(0, 100)}... | Erro:`, err.message);
+                throw err;
+            }
+        }
+    };
     next();
 });
 
