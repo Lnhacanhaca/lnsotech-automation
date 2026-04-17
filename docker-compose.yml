@@ -40,10 +40,13 @@ services:
       - "8080:80"
     volumes:
       - ./lnsotech-events-v2/frontend/dist:/usr/share/nginx/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       # Partilhar pasta de uploads para o nginx também servir as fotos
       - ./uploads:/usr/share/nginx/html/uploads
     networks:
       - lnso_network
+    depends_on:
+      - bot
 networks:
   lnso_network: 
     external: true
