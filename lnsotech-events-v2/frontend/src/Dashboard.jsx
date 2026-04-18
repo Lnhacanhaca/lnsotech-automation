@@ -22,6 +22,15 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [assinaturaBot, setAssinaturaBot] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+
   const changeTab = (tab) => {
     setActiveTab(tab);
     setSidebarOpen(false); // Fecha sidebar no mobile ao trocar
@@ -668,6 +677,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   /* ========== RENDER: DASHBOARD ========== */
   /* ========== RENDER: DASHBOARD ========== */
   const renderDashboard = () => {
+    const handleGroupsCardClick = () => {
+        setActiveTab('grupos');
+    };
+
     // 1. Data for PieChart
     const pieData = [
       { name: 'Bodas', value: stats.totalBodas },
@@ -689,7 +702,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     <>
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-header">Eventos Totais<div className="stat-icon-wrapper bg-green-light">📈</div></div><div className="stat-value">{stats.totalEventos}</div></div>
-        <div className="stat-card"><div className="stat-header">Grupos Activos<div className="stat-icon-wrapper bg-green-light">💍</div></div><div className="stat-value">{stats.gruposAtivos}</div></div>
+        <div className="stat-card" onClick={handleGroupsCardClick} style={{cursor:'pointer'}}>
+          <div className="stat-header">Grupos Activos<div className="stat-icon-wrapper bg-green-light">💍</div></div>
+          <div className="stat-value">{stats.gruposAtivos}</div>
+        </div>
         <div className="stat-card"><div className="stat-header">Lembretes Enviados<div className="stat-icon-wrapper bg-yellow-light">🔔</div></div><div className="stat-value">{stats.lembretesEnviados}</div></div>
         <div className="stat-card" onClick={() => { setActiveTab('logs'); setLogFilter('falha'); }} style={{cursor:'pointer'}}>
           <div className="stat-header">Falhas<div className="stat-icon-wrapper" style={{background:'#fee2e2'}}>⚠️</div></div>
@@ -698,35 +714,42 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       </div>
       
       {/* SECTION: GRÁFICOS COMPARATIVOS */}
-      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-        <div className="panel-card" style={{ flex: 1, minWidth: '350px' }}>
-          <div className="panel-title">Distribuição de Eventos por Mês</div>
-          <p className="text-muted" style={{fontSize: '0.85rem', marginBottom: '1rem'}}>Análise do volume de agendamentos ao longo do ano para antecipar picos de alertas.</p>
-          <div style={{ width: '100%', height: 260 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        <div className="panel-card" style={{ minHeight: '350px' }}>
+          <div className="panel-title" style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>📊 Distribuição Anual <span className="text-muted" style={{fontWeight:400, fontSize:'0.7rem'}}>(Eventos por Mês)</span></div>
+          <div style={{ width: '100%', height: 280, marginTop:'1rem' }}>
             <ResponsiveContainer>
               <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-                <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                <Bar dataKey="Eventos" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <defs>
+                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: 'var(--text-secondary)'}} />
+                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: 'var(--text-secondary)'}} />
+                <Tooltip 
+                  cursor={{fill: 'var(--bg)'}} 
+                  contentStyle={{borderRadius: '12px', background:'var(--surface)', border: '1px solid var(--border)', color:'var(--text)', boxShadow: 'var(--shadow-md)'}} 
+                />
+                <Bar dataKey="Eventos" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={24} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
         
-        <div className="panel-card" style={{ flex: 0.6, minWidth: '280px' }}>
-          <div className="panel-title">Proporção de Tipos</div>
-          <p className="text-muted" style={{fontSize: '0.85rem', marginBottom: '1rem'}}>Divisão da natureza dos eventos marcados.</p>
-          <div style={{ width: '100%', height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {stats.totalEventos === 0 ? <p className="text-muted">Sem dados suficientes.</p> : (
+        <div className="panel-card" style={{ minHeight: '350px' }}>
+          <div className="panel-title" style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>🍰 Mix de Eventos <span className="text-muted" style={{fontWeight:400, fontSize:'0.7rem'}}>(Por Categoria)</span></div>
+          <div style={{ width: '100%', height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {stats.totalEventos === 0 ? <p className="text-muted">Sem dados disponíveis.</p> : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={65} outerRadius={85} paddingAngle={5} dataKey="value">
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={8} dataKey="value" stroke="none">
                     {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                   </Pie>
-                  <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{fontSize: '12px'}} />
+                  <Tooltip contentStyle={{borderRadius: '12px', background:'var(--surface)', border: '1px solid var(--border)', color:'var(--text)', boxShadow: 'var(--shadow-md)'}} />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{fontSize: '12px', paddingTop:'1rem'}} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -960,39 +983,52 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         </div>
         <p className="text-muted" style={{marginBottom:'1rem'}}>Estes são todos os grupos onde o bot está presente. Seleccione um grupo ao criar eventos para definir onde o lembrete será enviado.</p>
       
-      {gruposLoading ? <p>A buscar grupos do WhatsApp...</p> : grupos.length === 0 ? <p className="text-muted">Nenhum grupo encontrado. O bot pode estar offline.</p> : (
+      {gruposLoading ? (
+        <div style={{textAlign:'center', padding:'3rem'}}>
+            <div style={{animation:'spin 1s linear infinite', border:'3px solid var(--border)', borderTopColor:'var(--accent)', borderRadius:'50%', width:'30px', height:'30px', margin:'0 auto 1rem'}}></div>
+            <p>A sincronizar grupos do WhatsApp...</p>
+        </div>
+      ) : grupos.length === 0 ? <p className="text-muted">Nenhum grupo encontrado. O bot pode estar offline.</p> : (
         <div className="table-responsive">
           <table className="table-minimal">
-            <thead><tr><th>Nome do Grupo</th><th>Membros</th><th>ID WhatsApp</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Status</th><th>Nome do Grupo</th><th>Membros</th><th>Ações</th></tr></thead>
             <tbody>
               {grupos.map(g => (
                 <tr key={g.id}>
-                  <td className="fw-bold">{g.nome}</td>
-                  <td>{g.participantes}</td>
-                  <td className="text-small" style={{fontFamily:'monospace',fontSize:'0.7rem'}}>{g.id}</td>
                   <td>
-                    <div className="toolbar-buttons">
-                      {isAdmin && <button onClick={()=>handleTesteConexao(g.id, g.nome)} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem'}}>🤖 Testar</button>}
+                    <span style={{
+                        display:'inline-flex', padding:'3px 8px', borderRadius:'12px', fontSize:'0.65rem', fontWeight:800,
+                        background: (g.isMuted ? '#fecaca' : '#dcfce7'),
+                        color: (g.isMuted ? '#b91c1c' : '#15803d')
+                    }}>
+                        {g.isMuted ? '📵 DESCONECTADO' : '🟢 ATIVO'}
+                    </span>
+                  </td>
+                  <td className="fw-bold" style={{fontSize:'0.95rem'}}>{g.nome}</td>
+                  <td>
+                    <div style={{display:'flex', alignItems:'center', gap:'4px'}}>
+                        <span style={{fontSize:'0.8rem'}}>👥</span> {g.participantes}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="toolbar-buttons" style={{justifyContent:'flex-end'}}>
+                      <button 
+                        onClick={() => {
+                            setGrupos(prev => prev.map(item => item.id === g.id ? {...item, isMuted: !item.isMuted} : item));
+                            toast.info(`Grupo ${g.isMuted ? 'Reativado' : 'Suspenso'} localmente.`);
+                        }} 
+                        className="btn-submit" 
+                        style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem', background: g.isMuted ? '#10b981' : '#ef4444'}}
+                      >
+                        {g.isMuted ? '🔌 Conectar' : '🔌 Desconectar'}
+                      </button>
+                      {isAdmin && <button onClick={()=>handleTesteConexao(g.id, g.nome)} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem', background:'var(--info)'}}>🤖 Testar</button>}
                       <button onClick={() => {
                         const copiar = (texto) => {
-                          if (navigator.clipboard && window.isSecureContext) {
-                            navigator.clipboard.writeText(texto).then(() => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 ID copiado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' })).catch(() => {
-                              const el = document.createElement('textarea');
-                              el.value = texto; el.style.position='fixed'; el.style.opacity='0';
-                              document.body.appendChild(el); el.select();
-                              document.execCommand('copy'); document.body.removeChild(el);
-                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 ID copiado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
-                            });
-                          } else {
-                            const el = document.createElement('textarea');
-                            el.value = texto; el.style.position='fixed'; el.style.opacity='0';
-                            document.body.appendChild(el); el.select();
-                            document.execCommand('copy'); document.body.removeChild(el);
-                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📋 ID copiado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
-                          }
+                          navigator.clipboard.writeText(texto).then(() => toast.success('ID Copiado!'));
                         };
                         copiar(g.id);
-                      }} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem',background:'#475569'}}>📋 Copiar ID</button>
+                      }} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem',background:'#475569'}}>📋 ID</button>
                     </div>
                   </td>
                 </tr>
@@ -1667,6 +1703,15 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             {offlineQueueLength > 0 && <span className="icon-btn notification-badge" style={{background:'#3b82f6'}} title={`${offlineQueueLength} registos por sincronizar.`}>⏳ {offlineQueueLength}</span>}
             {stats.falhasHoje > 0 && <span className="icon-btn notification-badge" onClick={() => changeTab('logs')} title="Existem falhas!">🔔</span>}
             
+            <button 
+              onClick={toggleTheme} 
+              className="icon-btn" 
+              style={{background:'none', border:'none', fontSize:'1.2rem', padding:'0.5rem'}}
+              title="Trocar Tema"
+            >
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
+
             <div className="user-avatar topbar-avatar">{user?.nome?.charAt(0) || 'U'}</div>
           </div>
         </header>
