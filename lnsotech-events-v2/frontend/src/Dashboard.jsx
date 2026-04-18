@@ -32,6 +32,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const changeTab = (tab) => {
+    if (tab === 'eventos') {
+        // Se clicar manualmente na aba, limpamos os filtros de grupo para ver tudo
+        setFilterGroup(null);
+        setFilterType(null);
+        setSearchQuery('');
+    }
     setActiveTab(tab);
     setSidebarOpen(false); // Fecha sidebar no mobile ao trocar
   };
@@ -70,6 +76,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [newUserRole, setNewUserRole] = useState('leitor');
   const [editingUserId, setEditingUserId] = useState(null);
   const [editUserForm, setEditUserForm] = useState({ nome: '', email: '', senha: '', nivel_acesso: 'leitor' });
+
+  // Estados para Filtros Avançados (Vindos da aba Grupos)
+  const [filterGroup, setFilterGroup] = useState(null);
+  const [filterType, setFilterType] = useState(null);
 
   const [editingTipoId, setEditingTipoId] = useState(null);
   const [editTipoForm, setEditTipoForm] = useState({ nome: '', cor: '#3b82f6' });
@@ -856,10 +866,34 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   };
 
   /* ========== RENDER: EVENTOS ========== */
-  const renderEventos = () => (
+  const renderEventos = () => {
+    let filtered = eventos.filter(ev => 
+      (ev.nomes_principais?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (ev.tipo_evento?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+    );
+
+    // Aplicar filtros avançados se existirem
+    if (filterGroup) {
+        filtered = filtered.filter(ev => ev.grupo_id === filterGroup);
+    }
+    if (filterType) {
+        filtered = filtered.filter(ev => ev.tipo_evento === filterType);
+    }
+
+    const currentFilterGroupName = grupos.find(g => g.id === filterGroup)?.nome;
+
+    return (
     <div className="panel-card" style={{gap:'1rem'}}>
-      <div className="eventos-toolbar">
-        <div className="panel-title" style={{margin:0}}>Base de Dados de Clientes</div>
+      <div className="eventos-toolbar" style={{flexWrap:'wrap', gap:'1rem'}}>
+        <div style={{display:'flex', alignItems:'center', gap:'1rem', flex:1}}>
+            <div className="panel-title" style={{margin:0}}>📅 Listagem de Eventos</div>
+            {(filterGroup || filterType) && (
+                <div style={{display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--info)', color:'#fff', padding:'4px 12px', borderRadius:'20px', fontSize:'0.8rem', animation:'slideUp 0.3s ease'}}>
+                    🔍 {filterType?.toUpperCase()} {filterGroup ? `em ${currentFilterGroupName}` : ''}
+                    <button onClick={() => { setFilterGroup(null); setFilterType(null); }} style={{background:'none', border:'none', color:'#fff', cursor:'pointer', fontWeight:800, padding:'0 4px'}}>✕</button>
+                </div>
+            )}
+        </div>
         <div className="toolbar-buttons">
           <div className="flex-wrap-responsive">
             <button onClick={handleExportCSV} className="btn-submit" style={{background:'#1e293b'}}>📥 CSV</button>
@@ -924,7 +958,15 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         <table className="table-minimal" style={{marginTop:'1rem'}}>
           <thead><tr><th>Nomes</th><th>Data</th><th>Tipo</th><th>Freq.</th><th>Grupo</th><th>Foto</th><th>Gestão</th></tr></thead>
           <tbody>
-            {loading ? <tr><td colSpan="7">A carregar...</td></tr> : eventos.map(ev => (
+            {loading ? (
+                <tr><td colSpan="7" style={{textAlign:'center', padding:'2rem'}}>A carregar eventos...</td></tr>
+            ) : filtered.length === 0 ? (
+                <tr><td colSpan="7" style={{textAlign:'center', padding:'3rem'}}>
+                    <div style={{fontSize:'2rem', marginBottom:'0.5rem'}}>🔎</div>
+                    <p className="text-muted">Nenhum evento encontrado para este filtro.</p>
+                    {(filterGroup || filterType) && <button onClick={() => { setFilterGroup(null); setFilterType(null); }} className="btn-mini" style={{marginTop:'1rem', background:'var(--info)', color:'white', padding:'5px 15px'}}>Ver Todos os Eventos</button>}
+                </td></tr>
+            ) : filtered.map(ev => (
               <tr key={ev.id}>
                 <td className="fw-bold">{ev.nomes_principais}</td>
                 <td>{new Date(ev.data_evento).toLocaleDateString()}<br/><span className="text-small">{ev.tipo_evento?.toUpperCase()}</span></td>
@@ -967,6 +1009,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       </div>
     </div>
   );
+  };
 
   /* ========== RENDER: GRUPOS WHATSAPP E QR CODE ========== */
   const renderGrupos = () => (
@@ -1040,12 +1083,26 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                   <td>
                     <div style={{display:'flex', flexWrap:'wrap', gap:'4px'}}>
                         {tiposNoGrupo.length === 0 ? <span className="text-muted" style={{fontSize:'0.7rem'}}>Nenhuma</span> : tiposNoGrupo.map(t => (
-                            <span key={t} style={{
-                                fontSize:'0.65rem', padding:'2px 6px', borderRadius:'4px', fontWeight:600,
-                                background: tiposEvento.find(te => te.nome === t)?.cor + '22' || '#f1f5f9',
-                                color: tiposEvento.find(te => te.nome === t)?.cor || '#64748b',
-                                border: `1px solid ${tiposEvento.find(te => te.nome === t)?.cor || '#e2e8f0'}`
-                            }}>
+                            <span 
+                                key={t} 
+                                onClick={() => {
+                                    setSearchQuery(''); // Limpar busca global para não conflitar
+                                    setFilterGroup(g.id);
+                                    setFilterType(t);
+                                    setActiveTab('eventos');
+                                    toast.info(`A filtrar ${t.toUpperCase()} em ${g.nome}`, { autoClose: 3000 });
+                                }}
+                                title="Clique para ver estes eventos"
+                                style={{
+                                    fontSize:'0.65rem', padding:'2px 6px', borderRadius:'4px', fontWeight:600, cursor:'pointer',
+                                    background: tiposEvento.find(te => te.nome === t)?.cor + '22' || '#f1f5f9',
+                                    color: tiposEvento.find(te => te.nome === t)?.cor || '#64748b',
+                                    border: `1px solid ${tiposEvento.find(te => te.nome === t)?.cor || '#e2e8f0'}`,
+                                    transition: 'transform 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                            >
                                 {t.toUpperCase()}
                             </span>
                         ))}
