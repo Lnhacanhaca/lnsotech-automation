@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
@@ -39,8 +39,8 @@ router.post('/login', async (req, res) => {
             let bloqueio = (usuario.bloqueado_ate);
 
             if (novasFalhas >= 5) {
-                // Bloquear por 15 minutos
-                bloqueio = new Date(Date.now() + 15 * 60000);
+                // Bloquear por 3 minutos
+                bloqueio = new Date(Date.now() + 3 * 60000);
             }
 
             await req.db.query(
@@ -48,7 +48,7 @@ router.post('/login', async (req, res) => {
                 [novasFalhas, bloqueio, usuario.id]
             );
 
-            return res.status(401).json({ erro: novasFalhas >= 5 ? 'Conta bloqueada por 15 min devido a excesso de tentativas falhadas.' : 'Credenciais inválidas' });
+            return res.status(401).json({ erro: novasFalhas >= 5 ? 'Conta bloqueada por 3 min devido a excesso de tentativas falhadas.' : 'Credenciais inválidas' });
         }
 
         // Resetar falhas se sucesso

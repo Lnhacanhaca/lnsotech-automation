@@ -1,49 +1,55 @@
 services:
   database:
-    image: postgres:15-alpine
-    container_name: lnsotech-db-bot-v2 # Atualizado para a v2
+    image: postgres:17-alpine
+    container_name: lnsotech-db
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
     volumes:
-      - ./postgres_data_v2:/var/lib/postgresql/data # Nova pasta para não misturar dados velhos
-      - ./postgres/v2_update.sql:/docker-entrypoint-initdb.d/init.sql # Puxa a nossa base de dados nova (eventos)
+      - ./postgres_data_v2:/var/lib/postgresql/data
+      - ./postgres/v2_update.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
-      - lnso_network 
+      - backend_network
 
   bot:
-    build: ./lnsotech-events-v2/backend # Aponta para o diretório da nossa nova v2
-    container_name: lnsotech-bot-v2
+    build: 
+      context: ./lnsotech-events-v2/backend
+      dockerfile: Dockerfile
+    container_name: lnsotech-backend
     restart: unless-stopped
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     env_file: .env
-    environment:
-      - TZ=Africa/Maputo
-    ports:
-      - "3000:3000"
     volumes:
-      # O Baileys guarda as sessões na pasta auth_info_baileys. Mapeamos para persistir
       - ./auth_info_baileys:/app/auth_info_baileys
-      # Uploads de fotos persistidos fora do contentor
       - ./uploads:/app/uploads
     networks:
-      - lnso_network
+      - backend_network
 
   frontend:
-    image: nginx:alpine
-    container_name: lnsotech-frontend-v2
+    build:
+      context: ./lnsotech-events-v2/frontend
+      dockerfile: Dockerfile
+    container_name: lnsotech-frontend
     restart: unless-stopped
-    ports:
-      - "8080:80"
     volumes:
-      - ./lnsotech-events-v2/frontend/dist:/usr/share/nginx/html
-      # Partilhar pasta de uploads para o nginx também servir as fotos
-      - ./uploads:/usr/share/nginx/html/uploads
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./uploads:/usr/share/nginx/html/uploads:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - bot
     networks:
-      - lnso_network
+      - backend_network
+
 networks:
-  lnso_network: 
-    external: true
+  backend_network:
+    driver: bridge

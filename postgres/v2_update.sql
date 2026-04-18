@@ -28,4 +28,4 @@ CREATE TABLE IF NOT EXISTS logs_envio (
 
 -- Admin user (password: lnso2026 hash)
 INSERT INTO usuarios (nome, email, senha, nivel_acesso) 
-VALUES ('Luís Nhacanhaca', 'admin@lnsotech.com', '$2b$10$7Z2v.rI.8nS7/eW.uU7vO.rG7qW7vO.rG7qW7vO.rG7q', 'admin');
+VALUES ('Luís Nhacanhaca', 'admin@lnsotech.com', '$2a$10$uujCRYGtaYz584sWFIIrnuV9RChQQQtpnysdxC2aWDawb4p3for.a', 'admin');
