@@ -51,6 +51,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [newTipoNome, setNewTipoNome] = useState('');
   const [newTipoCor, setNewTipoCor] = useState('#3b82f6');
   
+  // Persistência local do estado de grupos suspensos (até termos tabela no backend)
+  const [mutedGroups, setMutedGroups] = useState(() => JSON.parse(localStorage.getItem('muted_groups') || '[]'));
+  useEffect(() => { localStorage.setItem('muted_groups', JSON.stringify(mutedGroups)); }, [mutedGroups]);
+  
   const [editingEvento, setEditingEvento] = useState(null);
   const [editEventoForm, setEditEventoForm] = useState({ nomes_principais: '', data_evento: '', tipo_evento: '', grupo_id: '', frequencia_lembrete: 'anual', prioridade: 'normal' });
   const [showHistoryFor, setShowHistoryFor] = useState(null);
@@ -250,7 +254,15 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     setGruposLoading(true);
     try {
       const res = await fetch(`${apiBase}/api/eventos/grupos`, { headers });
-      if (res.ok) setGrupos(await res.json());
+      if (res.ok) {
+          const fetchedGrupos = await res.json();
+          // Aplicar estado de silenciamento do localstorage aos grupos vindos do servidor
+          const enriched = fetchedGrupos.map(g => ({
+              ...g,
+              isMuted: mutedGroups.includes(g.id)
+          }));
+          setGrupos(enriched);
+      }
       else { const d = await res.json(); toast.error(d.erro || 'Bot offline'); }
     } catch (e) { toast.error('Falha ao carregar grupos'); }
     setGruposLoading(false);
@@ -646,6 +658,17 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   };
 
   const handleTesteConexao = async (grupoId, nomeGrupo) => {
+    // Verificar se o grupo está desconectado antes de permitir o teste
+    const groupStatus = grupos.find(g => g.id === grupoId);
+    if (groupStatus?.isMuted || mutedGroups.includes(grupoId)) {
+        return Swal.fire({ 
+            title: 'Grupo Desconectado', 
+            text: 'Este grupo está suspenso localmente. Clique em "Conectar" antes de realizar o teste.', 
+            icon: 'info',
+            confirmButtonColor: '#10b981'
+        });
+    }
+
     const code = Math.floor(1000 + Math.random() * 9000);
     const result = await Swal.fire({ title: '⚠️ Testar Conexão', html: `Você está prestes a enviar uma mensagem de teste para <strong>todos os membros</strong> do grupo "<b>${nomeGrupo || 'este grupo'}</b>".<br/><br/>Para confirmar, digite o código: <strong style="color:#dc2626;font-size:1.3rem">${code}</strong>`, input: 'text', inputPlaceholder: 'Digite o código...', showCancelButton: true, confirmButtonColor: '#10b981', cancelButtonColor: '#64748b', confirmButtonText: '🤖 Enviar Teste', cancelButtonText: 'Cancelar', inputValidator: (v) => v !== code.toString() ? 'Código incorreto!' : null });
     if (!result.isConfirmed) return;
@@ -1014,8 +1037,15 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                     <div className="toolbar-buttons" style={{justifyContent:'flex-end'}}>
                       <button 
                         onClick={() => {
-                            setGrupos(prev => prev.map(item => item.id === g.id ? {...item, isMuted: !item.isMuted} : item));
-                            toast.info(`Grupo ${g.isMuted ? 'Reativado' : 'Suspenso'} localmente.`);
+                            const isNowMuted = !g.isMuted;
+                            setGrupos(prev => prev.map(item => item.id === g.id ? {...item, isMuted: isNowMuted} : item));
+                            
+                            if (isNowMuted) setMutedGroups(prev => [...prev, g.id]);
+                            else setMutedGroups(prev => prev.filter(id => id !== g.id));
+
+                            toast.info(`Grupo ${isNowMuted ? 'Desconectado 📵' : 'Reativado 🔌'} com sucesso!`, {
+                                autoClose: 8000
+                            });
                         }} 
                         className="btn-submit" 
                         style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem', background: g.isMuted ? '#10b981' : '#ef4444'}}
@@ -1660,7 +1690,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   /* ========== LAYOUT ========== */
   return (
     <div className="dashboard-layout">
-      <ToastContainer position="top-right" autoClose={6000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
+      <ToastContainer position="top-right" autoClose={12000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
       
       {/* Overlay para fechar ao clicar fora no mobile */}
       <div className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`} onClick={() => setSidebarOpen(false)}></div>
