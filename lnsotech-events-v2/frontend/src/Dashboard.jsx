@@ -20,6 +20,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [horaLembrete, setHoraLembrete] = useState('07:00');
   const [assinaturaBot, setAssinaturaBot] = useState('');
+  const [respostaPadraoBot, setRespostaPadraoBot] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
@@ -82,7 +83,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [filterType, setFilterType] = useState(null);
 
   const [editingTipoId, setEditingTipoId] = useState(null);
-  const [editTipoForm, setEditTipoForm] = useState({ nome: '', cor: '#3b82f6' });
+  const [editTipoForm, setEditTipoForm] = useState({ nome: '', cor: '#3b82f6', template_resposta: '' });
 
   // Estado do Calendário
   const today = new Date();
@@ -116,6 +117,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       const data = await r.json();
       if (data.hora_lembrete) setHoraLembrete(data.hora_lembrete);
       if (data.assinatura_bot) setAssinaturaBot(data.assinatura_bot);
+      if (data.resposta_padrao_bot) setRespostaPadraoBot(data.resposta_padrao_bot);
     } catch (e) { console.error(e); }
   };
 
@@ -640,7 +642,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const startEditTipo = (t) => {
     setEditingTipoId(t.id);
-    setEditTipoForm({ nome: t.nome, cor: t.cor });
+    setEditTipoForm({ nome: t.nome, cor: t.cor, template_resposta: t.template_resposta || '' });
   };
 
   const handleUpdateTipo = async () => {
@@ -1521,6 +1523,30 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         </div>
 
         <div className="panel-card">
+          <div className="panel-title">🤝 Resposta Padrão do Bot (Fallback)</div>
+          <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>
+            Esta mensagem será enviada quando alguém agradecer ao bot e NÃO existir um template específico para o tipo de evento celebrado no dia.
+          </p>
+          <div style={{display:'flex', flexDirection:'column', gap:'0.8rem'}}>
+            <textarea 
+              className="inline-input" 
+              rows={3}
+              placeholder="Ex: A LNSOTECH agradece o carinho! ✨"
+              value={respostaPadraoBot} 
+              onChange={(e) => setRespostaPadraoBot(e.target.value)}
+              style={{width:'100%', fontSize:'0.9rem', resize:'vertical'}}
+            />
+            <button 
+              onClick={() => handleSaveConfig('resposta_padrao_bot', respostaPadraoBot)}
+              className="btn-submit"
+              style={{alignSelf:'flex-start', padding:'0.6rem 2rem', background:'var(--info)'}}
+            >
+              💾 Salvar Resposta Padrão
+            </button>
+          </div>
+        </div>
+
+        <div className="panel-card">
           <div className="panel-title">✍️ Assinatura Automática do Bot</div>
           <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>
             Este texto será adicionado ao final de todas as mensagens enviadas pelo CRM (Branding).
@@ -1618,7 +1644,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1rem'}}>Personalize os nomes e as cores dos eventos que aparecem no calendário e no dashboard.</p>
           <div className="table-responsive">
             <table className="table-minimal">
-              <thead><tr><th>Nome</th><th>Cor</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
+              <thead><tr><th>Nome</th><th>Cor</th><th>Resposta do Bot (Reply)</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
               <tbody>
                 {tiposEvento.map(t => (
                   <tr key={t.id}>
@@ -1640,6 +1666,22 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                           <div style={{width:'16px', height:'16px', borderRadius:'50%', background:t.cor, border:'1px solid #e2e8f0'}} />
                           <span style={{fontFamily:'monospace', fontSize:'0.8rem'}}>{t.cor}</span>
                         </div>
+                      )}
+                    </td>
+                    <td>
+                      {editingTipoId === t.id ? (
+                        <textarea 
+                          className="inline-input" 
+                          rows={2}
+                          placeholder="Ex: Obrigado pelo carinho! ✨"
+                          value={editTipoForm.template_resposta} 
+                          onChange={e=>setEditTipoForm({...editTipoForm, template_resposta: e.target.value})} 
+                          style={{width:'100%', minWidth:'200px', fontSize:'0.8rem'}}
+                        />
+                      ) : (
+                        <span className="text-muted" style={{fontSize:'0.8rem', fontStyle:'italic'}}>
+                          {t.template_resposta || 'Resposta padrão...'}
+                        </span>
                       )}
                     </td>
                     <td style={{textAlign:'right'}}>

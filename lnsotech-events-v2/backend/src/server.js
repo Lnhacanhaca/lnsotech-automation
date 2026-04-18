@@ -25,7 +25,8 @@ app.use(express.json());
 // Garantir tabelas base no arranque do servidor
 pool.query(`
     CREATE TABLE IF NOT EXISTS configuracoes (chave TEXT PRIMARY KEY, valor TEXT);
-    CREATE TABLE IF NOT EXISTS tipos_evento (id SERIAL PRIMARY KEY, nome TEXT UNIQUE, cor TEXT);
+    CREATE TABLE IF NOT EXISTS tipos_evento (id SERIAL PRIMARY KEY, nome TEXT UNIQUE, cor TEXT, template_resposta TEXT);
+    ALTER TABLE tipos_evento ADD COLUMN IF NOT EXISTS template_resposta TEXT;
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tentativas_falhas INT DEFAULT 0;
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS bloqueado_ate TIMESTAMP;
 `).then(async () => {

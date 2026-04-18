@@ -133,13 +133,13 @@ router.get('/tipos', async (req, res) => {
 });
 
 router.post('/tipos', async (req, res) => {
-    const { nome, cor } = req.body;
+    const { nome, cor, template_resposta } = req.body;
     const lowerNome = nome.toLowerCase();
     try {
         await req.db.query('BEGIN');
         // 1. Criar o tipo
-        await req.db.query('INSERT INTO tipos_evento (nome, cor) VALUES ($1, $2)', [lowerNome, cor || '#3b82f6']);
-        // 2. Criar template padrão para este tipo
+        await req.db.query('INSERT INTO tipos_evento (nome, cor, template_resposta) VALUES ($1, $2, $3)', [lowerNome, cor || '#3b82f6', template_resposta || '']);
+        // 2. Criar template padrão para este tipo (se já não houver)
         await req.db.query(
             'INSERT INTO templates_mensagem (tipo_evento, mensagem) VALUES ($1, $2) ON CONFLICT DO NOTHING', 
             [lowerNome, `Lembrete LNSOTECH: Hoje celebramos {nomes} (${lowerNome})! 🎉`]
@@ -154,7 +154,7 @@ router.post('/tipos', async (req, res) => {
 });
 
 router.put('/tipos/:id', async (req, res) => {
-    const { nome, cor } = req.body;
+    const { nome, cor, template_resposta } = req.body;
     const lowerNome = nome.toLowerCase();
     try {
         // Buscar nome antigo para atualizar referências
@@ -165,7 +165,7 @@ router.put('/tipos/:id', async (req, res) => {
 
         await req.db.query('BEGIN');
         // 1. Atualizar o tipo
-        await req.db.query('UPDATE tipos_evento SET nome = $1, cor = $2 WHERE id = $3', [lowerNome, cor, req.params.id]);
+        await req.db.query('UPDATE tipos_evento SET nome = $1, cor = $2, template_resposta = $3 WHERE id = $4', [lowerNome, cor, template_resposta, req.params.id]);
         
         if (lowerNome !== oldNome) {
             // 2. Atualizar eventos associados

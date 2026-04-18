@@ -131,6 +131,9 @@ const pool = new Pool({
     port: process.env.DB_PORT || 5432,
 });
 
+// Helper: Esperar (delay)
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Helper: Registar log no banco de dados
 async function registarLog(eventoId, grupoId, tipoLog, mensagem, status) {
     try {
@@ -231,7 +234,7 @@ async function connectToWhatsApp() {
             // TESTE DE CONEXÃO DIRETO
             if (textMessage === '!ping') {
                 console.log('🏓 PING recebido!');
-                return await sock.sendMessage(msg.key.remoteJid, { text: '🏓 PONG! O robô está vivo e a ouvir.' }, { quoted: msg });
+                return await sock.sendMessage(msg.key.remoteJid, { text: '🏓 PONG - VERSÃO NOVIDADE 2026! O robô está atualizado.' }, { quoted: msg });
             }
 
             // ========== RESPOSTAS AUTOMÁTICAS (AUTO-REPLY) ========== //
@@ -248,19 +251,45 @@ async function connectToWhatsApp() {
                                     textMessage?.includes(myId) || textMessage?.includes(myLid);
 
             if ((isReplyToBot || isMentioningBot) && textMessage) {
-                console.log(`🤖 Auto-Reply Ativado para: "${textMessage}"`);
-            const textLower = textMessage.toLowerCase();
-            
-            if (textLower.includes('obrigad') || textLower.includes('obg') || textLower.includes('grato') || textLower.includes('amem') || textLower.includes('amém')) {
-                await sock.sendMessage(msg.key.remoteJid, { text: 'A LNSOTECH agradece! ✨ Que este dia seja repleto de muitas bênçãos.' }, { quoted: msg });
-            } else if (textLower.includes('parab') || textLower.includes('felic') || textLower.includes('feliz')) {
-                await sock.sendMessage(msg.key.remoteJid, { text: 'Muito obrigado! 🎉 Estamos felizes em celebrar mais um momento inesquecível!' }, { quoted: msg });
-            } else {
-                await sock.sendMessage(msg.key.remoteJid, { text: 'Recebemos a tua mensagem! 🤖 Se precisares de algo, a equipa LNSOTECH está ao dispor.' }, { quoted: msg });
+                console.log(`🤖 Interação Direta: "${textMessage}"`);
+                const textLower = textMessage.toLowerCase();
+                
+                // Lista de gatilhos para usar o template do evento
+                const triggers = ['paraben', 'felicid', 'feliz', 'amem', 'amém', 'obrigad', 'obg', 'obri ', 'grato', 'grata', 'viva', 'congrat'];
+                const isAgradecimento = triggers.some(t => textLower.includes(t));
+                
+                let templateParaEnviar = null;
+
+                if (isAgradecimento) {
+                    console.log("🎯 É um agradecimento. A tentar template do evento...");
+                    try {
+                        const resEvento = await pool.query(`
+                            SELECT t.template_resposta 
+                            FROM eventos e
+                            JOIN tipos_evento t ON e.tipo_evento = t.nome
+                            WHERE e.grupo_id = $1 
+                            AND TO_CHAR(e.data_evento, 'DD-MM') = TO_CHAR(CURRENT_DATE AT TIME ZONE 'Africa/Maputo', 'DD-MM')
+                            LIMIT 1
+                        `, [msg.key.remoteJid]);
+                        templateParaEnviar = resEvento.rows[0]?.template_resposta;
+                    } catch (e) { console.error('Erro ao buscar template do evento:', e); }
+                }
+
+                // Se NÃO for agradecimento OU se o template do evento estiver vazio, usamos o Fallback
+                if (!templateParaEnviar || templateParaEnviar.trim() === '') {
+                    try {
+                        const resPadrao = await pool.query("SELECT valor FROM configuracoes WHERE chave = 'resposta_padrao_bot'");
+                        templateParaEnviar = resPadrao.rows[0]?.valor;
+                    } catch (e) { console.error('Erro ao buscar resposta padrão:', e); }
+                }
+
+                const mensagemFinal = (templateParaEnviar && templateParaEnviar.trim() !== '') 
+                    ? templateParaEnviar 
+                    : 'A LNSOTECH agradece o seu carinho! ✨';
+
+                await sock.sendMessage(msg.key.remoteJid, { text: mensagemFinal }, { quoted: msg });
+                await registarLog(null, msg.key.remoteJid, 'auto_resposta', `Respondido a user: ${textMessage.substring(0,30)}...`, 'sucesso');
             }
-            
-            await registarLog(null, msg.key.remoteJid, 'auto_resposta', `Respondido a user: ${textMessage.substring(0,30)}...`, 'sucesso');
-        }
     });
 
     // Expor sock globalmente para que o servidor API possa usá-lo (ex: teste de conexão manual)
@@ -445,6 +474,7 @@ async function executarLembretes(sock, manual = false) {
                 -- DIÁRIO
                 frequencia_lembrete = 'diario'
             )
+            ORDER BY id ASC
         `;
         const res = await pool.query(query);
         console.log(`📊 [DB Query] Eventos encontrados para hoje: ${res.rows.length}`);
@@ -504,8 +534,14 @@ async function executarLembretes(sock, manual = false) {
                 }
                 await registarLog(evento.id, evento.grupo_id, manual ? 'teste_manual' : 'lembrete_enviado', mensagem, 'sucesso');
                 console.log(`✅ Enviado para: ${evento.nomes_principais} (Grupo: ${evento.grupo_id})`);
+                
+                // ESPERAR 5 a 10 SEGUNDOS ENTRE ENVIOS (conforme ordem de criação)
+                if (res.rows.length > 1) {
+                    const delay = Math.floor(Math.random() * 5000) + 5000; // Entre 5 e 10 segundos
+                    await sleep(delay);
+                }
             } catch (sendErr) {
-                await registarLog(evento.id, evento.grupo_id, 'lembrete_falha', sendErr.message, 'falha');
+        await registarLog(evento.id, evento.grupo_id, 'lembrete_falha', sendErr.message, 'falha');
                 console.error(`❌ Falha ao enviar para ${evento.grupo_id}:`, sendErr.message);
             }
             enviados++;
