@@ -1014,9 +1014,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       ) : grupos.length === 0 ? <p className="text-muted">Nenhum grupo encontrado. O bot pode estar offline.</p> : (
         <div className="table-responsive">
           <table className="table-minimal">
-            <thead><tr><th>Status</th><th>Nome do Grupo</th><th>Membros</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Status</th><th>Nome do Grupo</th><th>Membros</th><th>Categorias</th><th>Ações</th></tr></thead>
             <tbody>
-              {grupos.map(g => (
+              {grupos.map(g => {
+                // Encontrar tipos únicos de eventos associados a este grupo
+                const tiposNoGrupo = [...new Set(eventos.filter(ev => ev.grupo_id === g.id).map(ev => ev.tipo_evento))];
+                
+                return (
                 <tr key={g.id}>
                   <td>
                     <span style={{
@@ -1031,6 +1035,20 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                   <td>
                     <div style={{display:'flex', alignItems:'center', gap:'4px'}}>
                         <span style={{fontSize:'0.8rem'}}>👥</span> {g.participantes}
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{display:'flex', flexWrap:'wrap', gap:'4px'}}>
+                        {tiposNoGrupo.length === 0 ? <span className="text-muted" style={{fontSize:'0.7rem'}}>Nenhuma</span> : tiposNoGrupo.map(t => (
+                            <span key={t} style={{
+                                fontSize:'0.65rem', padding:'2px 6px', borderRadius:'4px', fontWeight:600,
+                                background: tiposEvento.find(te => te.nome === t)?.cor + '22' || '#f1f5f9',
+                                color: tiposEvento.find(te => te.nome === t)?.cor || '#64748b',
+                                border: `1px solid ${tiposEvento.find(te => te.nome === t)?.cor || '#e2e8f0'}`
+                            }}>
+                                {t.toUpperCase()}
+                            </span>
+                        ))}
                     </div>
                   </td>
                   <td>
@@ -1062,7 +1080,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
