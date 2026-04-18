@@ -498,15 +498,16 @@ async function executarLembretes(sock, manual = false) {
             let mensagem;
             if (evento.tipo_evento === 'casamento') {
                 const bodaObj = listaBodas[anos] || { nome: "União e Amor", significado: "Um momento especial para renovar os vossos votos." };
-                let template = templatesMap['casamento'] || 'Feliz Aniversário de Casamento, {nomes}! 💍 Bodas de {bodas}!\n✨ *Significado:* {significado}';
+                let template = templatesMap['casamento'] || 'Feliz Aniversário de Casamento, {nomes}! 💍 São {anos} anos de união - Bodas de {bodas}!\n✨ *Significado:* {significado}';
                 
-                // Se o template personalizado NÃO tem o marcador de significado, vamos anexar automaticamente para garantir que é enviado
+                // Se o template personalizado NÃO tem o marcador de significado, vamos anexar automaticamente 
                 if (!template.includes('{significado}')) {
                     template += '\n✨ *Significado:* {significado}';
                 }
 
                 mensagem = template
                     .replace('{nomes}', evento.nomes_principais)
+                    .replace('{anos}', anos)
                     .replace('{bodas}', bodaObj.nome)
                     .replace('{significado}', bodaObj.significado);
             } else {
