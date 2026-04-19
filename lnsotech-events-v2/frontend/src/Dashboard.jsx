@@ -545,31 +545,42 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const handleClearLogs = async () => {
     const res = await Swal.fire({
-        title: 'Limpar Histórico?',
-        text: 'Isto irá apagar permanentemente todos os registros de interações do bot.',
+        title: 'Limpar Todo o Histórico?',
+        text: 'Esta ação irá apagar todos os registos (envios, respostas e alterações). Não é possível reverter!',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'Sim, limpar tudo!',
+        confirmButtonText: 'Sim, apagar tudo!',
         cancelButtonText: 'Cancelar'
     });
 
     if (res.isConfirmed) {
         try {
-            const r = await fetch(`${apiBase}/api/eventos/logs/limpar`, { method: 'POST', headers });
-            console.log('[Logs] Status da resposta:', r.status);
+            const r = await fetch(`${apiBase}/api/eventos/logs/all`, { method: 'DELETE', headers });
             if (r.ok) {
-                Swal.fire('Limpo!', 'O histórico de logs e alterações foi removido.', 'success');
+                Swal.fire('Eliminado!', 'Todo o histórico de logs foi removido.', 'success');
                 fetchData();
             } else {
-                const data = await r.json().catch(() => ({}));
-                toast.error('Falha ao limpar logs: ' + (data.erro || r.status));
+                toast.error('Falha ao limpar histórico completo');
             }
         } catch (e) {
-            console.error('[Logs] Erro:', e);
-            toast.error('Erro de conexão ao remover logs');
+            toast.error('Erro de conexão ao limpar histórico');
         }
+    }
+  };
+
+  const handleDeleteLog = async (id) => {
+    try {
+        const r = await fetch(`${apiBase}/api/eventos/logs/${id}`, { method: 'DELETE', headers });
+        if (r.ok) {
+            setLogs(logs.filter(l => l.id !== id));
+            toast.success('Registo removido');
+        } else {
+            toast.error('Falha ao apagar registo');
+        }
+    } catch (e) {
+        toast.error('Erro ao eliminar log');
     }
   };
 
@@ -1179,9 +1190,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         
         <div className="table-responsive">
           <table className="table-minimal">
-            <thead><tr><th>Data/Hora</th><th>Natureza</th><th>Status</th><th>Detalhes / Mensagem Trocada</th><th>Destinatário (ID)</th></tr></thead>
+            <thead><tr><th>Data/Hora</th><th>Natureza</th><th>Status</th><th>Detalhes / Mensagem Trocada</th><th>Destinatário</th><th>Ações</th></tr></thead>
             <tbody>
-              {filteredLogs.length === 0 ? <tr><td colSpan="5">Nenhum registo encontrado para este filtro.</td></tr> : filteredLogs.map(l => (
+              {filteredLogs.length === 0 ? <tr><td colSpan="6">Nenhum registo encontrado para este filtro.</td></tr> : filteredLogs.map(l => (
                 <tr key={l.id}>
                   <td className="text-small" style={{whiteSpace:'nowrap', color:'#475569'}}>{new Date(l.criado_em).toLocaleString('pt-PT')}</td>
                   <td>
@@ -1203,6 +1214,16 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                   </td>
                   <td className="text-small" style={{fontFamily:'monospace', color:'#64748b'}} title={l.grupo_id}>
                     {grupos.find(g=>g.id===l.grupo_id)?.nome || (l.grupo_id ? l.grupo_id.substring(0,18)+'...' : 'Sistema')}
+                  </td>
+                  <td>
+                    <button 
+                        className="btn-action" 
+                        onClick={() => handleDeleteLog(l.id)}
+                        style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', fontSize:'1.1rem'}}
+                        title="Apagar este registo"
+                    >
+                      🗑️
+                    </button>
                   </td>
                 </tr>
               ))}

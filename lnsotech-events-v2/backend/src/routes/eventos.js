@@ -389,31 +389,35 @@ router.get('/logs', async (req, res) => {
     }
 });
 
-router.delete('/logs', async (req, res) => {
+// Limpar TODOS os logs (Botão Limpar Tudo)
+router.delete('/logs/all', async (req, res) => {
     try {
-        await req.db.query('BEGIN');
-        // Apenas apagar logs com mais de 7 dias
-        await req.db.query("DELETE FROM logs_envio WHERE criado_em < NOW() - INTERVAL '7 days'");
-        await req.db.query("DELETE FROM historico_eventos WHERE data_alteracao < NOW() - INTERVAL '7 days'");
-        await req.db.query('COMMIT');
-        res.json({ sucesso: true, mensagem: 'Histórico antigo (mais de 7 dias) limpo com sucesso' });
+        await req.db.query('DELETE FROM logs_envio');
+        await req.db.query('DELETE FROM historico_eventos');
+        res.json({ sucesso: true, mensagem: 'Todo o histórico foi apagado com sucesso' });
     } catch (error) {
-        await req.db.query('ROLLBACK');
-        res.status(500).json({ erro: 'Falha ao aplicar política de retenção' });
+        res.status(500).json({ erro: 'Falha ao apagar todo o histórico' });
     }
 });
 
-// Rota de fallback usando POST
-router.post('/logs/limpar', async (req, res) => {
+// Apagar um log específico
+router.delete('/logs/:id', async (req, res) => {
     try {
-        await req.db.query('BEGIN');
-        await req.db.query("DELETE FROM logs_envio WHERE criado_em < NOW() - INTERVAL '7 days'");
-        await req.db.query("DELETE FROM historico_eventos WHERE data_alteracao < NOW() - INTERVAL '7 days'");
-        await req.db.query('COMMIT');
-        res.json({ sucesso: true, mensagem: 'Limpeza concluída. Registos dos últimos 7 dias foram preservados por segurança.' });
+        const { id } = req.params;
+        await req.db.query('DELETE FROM logs_envio WHERE id = $1', [id]);
+        res.json({ sucesso: true, mensagem: 'Registo de log removido' });
     } catch (error) {
-        await req.db.query('ROLLBACK');
-        res.status(500).json({ erro: 'Falha ao limpar histórico via POST' });
+        res.status(500).json({ erro: 'Falha ao apagar o log' });
+    }
+});
+
+// Manter a rota de limpeza automática/limpar antigo se necessário
+router.post('/logs/limpar-antigo', async (req, res) => {
+    try {
+        await req.db.query("DELETE FROM logs_envio WHERE criado_em < NOW() - INTERVAL '7 days'");
+        res.json({ sucesso: true, mensagem: 'Registos com mais de 7 dias removidos.' });
+    } catch (error) {
+        res.status(500).json({ erro: 'Falha ao limpar histórico antigo' });
     }
 });
 
