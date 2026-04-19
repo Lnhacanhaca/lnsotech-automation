@@ -42,6 +42,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   // 3. Estados de UI
   const [activeTab, setActiveTab] = useState('dashboard'); 
+  const [configSubTab, setConfigSubTab] = useState('geral');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -103,6 +104,57 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calSelectedDay, setCalSelectedDay] = useState(null);
+
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const skipTutorial = () => { setTutorialStep(0); setActiveTab('dashboard'); localStorage.setItem('tutorial_done', 'true'); };
+  
+  const prevTutorial = () => {
+    setTutorialStep(prev => {
+        const next = prev - 1;
+        if (next === 2) setActiveTab('dashboard');
+        if (next === 3) setActiveTab('grupos');
+        if (next === 5) setActiveTab('dashboard');
+        if (next === 6) setActiveTab('calendario');
+        if (next === 7) setActiveTab('calendario');
+        return next;
+    });
+  };
+
+  const nextTutorial = () => {
+    setTutorialStep(prev => {
+        const next = prev + 1;
+        if (next === 3) setActiveTab('grupos');
+        if (next === 4) setActiveTab('grupos');
+        if (next === 5) setActiveTab('dashboard');
+        if (next === 6) setActiveTab('calendario');
+        if (next === 7) setActiveTab('calendario');
+        if (next === 8) setActiveTab('eventos');
+        if (next === 9) {
+            // Confetti effect logic here if needed or just show the last step
+        }
+        return next;
+    });
+  };
+
+  useEffect(() => {
+    if (tutorialStep > 0) {
+        const steps = [null, null, "step-stats", "step-bot", "step-groups-list", "step-new-event", "step-calendar-sync", "step-calendar-grid", "step-export", null];
+        const targetId = steps[tutorialStep];
+        if (targetId) {
+            setTimeout(() => {
+                const el = document.getElementById(targetId);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 400);
+        }
+    }
+  }, [tutorialStep]);
+
+  useEffect(() => {
+    const done = localStorage.getItem('tutorial_done');
+    if (!done && token) {
+        setTimeout(() => setTutorialStep(1), 2000);
+    }
+  }, [token]);
 
   const csvRef = useRef(null);
   const apiBase = '';
@@ -684,14 +736,18 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
     return (
     <>
-      <div className="stats-grid">
-        <div className="stat-card"><div className="stat-header">Eventos Totais<div className="stat-icon-wrapper bg-green-light">📈</div></div><div className="stat-value">{stats.totalEventos}</div></div>
-        <div className="stat-card" onClick={handleGroupsCardClick} style={{cursor:'pointer'}}>
+      <div className={`stats-grid ${tutorialStep === 2 ? 'tutorial-highlight' : ''}`} id="step-stats">
+        <div className="stat-card">
+            <div className="stat-header">Eventos Totais<div className="stat-icon-wrapper bg-green-light">📈</div></div><div className="stat-value">{stats.totalEventos}</div>
+        </div>
+        <div className="stat-card" onClick={handleGroupsCardClick} style={{cursor:'pointer', position:'relative', zIndex: tutorialStep === 1 ? 1001 : 1}}>
           <div className="stat-header">Grupos Activos<div className="stat-icon-wrapper bg-green-light">💍</div></div>
           <div className="stat-value">{Object.keys(grupos).length > 0 ? grupos.filter(g => !g.isMuted).length : stats.gruposAtivos}</div>
         </div>
-        <div className="stat-card"><div className="stat-header">Lembretes Enviados<div className="stat-icon-wrapper bg-yellow-light">🔔</div></div><div className="stat-value">{stats.lembretesEnviados}</div></div>
-        <div className="stat-card" onClick={() => { setActiveTab('logs'); setLogFilter('falha'); }} style={{cursor:'pointer'}}>
+        <div className="stat-card" style={{position:'relative', zIndex: tutorialStep === 1 ? 1001 : 1}}>
+            <div className="stat-header">Lembretes Enviados<div className="stat-icon-wrapper bg-yellow-light">🔔</div></div><div className="stat-value">{stats.lembretesEnviados}</div>
+        </div>
+        <div className="stat-card" onClick={() => { setActiveTab('logs'); setLogFilter('falha'); }} style={{cursor:'pointer', position:'relative', zIndex: tutorialStep === 1 ? 1001 : 1}}>
           <div className="stat-header">Falhas<div className="stat-icon-wrapper" style={{background:'#fee2e2'}}>⚠️</div></div>
           <div className="stat-value" style={{color: stats.falhasHoje > 0 ? '#dc2626':'#10b981'}}>{stats.falhasHoje}</div>
         </div>
@@ -742,7 +798,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       </div>
 
       <div className="middle-grid">
-        <div className="panel-card" style={{gap:'1rem'}}>
+        <div className={`panel-card ${tutorialStep === 4 ? 'tutorial-highlight' : ''}`} style={{gap:'1rem'}} id="step-new-event">
           <div className="panel-title">Novo Registo Expresso</div>
           {canEdit ? (
             <form className="inline-form" onSubmit={handleCreateEvento}>
@@ -835,7 +891,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
     return (
     <div className="panel-card" style={{gap:'1rem'}}>
-      <div className="eventos-toolbar" style={{flexWrap:'wrap', gap:'1rem'}}>
+      <div className={`eventos-toolbar ${tutorialStep === 7 ? 'tutorial-highlight' : ''}`} id="step-export" style={{flexWrap:'wrap', gap:'1rem'}}>
         <div style={{display:'flex', alignItems:'center', gap:'1rem', flex:1}}>
             <div className="panel-title" style={{margin:0}}>📅 Listagem de Eventos</div>
             {(filterGroup || filterType) && (
@@ -966,7 +1022,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const renderGrupos = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {isAdmin && (
-        <div className="panel-card">
+        <div className={`panel-card ${tutorialStep === 3 ? 'tutorial-highlight' : ''}`} id="step-bot">
           <div className="panel-title" style={{margin:0}}>🔌 Conexão WhatsApp</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center', marginTop: '1rem' }}>
             <div style={{ flex: '1', minWidth: '250px' }}>
@@ -994,9 +1050,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       )}
 
       <div className="panel-card">
-        <div className="eventos-toolbar">
-          <div className="panel-title" style={{margin:0}}>📱 Grupos WhatsApp do Bot</div>
-          <button onClick={refreshGrupos} className="btn-submit" disabled={gruposLoading}>{gruposLoading ? 'A carregar...' : '🔄 Atualizar Lista'}</button>
+        <div className={`panel-card ${tutorialStep === 4 ? 'tutorial-highlight' : ''}`} id="step-groups-list">
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem', flexWrap:'wrap', gap:'1rem'}}>
+            <div className="panel-title" style={{margin:0}}>📋 Lista de Grupos Participados</div>
+            <button onClick={refreshGrupos} className="btn-submit" disabled={gruposLoading} style={{width:'auto', padding:'0.5rem 1.2rem', fontSize:'0.85rem', display:'inline-flex', alignItems:'center', gap:'0.5rem'}}>
+              {gruposLoading ? 'A carregar...' : '🔄 Atualizar Lista'}
+            </button>
+          </div>
         </div>
         <p className="text-muted" style={{marginBottom:'1rem'}}>Estes são todos os grupos onde o bot está presente. Seleccione um grupo ao criar eventos para definir onde o lembrete será enviado.</p>
       
@@ -1067,14 +1127,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                             if (isNowMuted) setMutedGroups(prev => [...prev, g.id]);
                             else setMutedGroups(prev => prev.filter(id => id !== g.id));
 
-                            // Sincronizar com o servidor
                             try {
                                 await fetch(`${apiBase}/api/auth/grupos/toggle-mute`, {
                                     method: 'POST',
                                     headers: jsonHeaders,
                                     body: JSON.stringify({ grupo_id: g.id, nome: g.nome, is_muted: isNowMuted })
                                 });
-                                refreshData(); // Atualizar stats no dashboard
+                                refreshData(); 
                             } catch (e) {
                                 console.error('Erro ao sincronizar mute:', e);
                             }
@@ -1083,21 +1142,20 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                                 toast: true,
                                 position: 'top-end',
                                 icon: 'success',
-                                title: `Grupo ${isNowMuted ? 'Desconectado 📵' : 'Reativado 🔌'} com sucesso!`,
+                                title: `Grupo ${isNowMuted ? 'Desconectado 📵' : 'Reativado 🔌'}!`,
                                 showConfirmButton: false,
-                                timer: 4000,
+                                timer: 3000,
                                 timerProgressBar: true,
                                 background: isNowMuted ? '#ef4444' : '#10b981',
-                                color: '#fff',
-                                iconColor: '#fff'
+                                color: '#fff'
                             });
                         }} 
                         className="btn-submit" 
-                        style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem', background: g.isMuted ? '#10b981' : '#ef4444'}}
+                        style={{padding:'0.4rem 1rem', fontSize:'0.8rem', background: g.isMuted ? '#10b981' : '#ef4444', width:'auto'}}
                       >
-                        {g.isMuted ? '🔌 Conectar' : '🔌 Desconectar'}
+                        {g.isMuted ? '🔌 Conectar' : '📵 Desconectar'}
                       </button>
-                      {isAdmin && <button onClick={()=>handleTesteConexao(g.id, g.nome)} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem', background:'var(--info)'}}>🤖 Testar</button>}
+                      {isAdmin && <button onClick={()=>handleTesteConexao(g.id, g.nome)} className="btn-submit" style={{padding:'0.4rem 1rem', fontSize:'0.8rem', background:'var(--info)', width:'auto'}}>🤖 Testar</button>}
                       <button onClick={() => {
                         const copiar = (texto) => {
                           navigator.clipboard.writeText(texto).then(() => {
@@ -1237,7 +1295,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     
     return (
       <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
-        <div className="panel-card sync-container" style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'1rem'}}>
+        <div className={`panel-card sync-container ${tutorialStep === 6 ? 'tutorial-highlight' : ''}`} id="step-calendar-sync" style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'1rem'}}>
           <div>
             <h3 style={{margin:'0 0 0.5rem 0', display:'flex', alignItems:'center', gap:'0.5rem'}}>📅 Sincronização Google Calendar / Apple</h3>
             <p className="text-muted" style={{margin:0, fontSize:'0.85rem'}}>Adicione este link à sua aplicação de calendário para ver todos os eventos do CRM lá.</p>
@@ -1252,7 +1310,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         </div>
 
         <div style={{display:'flex', gap:'1.5rem', flexWrap:'wrap', alignItems:'flex-start'}}>
-        <div className="panel-card" style={{flex:'1', minWidth:'320px'}}>
+        <div className={`panel-card ${tutorialStep === 7 ? 'tutorial-highlight' : ''}`} id="step-calendar-grid" style={{flex:'1', minWidth:'320px'}}>
           {/* Header do calendário */}
           <div className="cal-nav" style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem'}}>
             <button onClick={prevMonth} className="cal-btn-nav-isolated">&#8249;</button>
@@ -1475,331 +1533,341 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   };
 
   const renderConfig = () => {
+    const subTabStyle = (active) => ({
+        padding: '0.8rem 1.5rem',
+        cursor: 'pointer',
+        borderBottom: active ? '3px solid var(--primary)' : '3px solid transparent',
+        color: active ? 'var(--primary)' : 'var(--text-secondary)',
+        fontWeight: active ? 700 : 500,
+        fontSize: '0.9rem',
+        transition: '0.3s',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        whiteSpace: 'nowrap'
+    });
+
     return (
       <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
-        <div style={{display:'flex', gap:'1.5rem', flexWrap:'wrap'}}>
-          {/* CONFIG: HORA DO LEMBRETE */}
-          <div className="panel-card" style={{flex:1, minWidth:'300px'}}>
-            <div className="panel-title">⏰ Hora de Envio Automático</div>
-            <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>Defina a que horas o sistema deve disparar as mensagens diárias.</p>
-            <div className="flex-wrap-responsive">
-              <input 
-                type="time" 
-                className="inline-input" 
-                value={horaLembrete} 
-                onChange={(e) => setHoraLembrete(e.target.value)}
-                style={{fontSize:'1.2rem', padding:'0.5rem', flex:1}}
-              />
-              <button 
-                onClick={() => handleSaveConfig('hora_lembrete', horaLembrete)}
-                className="btn-submit"
-                style={{padding:'0.6rem 1.5rem', flex:1}}
-              >
-                💾 Actualizar Hora
-              </button>
-            </div>
-          </div>
-
-          {/* DICA: TESTAR AGORA */}
-          <div className="panel-card" style={{flex:1, minWidth:'300px', border:'2px dashed #10b981', background:'#f0fdf4'}}>
-            <div className="panel-title" style={{color:'#059669'}}>🚀 Testar Lembretes Agora</div>
-            <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>Quer verificar se as fotos e mensagens estão a sair bem? Dispare o lembrete de hoje agora mesmo para todos os destinatários.</p>
-            <button 
-              onClick={handleTestarLembretes}
-              className="btn-submit"
-              style={{width:'100%', background:'#10b981', fontSize:'1rem'}}
-            >
-              🤖 Disparar Eventos de Hoje
-            </button>
-          </div>
+        {/* SUB-NAVEGAÇÃO INTERNA */}
+        <div style={{display:'flex', borderBottom:'1px solid var(--border)', background:'var(--surface)', borderRadius:'12px', padding:'0 1rem', overflowX:'auto', gap:'1rem'}}>
+            <div style={subTabStyle(configSubTab==='geral')} onClick={()=>setConfigSubTab('geral')}>⚙️ Geral</div>
+            <div style={subTabStyle(configSubTab==='automacao')} onClick={()=>setConfigSubTab('automacao')}>🤖 Automação</div>
+            <div style={subTabStyle(configSubTab==='personalizacao')} onClick={()=>setConfigSubTab('personalizacao')}>🎨 Personalização</div>
+            {isAdmin && <div style={subTabStyle(configSubTab==='seguranca')} onClick={()=>setConfigSubTab('seguranca')}>🛡️ Segurança</div>}
         </div>
 
-        <div className="panel-card">
-          <div className="panel-title">🤝 Resposta Padrão do Bot (Fallback)</div>
-          <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>
-            Esta mensagem será enviada quando alguém agradecer ao bot e NÃO existir um template específico para o tipo de evento celebrado no dia.
-          </p>
-          <div style={{display:'flex', flexDirection:'column', gap:'0.8rem'}}>
-            <textarea 
-              className="inline-input" 
-              rows={3}
-              placeholder="Ex: A LNSOTECH agradece o carinho! ✨"
-              value={respostaPadraoBot} 
-              onChange={(e) => setRespostaPadraoBot(e.target.value)}
-              style={{width:'100%', fontSize:'0.9rem', resize:'vertical'}}
-            />
-            <button 
-              onClick={() => handleSaveConfig('resposta_padrao_bot', respostaPadraoBot)}
-              className="btn-submit"
-              style={{alignSelf:'flex-start', padding:'0.6rem 2rem', background:'var(--info)'}}
-            >
-              💾 Salvar Resposta Padrão
-            </button>
-          </div>
-        </div>
-
-        <div className="panel-card">
-          <div className="panel-title">✍️ Assinatura Automática do Bot</div>
-          <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>
-            Este texto será adicionado ao final de todas as mensagens enviadas pelo CRM (Branding).
-          </p>
-          <div style={{display:'flex', flexDirection:'column', gap:'0.8rem'}}>
-            <textarea 
-              className="inline-input" 
-              rows={3}
-              placeholder="Ex: ⚡ Enviado via LNSOTECH CRM"
-              value={assinaturaBot} 
-              onChange={(e) => setAssinaturaBot(e.target.value)}
-              style={{width:'100%', fontFamily:'monospace', fontSize:'0.9rem', resize:'vertical'}}
-            />
-            <button 
-              onClick={() => handleSaveConfig('assinatura_bot', assinaturaBot)}
-              className="btn-submit"
-              style={{alignSelf:'flex-start', padding:'0.6rem 2rem'}}
-            >
-              💾 Salvar Assinatura
-            </button>
-          </div>
-        </div>
-
-        {isAdmin && (
-          <div className="panel-card">
-            <div className="panel-title">👥 Gestão de Utilizadores</div>
-            <div className="table-responsive">
-              <table className="table-minimal">
-                <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
-                <tbody>
-                  {usuarios.map(u => (
-                    <tr key={u.id}>
-                      <td>
-                          {editingUserId === u.id ? (
-                              <input className="inline-input" value={editUserForm.nome} onChange={e=>setEditUserForm({...editUserForm, nome: e.target.value})} />
-                          ) : (
-                              <span>{u.nome} {u.id === 1 && <strong style={{color:'#f59e0b', fontSize:'0.7rem'}}>(ROOT)</strong>} {u.id === user.id && '(Eu)'}</span>
-                          )}
-                      </td>
-                      <td>
-                          {editingUserId === u.id ? (
-                              <input className="inline-input" value={editUserForm.email} onChange={e=>setEditUserForm({...editUserForm, email: e.target.value})} />
-                          ) : u.email}
-                      </td>
-                      <td>
-                          {editingUserId === u.id ? (
-                              <select className="inline-input" value={editUserForm.nivel_acesso} onChange={e=>setEditUserForm({...editUserForm, nivel_acesso: e.target.value})}>
-                                  <option value="leitor">LEITOR</option>
-                                  <option value="editor">EDITOR</option>
-                                  <option value="admin">ADMIN</option>
-                              </select>
-                          ) : (
-                              <span style={{color: u.nivel_acesso==='admin'?'#ef4444':u.nivel_acesso==='editor'?'#3b82f6':'#64748b', fontWeight:600}}>{u.nivel_acesso.toUpperCase()}</span>
-                          )}
-                      </td>
-                      <td style={{textAlign:'right'}}>
-                        {editingUserId === u.id ? (
-                            <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
-                                <button onClick={handleUpdateUser} className="btn-action" style={{color:'#10b981'}}>Salvar</button>
-                                <button onClick={()=>setEditingUserId(null)} className="btn-action">Cancelar</button>
-                            </div>
-                        ) : (
-                          <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
-                            <button onClick={() => startEditUser(u)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
-                            {u.id !== 1 && u.id !== user.id && (
-                              <button onClick={() => handleDeleteUsuario(u.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div style={{marginTop:'1.5rem', borderTop:'1px solid #e2e8f0', paddingTop:'1rem'}}>
-              <div className="panel-title" style={{fontSize:'1rem'}}>+ Novo Utilizador</div>
-              <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
-                <input className="inline-input" placeholder="Nome" value={newUserNome} onChange={e=>setNewUserNome(e.target.value)} style={{flex:1}} />
-                <input className="inline-input" placeholder="Email" value={newUserEmail} onChange={e=>setNewUserEmail(e.target.value)} style={{flex:1}} />
-                <input type="password" className="inline-input" placeholder="Senha" value={newUserSenha} onChange={e=>setNewUserSenha(e.target.value)} style={{flex:1}} />
-                <select className="inline-input" value={newUserRole} onChange={e=>setNewUserRole(e.target.value)} style={{flex:0.5}}>
-                  <option value="leitor">Leitor</option>
-                  <option value="editor">Editor</option>
-                  <option value="admin">Admin</option>
-                </select>
-                <button onClick={handleCreateUsuario} className="btn-submit">Criar</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="panel-card">
-          <div className="panel-title">🎨 Gestão de Tipos de Evento</div>
-          <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1rem'}}>Personalize os nomes e as cores dos eventos que aparecem no calendário e no dashboard.</p>
-          <div className="table-responsive">
-            <table className="table-minimal">
-              <thead><tr><th>Nome</th><th>Cor</th><th>Resposta do Bot (Reply)</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
-              <tbody>
-                {tiposEvento.map(t => (
-                  <tr key={t.id}>
-                    <td>
-                      {editingTipoId === t.id ? (
-                        <input className="inline-input" value={editTipoForm.nome} onChange={e=>setEditTipoForm({...editTipoForm, nome: e.target.value.toLowerCase()})} />
-                      ) : (
-                        <span className="badge-tipo" style={{background: t.cor, color:'#fff'}}>{t.nome.toUpperCase()}</span>
-                      )}
-                    </td>
-                    <td>
-                      {editingTipoId === t.id ? (
-                        <div style={{display:'flex', gap:'0.4rem', alignItems:'center'}}>
-                          <input type="color" value={editTipoForm.cor} onChange={e=>setEditTipoForm({...editTipoForm, cor: e.target.value})} style={{width:'30px', height:'30px', border:'none', padding:0}} />
-                          <input className="inline-input" value={editTipoForm.cor} onChange={e=>setEditTipoForm({...editTipoForm, cor: e.target.value})} style={{width:'80px'}} />
+        <div className="tab-content" key={configSubTab}>
+            {configSubTab === 'geral' && (
+                <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', animation: 'fadeIn 0.3s'}}>
+                    <div style={{display:'flex', gap:'1.5rem', flexWrap:'wrap'}}>
+                      <div className="panel-card" style={{flex:1, minWidth:'300px'}}>
+                        <div className="panel-title">⏰ Hora de Envio Automático</div>
+                        <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>Defina a que horas o sistema deve disparar as mensagens diárias.</p>
+                        <div className="flex-wrap-responsive">
+                          <input type="time" className="inline-input" value={horaLembrete} onChange={(e) => setHoraLembrete(e.target.value)} style={{fontSize:'1.2rem', padding:'0.5rem', flex:1}} />
+                          <button onClick={() => handleSaveConfig('hora_lembrete', horaLembrete)} className="btn-submit" style={{padding:'0.6rem 1.5rem', flex:1}}>💾 Actualizar Hora</button>
                         </div>
-                      ) : (
-                        <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>
-                          <div style={{width:'16px', height:'16px', borderRadius:'50%', background:t.cor, border:'1px solid #e2e8f0'}} />
-                          <span style={{fontFamily:'monospace', fontSize:'0.8rem'}}>{t.cor}</span>
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {editingTipoId === t.id ? (
-                        <textarea 
-                          className="inline-input" 
-                          rows={2}
-                          placeholder="Ex: Obrigado pelo carinho! ✨"
-                          value={editTipoForm.template_resposta} 
-                          onChange={e=>setEditTipoForm({...editTipoForm, template_resposta: e.target.value})} 
-                          style={{width:'100%', minWidth:'200px', fontSize:'0.8rem'}}
-                        />
-                      ) : (
-                        <span className="text-muted" style={{fontSize:'0.8rem', fontStyle:'italic'}}>
-                          {t.template_resposta || 'Resposta padrão...'}
-                        </span>
-                      )}
-                    </td>
-                    <td style={{textAlign:'right'}}>
-                      {editingTipoId === t.id ? (
-                        <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
-                          <button onClick={handleUpdateTipo} className="btn-action" style={{color:'#10b981'}}>Salvar</button>
-                          <button onClick={()=>setEditingTipoId(null)} className="btn-action">Cancelar</button>
-                        </div>
-                      ) : (
-                        <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
-                          <button onClick={() => startEditTipo(t)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
-                          {!['casamento','aniversario','batizado'].includes(t.nome) && (
-                            <button onClick={() => handleDeleteTipo(t.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div style={{marginTop:'1.5rem', borderTop:'1px solid #e2e8f0', paddingTop:'1rem'}}>
-            <div className="panel-title" style={{fontSize:'1rem'}}>+ Novo Tipo</div>
-            <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
-              <input className="inline-input" placeholder="Ex: Inauguração" value={newTipoNome} onChange={e=>setNewTipoNome(e.target.value)} style={{flex:1}} />
-              <input type="color" className="inline-input" value={newTipoCor} onChange={e=>setNewTipoCor(e.target.value)} style={{width:'50px', padding:0, border:'none'}} />
-              <button onClick={handleCreateTipo} className="btn-submit">Adicionar Tipo</button>
-            </div>
-          </div>
-        </div>
+                      </div>
 
-        <div className="panel-card">
-          <div className="panel-title">📝 Templates de Mensagem</div>
-          <p className="text-muted" style={{fontSize:'0.85rem'}}>Edite os modelos de mensagem que o robô envia automaticamente.</p>
-          {templates.map(t => (
-            <div key={t.id} style={{marginBottom:'1rem', padding:'1rem', background:'#f8fafc', borderRadius:'8px', border:'1px solid #e2e8f0'}}>
-              <div style={{fontWeight:700, marginBottom:'0.5rem', color:'#1e293b'}}>{t.tipo_evento.toUpperCase()}</div>
-              <textarea 
-                className="inline-input" 
-                style={{width:'100%', minHeight:'60px', background:'#fff', fontSize:'0.9rem'}} 
-                defaultValue={t.mensagem}
-                onBlur={(e) => handleUpdateTemplate(t.id, e.target.value)}
-              />
-              <div style={{fontSize:'0.7rem', color:'#94a3b8', marginTop:'0.4rem'}}>Usa {"{nomes}"}, {"{bodas}"} e {"{significado}"} para personalização automática.</div>
-            </div>
-          ))}
-          {renderBodaGlossary()}
-        </div>
+                      <div className="panel-card" style={{flex:1, minWidth:'300px', border:'2px dashed #10b981', background:'#f0fdf4'}}>
+                        <div className="panel-title" style={{color:'#059669'}}>🚀 Testar Lembretes Agora</div>
+                        <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>Dispare o lembrete de hoje agora mesmo para todos os destinatários.</p>
+                        <button onClick={handleTestarLembretes} className="btn-submit" style={{width:'100%', background:'#10b981', fontSize:'1rem'}}>🤖 Disparar Eventos de Hoje</button>
+                      </div>
+                    </div>
 
-        {isAdmin && (
-          <div className="panel-card">
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.2rem', flexWrap:'wrap', gap:'1rem'}}>
-                <div style={{minWidth:'200px', flex:1}}>
-                    <div className="panel-title">🗄️ Base de Dados & Backups</div>
-                    <p className="text-muted" style={{fontSize:'0.85rem', margin:0}}>Gerencie cópias de segurança do seu CRM para evitar perda de dados.</p>
+                    <div className="panel-card">
+                      <div className="panel-title" style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>💡 Ajuda e Suporte</div>
+                      <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>Precisa de ajuda ou quer rever as funcionalidades principais?</p>
+                      <button 
+                        onClick={() => { localStorage.removeItem('tutorial_done'); setTutorialStep(1); setActiveTab('dashboard'); toast.success('Tour reiniciado!'); }} 
+                        className="btn-submit" 
+                        style={{width:'auto', alignSelf:'flex-start', padding:'0.4rem 1.2rem', fontSize:'0.8rem', background:'#6366f1', color:'white', border:'none', borderRadius:'6px', fontWeight:700, display:'inline-flex'}}
+                      >
+                        🚀 Reiniciar Tour
+                      </button>
+                    </div>
                 </div>
-                <button 
-                  onClick={async () => {
-                    Swal.fire({ title: '📦 Gerando Backup...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                    const r = await fetch(`${apiBase}/api/auth/backups/gerar`, { method: 'POST', headers });
-                    if (r.ok) {
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Backup Gerado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
-                        fetchData();
-                    } else {
-                        const d = await r.json();
-                        Swal.fire('Erro', d.erro || 'Falha ao gerar backup', 'error');
-                    }
-                  }}
-                  className="btn-submit" 
-                  style={{margin:0, background:'#6366f1'}}
-                >
-                    ➕ Gerar Backup Agora
-                </button>
+            )}
+
+            {configSubTab === 'automacao' && (
+                <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', animation: 'fadeIn 0.3s'}}>
+                    <div className="panel-card">
+                      <div className="panel-title">🤝 Resposta Padrão do Bot (Fallback)</div>
+                      <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>Mensagem enviada quando alguém agradece e não existe template específico.</p>
+                      <textarea className="inline-input" rows={3} placeholder="Ex: A LNSOTECH agradece!" value={respostaPadraoBot} onChange={(e) => setRespostaPadraoBot(e.target.value)} style={{width:'100%', fontSize:'0.9rem', resize:'vertical'}} />
+                      <button onClick={() => handleSaveConfig('resposta_padrao_bot', respostaPadraoBot)} className="btn-submit" style={{alignSelf:'flex-start', padding:'0.6rem 2rem', background:'var(--info)', marginTop:'1rem'}}>💾 Salvar Resposta Padrão</button>
+                    </div>
+
+                    <div className="panel-card">
+                      <div className="panel-title">✍️ Assinatura Automática do Bot</div>
+                      <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>Texto adicionado ao final de todas as mensagens (Branding).</p>
+                      <textarea className="inline-input" rows={3} placeholder="Ex: ⚡ Enviado via LNSOTECH" value={assinaturaBot} onChange={(e) => setAssinaturaBot(e.target.value)} style={{width:'100%', fontFamily:'monospace', fontSize:'0.9rem', resize:'vertical'}} />
+                      <button onClick={() => handleSaveConfig('assinatura_bot', assinaturaBot)} className="btn-submit" style={{alignSelf:'flex-start', padding:'0.6rem 2rem', marginTop:'1rem'}}>💾 Salvar Assinatura</button>
+                    </div>
+                </div>
+            )}
+
+            {configSubTab === 'personalizacao' && (
+                <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', animation: 'fadeIn 0.3s'}}>
+                    <div className="panel-card">
+                      <div className="panel-title">🎨 Gestão de Tipos de Evento</div>
+                      <div className="table-responsive">
+                        <table className="table-minimal">
+                          <thead><tr><th>Nome</th><th>Cor</th><th>Resposta (Reply)</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
+                          <tbody>
+                            {tiposEvento.map(t => (
+                              <tr key={t.id}>
+                                <td>{editingTipoId === t.id ? <input className="inline-input" value={editTipoForm.nome} onChange={e=>setEditTipoForm({...editTipoForm, nome: e.target.value.toLowerCase()})} /> : <span className="badge-tipo" style={{background: t.cor, color:'#fff'}}>{t.nome.toUpperCase()}</span>}</td>
+                                <td>{editingTipoId === t.id ? <input type="color" value={editTipoForm.cor} onChange={e=>setEditTipoForm({...editTipoForm, cor: e.target.value})} /> : <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}><div style={{width:'12px', height:'12px', borderRadius:'50%', background:t.cor}} /> {t.cor}</div>}</td>
+                                <td>{editingTipoId === t.id ? <textarea className="inline-input" value={editTipoForm.template_resposta} onChange={e=>setEditTipoForm({...editTipoForm, template_resposta: e.target.value})} rows={1} /> : <span className="text-small text-muted">{t.template_resposta || 'Padrão'}</span>}</td>
+                                <td style={{textAlign:'right'}}>{editingTipoId === t.id ? <button onClick={handleUpdateTipo} className="btn-action" style={{color:'#10b981'}}>Salvar</button> : <button onClick={() => startEditTipo(t)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div style={{marginTop:'1.5rem', borderTop:'1px solid #eee', paddingTop:'1rem'}}>
+                        <div className="panel-title" style={{fontSize:'0.9rem'}}>+ Adicionar Novo Tipo</div>
+                        <div style={{display:'flex', gap:'0.5rem', marginTop:'0.5rem'}}><input className="inline-input" placeholder="Nome" value={newTipoNome} onChange={e=>setNewTipoNome(e.target.value)} style={{flex:1}} /><input type="color" value={newTipoCor} onChange={e=>setNewTipoCor(e.target.value)} style={{width:'40px'}} /><button onClick={handleCreateTipo} className="btn-submit">Add</button></div>
+                      </div>
+                    </div>
+
+                    <div className="panel-card">
+                      <div className="panel-title">📝 Templates de Mensagem</div>
+                      {templates.map(t => (
+                        <div key={t.id} style={{marginBottom:'1rem', padding:'1rem', background:'#f8fafc', borderRadius:'8px', border:'1px solid #eee'}}>
+                          <div style={{fontWeight:700, marginBottom:'0.4rem', fontSize:'0.85rem'}}>{t.tipo_evento.toUpperCase()}</div>
+                          <textarea className="inline-input" style={{width:'100%', minHeight:'50px', background:'#fff', fontSize:'0.85rem'}} defaultValue={t.mensagem} onBlur={(e) => handleUpdateTemplate(t.id, e.target.value)} />
+                        </div>
+                      ))}
+                      {renderBodaGlossary()}
+                    </div>
+                </div>
+            )}
+
+            {configSubTab === 'seguranca' && isAdmin && (
+                <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', animation: 'fadeIn 0.3s'}}>
+                    <div className="panel-card">
+                        <div className="panel-title">👥 Gestão de Utilizadores</div>
+                        <div className="table-responsive">
+                            <table className="table-minimal">
+                                <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
+                                <tbody>
+                                    {usuarios.map(u => (
+                                        <tr key={u.id}>
+                                            <td>
+                                                {editingUserId === u.id ? (
+                                                    <input className="inline-input" value={editUserForm.nome} onChange={e=>setEditUserForm({...editUserForm, nome: e.target.value})} style={{fontSize:'0.8rem'}} />
+                                                ) : (
+                                                    <span>{u.nome} {u.id === 1 && '⭐'} {u.id === user.id && '(Eu)'}</span>
+                                                )}
+                                            </td>
+                                            <td>
+                                                {editingUserId === u.id ? (
+                                                    <input className="inline-input" value={editUserForm.email} onChange={e=>setEditUserForm({...editUserForm, email: e.target.value})} style={{fontSize:'0.8rem'}} />
+                                                ) : u.email}
+                                            </td>
+                                            <td>
+                                                {editingUserId === u.id ? (
+                                                    <select className="inline-input" value={editUserForm.nivel_acesso} onChange={e=>setEditUserForm({...editUserForm, nivel_acesso: e.target.value})} style={{fontSize:'0.8rem'}}>
+                                                        <option value="leitor">LEITOR</option>
+                                                        <option value="editor">EDITOR</option>
+                                                        <option value="admin">ADMIN</option>
+                                                    </select>
+                                                ) : (
+                                                    <span className="badge-tipo" style={{background:'#f1f5f9', color:'#475569'}}>{u.nivel_acesso.toUpperCase()}</span>
+                                                )}
+                                            </td>
+                                            <td style={{textAlign:'right'}}>
+                                                {editingUserId === u.id ? (
+                                                    <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                                                        <button onClick={handleUpdateUser} className="btn-action" style={{color:'#10b981'}}>✔</button>
+                                                        <button onClick={()=>setEditingUserId(null)} className="btn-action">✖</button>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                                                        <button onClick={() => startEditUser(u)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
+                                                        {u.id !== 1 && u.id !== user.id && (
+                                                            <button onClick={() => handleDeleteUsuario(u.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style={{marginTop:'1.5rem', borderTop:'1px solid #eee', paddingTop:'1rem'}}>
+                            <div className="panel-title" style={{fontSize:'0.9rem'}}>+ Novo Utilizador</div>
+                            <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
+                                <input className="inline-input" placeholder="Nome" value={newUserNome} onChange={e=>setNewUserNome(e.target.value)} style={{flex:1}} />
+                                <input className="inline-input" placeholder="Email" value={newUserEmail} onChange={e=>setNewUserEmail(e.target.value)} style={{flex:1}} />
+                                <input type="password" className="inline-input" placeholder="Senha" value={newUserSenha} onChange={e=>setNewUserSenha(e.target.value)} style={{flex:1}} />
+                                <select className="inline-input" value={newUserRole} onChange={e=>setNewUserRole(e.target.value)} style={{flex:0.5}}>
+                                    <option value="leitor">Leitor</option>
+                                    <option value="editor">Editor</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                                <button onClick={handleCreateUsuario} className="btn-submit" style={{padding:'0.4rem 1rem'}}>Criar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="panel-card">
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                            <div className="panel-title">🗄️ Base de Dados & Backups</div>
+                            <button onClick={async () => { Swal.fire({ title: '📦 Gerando Backup...', allowOutsideClick: false, didOpen: () => Swal.showLoading() }); const r = await fetch(`${apiBase}/api/auth/backups/gerar`, { method: 'POST', headers }); if (r.ok) { Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Backup!', showConfirmButton: false, timer: 3000, background: '#10b981', color: '#fff' }); fetchData(); } }} className="btn-submit" style={{background:'#6366f1'}}>➕ Backup</button>
+                        </div>
+                        <div className="table-responsive" style={{marginTop:'1.5rem'}}>
+                            <table className="table-minimal">
+                                <thead><tr><th>Arquivo</th><th>Data</th><th style={{textAlign:'right'}}>Download</th></tr></thead>
+                                <tbody>{backups.map(b => ( <tr key={b.name}><td>📄 {b.name}</td><td>{new Date(b.date).toLocaleDateString()}</td><td style={{textAlign:'right'}}><a href={`${apiBase}/api/auth/backups/download/${b.name}?token=${token}`} download className="btn-action">Baixar</a></td></tr> ))}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+      </div>
+    );
+  };
+
+  /* ========== RENDER: TUTORIAL OVERLAY ========== */
+  const renderTutorial = () => {
+    if (tutorialStep === 0) return null;
+
+    const steps = [
+        { title: "👋 Olá!", text: "Benvindo ao seu novo CRM. Vamos configurar tudo em 1 minuto?", target: null },
+        { title: "📊 Visão Geral", text: "Aqui vê o resumo vital: eventos, grupos ativos e lembretes de hoje.", target: "step-stats" },
+        { title: "🤖 Status Bot", text: "Mantenha o WhatsApp ligado. Se ficar a vermelho, re-conecte o QR.", target: "step-bot" },
+        { title: "🔌 Conectar Grupos", text: "Active ou silencie grupos individualmente para controlar os envios.", target: "step-groups-list" },
+        { title: "✍️ Novo Registo", text: "Adicione datas especiais num instante usando este formulário expresso.", target: "step-new-event" },
+        { title: "📲 Sincronizar", text: "Link ICS para importar todos os eventos para o seu telemóvel.", target: "step-calendar-sync" },
+        { title: "🗓️ Mapa Mensal", text: "Planeie o seu mês. Clique nos dias coloridos para ver os detalhes.", target: "step-calendar-grid" },
+        { title: "📂 Exportar", text: "Gere relatórios PDF/Excel para backups ou auditorias externas.", target: "step-export" },
+        { title: "🚀 Sucesso!", text: "Tudo configurado! Explore à vontade e automatize o seu negócio.", target: null }
+    ];
+
+    const current = steps[tutorialStep - 1] || steps[0];
+    const progress = Math.round((tutorialStep / steps.length) * 100);
+
+    return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 20000, pointerEvents: 'none', background: tutorialStep === 1 || tutorialStep === 9 ? 'rgba(0,0,0,0.7)' : 'transparent', backdropFilter: tutorialStep === 1 || tutorialStep === 9 ? 'blur(4px)' : 'none', transition: '0.3s' }}>
+            <div className="panel-modal" style={{ 
+                position: 'fixed', bottom: '2rem', right: '2rem', maxWidth: '420px', width: '90%', 
+                textAlign: 'left', padding: '1.8rem', pointerEvents: 'auto',
+                borderLeft: '8px solid var(--primary)', 
+                boxShadow: '0 30px 80px -15px rgba(0,0,0,0.6), 0 0 35px rgba(99, 102, 241, 0.3)', 
+                background: 'rgba(255, 255, 255, 1)', 
+                backdropFilter: 'blur(15px)',
+                borderRadius: '16px',
+                animation: 'fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                zIndex: 20001
+            }}>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                    <div className="tutorial-icon-display" style={{ fontSize: '2.5rem' }}>
+                        {current.title.split(' ')[0]}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                            <h3 style={{ margin: 0, color: 'var(--text)', fontSize: '1.05rem', fontWeight: 700 }}>{current.title.split(' ').slice(1).join(' ') || current.title}</h3>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', background: '#eff6ff', padding: '2px 10px', borderRadius: '12px' }}>{progress}%</span>
+                        </div>
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.85rem', lineHeight: '1.4' }}>{current.text}</p>
+                        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                            {tutorialStep > 1 && <button onClick={prevTutorial} className="btn-secondary tutorial-btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>← Anterior</button>}
+                            
+                            {tutorialStep < steps.length ? (
+                                <>
+                                    <button onClick={nextTutorial} className="btn-submit tutorial-btn" style={{ padding: '0.4rem 1.5rem', fontSize: '0.8rem', background: 'var(--primary)' }}>Próximo →</button>
+                                    <button onClick={skipTutorial} className="btn-secondary tutorial-btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', border:'none', color:'var(--text-secondary)' }}>Pular</button>
+                                </>
+                            ) : (
+                                <button onClick={() => {
+                                    skipTutorial(); 
+                                    Swal.fire({ 
+                                        title: '🎉 Tudo Pronto!', 
+                                        text: 'O seu CRM está configurado e pronto para dominar o mercado.', 
+                                        icon: 'success', 
+                                        confirmButtonText: 'Vamos a isso!', 
+                                        confirmButtonColor: '#10b981',
+                                        background: '#fff', 
+                                        color: '#1e293b' 
+                                    });
+                                }} className="btn-submit tutorial-btn" style={{ padding: '0.5rem 2rem', fontSize: '0.85rem', background: '#10b981' }}>Começar Agora!</button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <div style={{ marginTop: '1rem', display: 'flex', gap: '4px' }}>
+                    {steps.map((_, i) => (
+                        <div key={i} style={{ flex: 1, height: '4px', borderRadius: '2px', background: (i + 1) === tutorialStep ? 'var(--primary)' : (i + 1) < tutorialStep ? '#dbeafe' : '#f1f5f9', transition: '0.4s' }} />
+                    ))}
+                </div>
             </div>
 
-            <div className="table-responsive">
-              <table className="table-minimal">
-                <thead>
-                  <tr>
-                    <th>Arquivo</th>
-                    <th>Data</th>
-                    <th>Tamanho</th>
-                    <th style={{textAlign:'right'}}>Acções</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {backups.length === 0 ? (
-                    <tr><td colSpan="4" className="text-muted" style={{textAlign:'center', padding:'2rem'}}>Nenhum backup encontrado. Configure a rotina diária ou gere um manualmente.</td></tr>
-                  ) : backups.map(b => (
-                    <tr key={b.name}>
-                      <td style={{fontWeight:600, fontSize:'0.9rem', color:'#1e293b'}}>📄 {b.name}</td>
-                      <td className="text-small">{new Date(b.date).toLocaleString('pt-PT')}</td>
-                      <td className="text-small">{Math.round(b.size / 1024)} KB</td>
-                      <td style={{textAlign:'right'}}>
-                        <div style={{display:'flex', gap:'0.5rem', justifyContent:'flex-end'}}>
-                          <a href={`${apiBase}/api/auth/backups/download/${b.name}?token=${token}`} download className="btn-action" style={{color:'#3b82f6', textDecoration:'none'}}>Baixar</a>
-                          <button onClick={async () => {
-                              const result = await Swal.fire({ title: 'Restaurar Sistema?', text: 'Esta ação irá substituir TODOS os dados atuais!', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sim, Restaurar', confirmButtonColor: '#ef4444' });
-                              if (result.isConfirmed) {
-                                  Swal.fire({ title: 'Restaurando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                                  const r = await fetch(`${apiBase}/api/auth/backups/restore/${b.name}`, { method: 'POST', headers });
-                                  if (r.ok) {
-                                      Swal.fire('Restaurado!', 'O sistema foi restaurado com sucesso. A página irá recarregar.', 'success').then(() => window.location.reload());
-                                  } else {
-                                      const d = await r.json();
-                                      Swal.fire('Erro', d.erro || 'Falha no restauro', 'error');
-                                  }
-                              }
-                          }} className="btn-action" style={{color:'#ef4444'}}>Restaurar</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
+            <style>{`
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); } 70% { transform: scale(1.02); box-shadow: 0 0 0 20px rgba(99, 102, 241, 0); } 100% { transform: scale(1); } }
+                @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 40% {transform: translateY(-10px);} 60% {transform: translateY(-5px);} }
+                
+                .tutorial-highlight { 
+                    box-shadow: 0 0 0 9999px rgba(0,0,0,0.8), 0 0 35px var(--primary) !important; 
+                    z-index: 10001 !important; 
+                    position: relative !important; 
+                    pointer-events: none;
+                    animation: pulse 2s infinite !important;
+                    border: 2px solid var(--primary) !important;
+                }
+
+                @media (max-width: 768px) {
+                    .panel-modal {
+                        bottom: 0 !important;
+                        right: 0 !important;
+                        left: 0 !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        border-radius: 20px 20px 0 0 !important;
+                        border-left: none !important;
+                        border-top: 5px solid var(--primary) !important;
+                        padding: 1.2rem !important;
+                    }
+                    .tutorial-icon-display { display: none; }
+                    .tutorial-btn {
+                        padding: 0.35rem 0.7rem !important;
+                        font-size: 0.75rem !important;
+                    }
+                }
+
+                .tutorial-arrow {
+                    position: absolute;
+                    font-size: 3rem;
+                    color: var(--primary);
+                    z-index: 10002;
+                    animation: bounce 2s infinite;
+                    pointer-events: none;
+                }
+            `}</style>
+            
+            {current.target && document.getElementById(current.target) && (
+                <div className="tutorial-arrow" style={{
+                    top: document.getElementById(current.target).getBoundingClientRect().top - 60,
+                    left: document.getElementById(current.target).getBoundingClientRect().left + (document.getElementById(current.target).offsetWidth / 2) - 15
+                }}>
+                    👇
+                </div>
+            )}
+        </div>
     );
   };
 
   /* ========== LAYOUT ========== */
   return (
     <div className="dashboard-layout">
+      {renderTutorial()}
       <ToastContainer position="top-right" autoClose={30000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
       
       {/* Overlay para fechar ao clicar fora no mobile */}
