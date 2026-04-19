@@ -105,6 +105,27 @@ class SystemController {
             res.status(500).json({ erro: err.message });
         }
     }
+
+    // Grupos
+    async listMutedGrupos(req, res) {
+        try {
+            const rows = await SystemRepository.findAllGruposMuted();
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ erro: 'Falha ao buscar grupos silenciados' });
+        }
+    }
+
+    async toggleGrupoMute(req, res) {
+        const { grupo_id, nome, is_muted } = req.body;
+        const usuario_id = req.user?.id;
+        try {
+            await SystemRepository.toggleGrupoMute(grupo_id, nome, is_muted, usuario_id);
+            res.json({ sucesso: true });
+        } catch (error) {
+            res.status(500).json({ erro: 'Falha ao atualizar estado do grupo' });
+        }
+    }
 }
 
 module.exports = new SystemController();

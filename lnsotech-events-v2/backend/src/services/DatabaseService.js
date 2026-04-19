@@ -7,6 +7,7 @@ class DatabaseService {
         await db.query(`
             CREATE TABLE IF NOT EXISTS configuracoes (chave TEXT PRIMARY KEY, valor TEXT);
             CREATE TABLE IF NOT EXISTS tipos_evento (id SERIAL PRIMARY KEY, nome TEXT UNIQUE, cor TEXT, template_resposta TEXT);
+            CREATE TABLE IF NOT EXISTS grupos_config (grupo_id TEXT PRIMARY KEY, nome TEXT, is_muted BOOLEAN DEFAULT FALSE, atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             
             -- Garantir colunas se não existirem
             DO $$ 

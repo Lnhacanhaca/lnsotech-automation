@@ -63,7 +63,13 @@ class EventoRepository {
             totalEventos: 'SELECT COUNT(*) FROM eventos',
             totalBodas: "SELECT COUNT(*) FROM eventos WHERE tipo_evento = 'casamento'",
             totalAniversarios: "SELECT COUNT(*) FROM eventos WHERE tipo_evento = 'aniversario'",
-            gruposAtivos: "SELECT COUNT(DISTINCT grupo_id) FROM eventos WHERE grupo_id IS NOT NULL",
+            gruposAtivos: `
+                SELECT COUNT(DISTINCT e.grupo_id) 
+                FROM eventos e
+                LEFT JOIN grupos_config g ON e.grupo_id = g.grupo_id
+                WHERE e.grupo_id IS NOT NULL 
+                AND (g.is_muted IS FALSE OR g.is_muted IS NULL)
+            `,
             lembretesEnviados: "SELECT COUNT(*) FROM logs_envio WHERE tipo_log = 'lembrete_enviado'",
             falhasHoje: "SELECT COUNT(*) FROM logs_envio WHERE status = 'falha'"
         };

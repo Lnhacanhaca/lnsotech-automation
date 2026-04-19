@@ -102,6 +102,26 @@ class SystemRepository {
             await db.query('INSERT INTO configuracoes (chave, valor) VALUES ($1, $2)', [chave, valor]);
         }
     }
+
+    // Gestão de Grupos
+    async findAllGruposMuted() {
+        const { rows } = await db.query('SELECT * FROM grupos_config WHERE is_muted = TRUE');
+        return rows;
+    }
+
+    async toggleGrupoMute(grupo_id, nome, is_muted, usuario_id) {
+        const res = await db.query('UPDATE grupos_config SET is_muted = $1, nome = $2, atualizado_em = CURRENT_TIMESTAMP WHERE grupo_id = $3', [is_muted, nome, grupo_id]);
+        if (res.rowCount === 0) {
+            await db.query('INSERT INTO grupos_config (grupo_id, nome, is_muted) VALUES ($1, $2, $3)', [grupo_id, nome, is_muted]);
+        }
+        
+        // Adicionar ao histórico de auditoria
+        const acao = is_muted ? 'DESCONECTADO (Silenciado)' : 'CONECTADO (Ativado)';
+        await db.query(
+            'INSERT INTO logs_envio (grupo_id, tipo_log, mensagem, status) VALUES ($1, $2, $3, $4)',
+            [grupo_id, 'config_grupo', `Grupo "${nome}" foi ${acao}`, 'sucesso']
+        );
+    }
 }
 
 module.exports = new SystemRepository();

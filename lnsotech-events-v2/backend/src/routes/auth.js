@@ -25,4 +25,8 @@ router.post('/backups/restore/:filename', BackupController.restore);
 router.get('/configuracoes', SystemController.listConfigs);
 router.post('/configuracoes', SystemController.updateConfig);
 
+// ========== GESTÃO DE GRUPOS ========== //
+router.get('/grupos/muted', SystemController.listMutedGrupos);
+router.post('/grupos/toggle-mute', SystemController.toggleGrupoMute);
+
 module.exports = router;

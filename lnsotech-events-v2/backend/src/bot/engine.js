@@ -229,6 +229,15 @@ async function connectToWhatsApp() {
 
             if (msg.key.fromMe) return;
 
+            // Verificar se o grupo está silenciado
+            try {
+                const muteCheck = await pool.query('SELECT is_muted FROM grupos_config WHERE grupo_id = $1', [msg.key.remoteJid]);
+                if (muteCheck.rows[0]?.is_muted) {
+                    // console.log(`[Engine] Grupo ${msg.key.remoteJid} está silenciado. Ignorando interação.`);
+                    return;
+                }
+            } catch (e) { console.error('Erro ao verificar mute:', e); }
+
             const textMessage = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
             // TESTE DE CONEXÃO DIRETO
@@ -454,27 +463,30 @@ async function executarLembretes(sock, manual = false) {
     
     try {
         const query = `
-            SELECT id, nomes_principais, grupo_id, tipo_evento, foto_url,
-                   frequencia_lembrete,
-                   EXTRACT(YEAR FROM data_evento) as ano_origem 
-            FROM eventos 
-            WHERE grupo_id IS NOT NULL AND (
+            SELECT e.id, e.nomes_principais, e.grupo_id, e.tipo_evento, e.foto_url,
+                   e.frequencia_lembrete,
+                   EXTRACT(YEAR FROM e.data_evento) as ano_origem 
+            FROM eventos e
+            LEFT JOIN grupos_config g ON e.grupo_id = g.grupo_id
+            WHERE e.grupo_id IS NOT NULL 
+            AND (g.is_muted IS FALSE OR g.is_muted IS NULL)
+            AND (
                 -- ANUAL: mesmo dia e mês
-                ((frequencia_lembrete = 'anual' OR frequencia_lembrete IS NULL)
-                 AND TO_CHAR(data_evento, 'DD-MM') = TO_CHAR(CURRENT_DATE AT TIME ZONE 'Africa/Maputo', 'DD-MM'))
+                ((e.frequencia_lembrete = 'anual' OR e.frequencia_lembrete IS NULL)
+                 AND TO_CHAR(e.data_evento, 'DD-MM') = TO_CHAR(CURRENT_DATE AT TIME ZONE 'Africa/Maputo', 'DD-MM'))
                 OR
                 -- MENSAL: mesmo dia do mês
-                (frequencia_lembrete = 'mensal'
-                 AND TO_CHAR(data_evento, 'DD') = TO_CHAR(CURRENT_DATE AT TIME ZONE 'Africa/Maputo', 'DD'))
+                (e.frequencia_lembrete = 'mensal'
+                 AND TO_CHAR(e.data_evento, 'DD') = TO_CHAR(CURRENT_DATE AT TIME ZONE 'Africa/Maputo', 'DD'))
                 OR
                 -- SEMANAL: mesmo dia da semana (0-6)
-                (frequencia_lembrete = 'semanal'
-                 AND EXTRACT(DOW FROM data_evento) = EXTRACT(DOW FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
+                (e.frequencia_lembrete = 'semanal'
+                 AND EXTRACT(DOW FROM e.data_evento) = EXTRACT(DOW FROM (CURRENT_DATE AT TIME ZONE 'Africa/Maputo')))
                 OR
                 -- DIÁRIO
-                frequencia_lembrete = 'diario'
+                e.frequencia_lembrete = 'diario'
             )
-            ORDER BY id ASC
+            ORDER BY e.id ASC
         `;
         const res = await pool.query(query);
         console.log(`📊 [DB Query] Eventos encontrados para hoje: ${res.rows.length}`);

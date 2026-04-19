@@ -26,6 +26,20 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [mutedGroups, setMutedGroups] = useState(() => JSON.parse(localStorage.getItem('muted_groups') || '[]'));
   useEffect(() => { localStorage.setItem('muted_groups', JSON.stringify(mutedGroups)); }, [mutedGroups]);
 
+  // Sincronizar grupos silenciados com o backend no início
+  useEffect(() => {
+    const initMuted = async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/auth/grupos/muted`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          setMutedGroups(data.map(m => m.grupo_id));
+        }
+      } catch (e) { console.error('Erro ao buscar grupos silenciados:', e); }
+    };
+    if (token) initMuted();
+  }, [token, headers]);
+
   // 3. Estados de UI
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -674,7 +688,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         <div className="stat-card"><div className="stat-header">Eventos Totais<div className="stat-icon-wrapper bg-green-light">📈</div></div><div className="stat-value">{stats.totalEventos}</div></div>
         <div className="stat-card" onClick={handleGroupsCardClick} style={{cursor:'pointer'}}>
           <div className="stat-header">Grupos Activos<div className="stat-icon-wrapper bg-green-light">💍</div></div>
-          <div className="stat-value">{stats.gruposAtivos}</div>
+          <div className="stat-value">{Object.keys(grupos).length > 0 ? grupos.filter(g => !g.isMuted).length : stats.gruposAtivos}</div>
         </div>
         <div className="stat-card"><div className="stat-header">Lembretes Enviados<div className="stat-icon-wrapper bg-yellow-light">🔔</div></div><div className="stat-value">{stats.lembretesEnviados}</div></div>
         <div className="stat-card" onClick={() => { setActiveTab('logs'); setLogFilter('falha'); }} style={{cursor:'pointer'}}>
@@ -1048,13 +1062,25 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                   <td>
                     <div className="toolbar-buttons" style={{justifyContent:'flex-end'}}>
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                             const isNowMuted = !g.isMuted;
                             if (isNowMuted) setMutedGroups(prev => [...prev, g.id]);
                             else setMutedGroups(prev => prev.filter(id => id !== g.id));
 
+                            // Sincronizar com o servidor
+                            try {
+                                await fetch(`${apiBase}/api/auth/grupos/toggle-mute`, {
+                                    method: 'POST',
+                                    headers: jsonHeaders,
+                                    body: JSON.stringify({ grupo_id: g.id, nome: g.nome, is_muted: isNowMuted })
+                                });
+                                refreshData(); // Atualizar stats no dashboard
+                            } catch (e) {
+                                console.error('Erro ao sincronizar mute:', e);
+                            }
+
                             toast.info(`Grupo ${isNowMuted ? 'Desconectado 📵' : 'Reativado 🔌'} com sucesso!`, {
-                                autoClose: 8000
+                                autoClose: 60000
                             });
                         }} 
                         className="btn-submit" 
@@ -1065,7 +1091,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                       {isAdmin && <button onClick={()=>handleTesteConexao(g.id, g.nome)} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem', background:'var(--info)'}}>🤖 Testar</button>}
                       <button onClick={() => {
                         const copiar = (texto) => {
-                          navigator.clipboard.writeText(texto).then(() => toast.success('ID Copiado!'));
+                          navigator.clipboard.writeText(texto).then(() => toast.success('ID Copiado!', { autoClose: 30000 }));
                         };
                         copiar(g.id);
                       }} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem',background:'#475569'}}>📋 ID</button>
@@ -1098,6 +1124,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               <option value="lembrete_enviado">✅ Lembretes Enviados</option>
               <option value="auto_resposta">🤖 Respostas Automáticas</option>
               <option value="registo_whatsapp">📱 Criação via Bot</option>
+              <option value="config_grupo">⚙️ Gestão de Grupos</option>
               <option value="erro_registo">⚠️ Erros do Bot</option>
               <option value="lembrete_falha">❌ Falhas de Envio</option>
             </select>
@@ -1120,8 +1147,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                   <td>
                     <span style={{
                       fontSize:'0.75rem', padding:'0.2rem 0.5rem', borderRadius:'6px', fontWeight:600,
-                      background: l.tipo_log === 'auto_resposta' ? '#e0e7ff' : l.tipo_log === 'lembrete_enviado' ? '#dcfce7' : '#f1f5f9',
-                      color: l.tipo_log === 'auto_resposta' ? '#4f46e5' : l.tipo_log === 'lembrete_enviado' ? '#16a34a' : '#475569'
+                      background: l.tipo_log === 'auto_resposta' ? '#e0e7ff' : l.tipo_log === 'lembrete_enviado' ? '#dcfce7' : l.tipo_log === 'config_grupo' ? '#fef9c3' : '#f1f5f9',
+                      color: l.tipo_log === 'auto_resposta' ? '#4f46e5' : l.tipo_log === 'lembrete_enviado' ? '#16a34a' : l.tipo_log === 'config_grupo' ? '#854d0e' : '#475569'
                     }}>
                       {l.tipo_log?.replace('_', ' ').toUpperCase()}
                     </span>
@@ -1751,7 +1778,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   /* ========== LAYOUT ========== */
   return (
     <div className="dashboard-layout">
-      <ToastContainer position="top-right" autoClose={12000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
+      <ToastContainer position="top-right" autoClose={30000} hideProgressBar={false} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover theme="colored" />
       
       {/* Overlay para fechar ao clicar fora no mobile */}
       <div className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`} onClick={() => setSidebarOpen(false)}></div>
