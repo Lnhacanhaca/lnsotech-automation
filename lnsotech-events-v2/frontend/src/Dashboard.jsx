@@ -1079,8 +1079,17 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                                 console.error('Erro ao sincronizar mute:', e);
                             }
 
-                            toast.info(`Grupo ${isNowMuted ? 'Desconectado 📵' : 'Reativado 🔌'} com sucesso!`, {
-                                autoClose: 60000
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: `Grupo ${isNowMuted ? 'Desconectado 📵' : 'Reativado 🔌'} com sucesso!`,
+                                showConfirmButton: false,
+                                timer: 4000,
+                                timerProgressBar: true,
+                                background: isNowMuted ? '#ef4444' : '#10b981',
+                                color: '#fff',
+                                iconColor: '#fff'
                             });
                         }} 
                         className="btn-submit" 
@@ -1091,7 +1100,20 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                       {isAdmin && <button onClick={()=>handleTesteConexao(g.id, g.nome)} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem', background:'var(--info)'}}>🤖 Testar</button>}
                       <button onClick={() => {
                         const copiar = (texto) => {
-                          navigator.clipboard.writeText(texto).then(() => toast.success('ID Copiado!', { autoClose: 30000 }));
+                          navigator.clipboard.writeText(texto).then(() => {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: '📋 ID Copiado!',
+                                showConfirmButton: false,
+                                timer: 4000,
+                                timerProgressBar: true,
+                                background: '#475569',
+                                color: '#fff',
+                                iconColor: '#fff'
+                            });
+                          });
                         };
                         copiar(g.id);
                       }} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem',background:'#475569'}}>📋 ID</button>
