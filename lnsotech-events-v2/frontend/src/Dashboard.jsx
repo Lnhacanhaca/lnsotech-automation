@@ -6,42 +6,50 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Resp
 import Swal from 'sweetalert2';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-export default function Dashboard({ token, user: rawUser, onLogout }) {
-  // FIX: suportar tanto "nivel" (token antigo) como "nivel_acesso" (token novo)
-  const user = { ...(rawUser || {}), nivel_acesso: rawUser?.nivel_acesso || rawUser?.nivel || 'leitor' };
-  const isAdmin = user?.nivel_acesso === 'admin';
-  const isEditor = user?.nivel_acesso === 'editor';
-  const canEdit = isAdmin || isEditor;
 
-  const [eventos, setEventos] = useState([]);
-  const [stats, setStats] = useState({ totalEventos: 0, totalBodas: 0, totalAniversarios: 0, gruposAtivos: 0, lembretesEnviados: 0, falhasHoje: 0 });
-  const [loading, setLoading] = useState(true);
+// Custom Hooks
+import { useAuth } from './hooks/useAuth';
+import { useEventos } from './hooks/useEventos';
+import { useBotStatus } from './hooks/useBotStatus';
+import { useOfflineSync } from './hooks/useOfflineSync';
+import { useTheme } from './hooks/useTheme';
+import { useGrupos } from './hooks/useGrupos';
+
+export default function Dashboard({ token, user: rawUser, onLogout }) {
+  // 1. Hook de Autenticação e Permissões
+  const { user, isAdmin, isEditor, canEdit, headers, jsonHeaders } = useAuth(rawUser, token, onLogout);
+
+  // 2. Hook de Tema
+  const { theme, toggleTheme } = useTheme();
+
+  // Estados de persistência local necessários para hooks
+  const [mutedGroups, setMutedGroups] = useState(() => JSON.parse(localStorage.getItem('muted_groups') || '[]'));
+  useEffect(() => { localStorage.setItem('muted_groups', JSON.stringify(mutedGroups)); }, [mutedGroups]);
+
+  // 3. Estados de UI
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 4. Hook de Eventos e Estatísticas
+  const { eventos, stats, loading, refresh: refreshData } = useEventos(token, searchQuery);
+
+  // 5. Hook de Bot WhatsApp
+  const { status: waStatus, reconnect: reconnectBot } = useBotStatus(token, activeTab);
+
+  // 6. Hook de Grupos
+  const { grupos, loading: gruposLoading, refresh: refreshGrupos } = useGrupos(token, activeTab, mutedGroups);
+
+  // 7. Hook de Sincronização Offline (PWA)
+  const { isOnline, queueLength: offlineQueueLength, addToQueue } = useOfflineSync(token, (count) => {
+    Swal.fire({ title: 'Sincronizado!', text: `${count} registos offline foram enviados para o servidor.`, icon: 'success', timer: 10000, timerProgressBar: true, confirmButtonColor: '#10b981' });
+    refreshData();
+  });
+
+  // Estados restantes (Configurações e Formulários)
   const [horaLembrete, setHoraLembrete] = useState('07:00');
   const [assinaturaBot, setAssinaturaBot] = useState('');
   const [respostaPadraoBot, setRespostaPadraoBot] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
-
-  const changeTab = (tab) => {
-    if (tab === 'eventos') {
-        // Se clicar manualmente na aba, limpamos os filtros de grupo para ver tudo
-        setFilterGroup(null);
-        setFilterType(null);
-        setSearchQuery('');
-    }
-    setActiveTab(tab);
-    setSidebarOpen(false); // Fecha sidebar no mobile ao trocar
-  };
 
   const [formNomes, setFormNomes] = useState('');
   const [formData, setFormData] = useState('');
@@ -53,14 +61,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [templates, setTemplates] = useState([]);
   const [logs, setLogs] = useState([]);
   const [logFilter, setLogFilter] = useState('todos');
-  const [grupos, setGrupos] = useState([]);
   const [tiposEvento, setTiposEvento] = useState([]);
   const [newTipoNome, setNewTipoNome] = useState('');
   const [newTipoCor, setNewTipoCor] = useState('#3b82f6');
-  
-  // Persistência local do estado de grupos suspensos (até termos tabela no backend)
-  const [mutedGroups, setMutedGroups] = useState(() => JSON.parse(localStorage.getItem('muted_groups') || '[]'));
-  useEffect(() => { localStorage.setItem('muted_groups', JSON.stringify(mutedGroups)); }, [mutedGroups]);
   
   const [editingEvento, setEditingEvento] = useState(null);
   const [editEventoForm, setEditEventoForm] = useState({ nomes_principais: '', data_evento: '', tipo_evento: '', grupo_id: '', frequencia_lembrete: 'anual', prioridade: 'normal' });
@@ -68,8 +71,6 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [historicoAlteracoes, setHistoricoAlteracoes] = useState([]);
 
   const [backups, setBackups] = useState([]);
-  const [gruposLoading, setGruposLoading] = useState(false);
-  const [waStatus, setWaStatus] = useState({ qr: null, status: 'desconhecido', lastUpdate: null });
 
   const [newUserNome, setNewUserNome] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
@@ -78,38 +79,29 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [editingUserId, setEditingUserId] = useState(null);
   const [editUserForm, setEditUserForm] = useState({ nome: '', email: '', senha: '', nivel_acesso: 'leitor' });
 
-  // Estados para Filtros Avançados (Vindos da aba Grupos)
   const [filterGroup, setFilterGroup] = useState(null);
   const [filterType, setFilterType] = useState(null);
 
   const [editingTipoId, setEditingTipoId] = useState(null);
   const [editTipoForm, setEditTipoForm] = useState({ nome: '', cor: '#3b82f6', template_resposta: '' });
 
-  // Estado do Calendário
   const today = new Date();
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calSelectedDay, setCalSelectedDay] = useState(null);
 
   const csvRef = useRef(null);
-
   const apiBase = '';
-  const headers = { 'Authorization': `Bearer ${token}` };
-  const jsonHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
-  // =================== OFFLINE SYNC PWA =================== //
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [offlineQueueLength, setOfflineQueueLength] = useState(() => {
-    return JSON.parse(localStorage.getItem('offline_events') || '[]').length;
-  });
-
-  useEffect(() => {
-    const handleOnline = () => { setIsOnline(true); syncOfflineQueue(); };
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
-  }, []);
+  const changeTab = (tab) => {
+    if (tab === 'eventos') {
+        setFilterGroup(null);
+        setFilterType(null);
+        setSearchQuery('');
+    }
+    setActiveTab(tab);
+    setSidebarOpen(false);
+  };
 
   const fetchConfigs = async () => {
     try {
@@ -199,114 +191,41 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   };
 
   const syncOfflineQueue = async () => {
-    const queue = JSON.parse(localStorage.getItem('offline_events') || '[]');
-    if (queue.length === 0) return;
-    let successCount = 0;
-    for (const payload of queue) {
-      try {
-        const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
-        if(res.ok) successCount++;
-      } catch (err) { console.error('Sync error', err); }
-    }
-    localStorage.removeItem('offline_events');
-    setOfflineQueueLength(0);
-    Swal.fire({ title: 'Sincronizado!', text: `${successCount} registos offline foram enviados para o servidor.`, icon: 'success', timer: 10000, timerProgressBar: true, confirmButtonColor: '#10b981' });
-    fetchData();
+    // Agora tratado pelo hook useOfflineSync
   };
 
   // =================== FETCH DATA =================== //
-  const fetchData = async (search = '') => {
-    try {
-      console.log('[fetchData] Iniciando busca de dados...');
-      setLoading(true);
-      const url = search ? `${apiBase}/api/eventos?search=${search}` : `${apiBase}/api/eventos`;
-      const resEv = await fetch(url, { headers });
-      if (resEv.ok) {
-          const evs = await resEv.json();
-          console.log('[fetchData] Eventos recebidos:', evs.length);
-          setEventos(evs);
-      } else {
-          console.warn('[fetchData] Falha ao buscar eventos:', resEv.status);
-      }
+  const fetchData = async () => {
+      // Agora tratado em grande parte pelos hooks, mas mantemos para buscar dados extras (logs, templates, backups)
+      try {
+          if (canEdit) {
+              const resUsr = await fetch(`${apiBase}/api/auth/usuarios`, { headers });
+              if (resUsr.ok) setUsuarios(await resUsr.json());
+              const resTp = await fetch(`${apiBase}/api/eventos/templates`, { headers });
+              if (resTp.ok) setTemplates(await resTp.json());
+          }
+          const resTypes = await fetch(`${apiBase}/api/eventos/tipos`, { headers });
+          if (resTypes.ok) setTiposEvento(await resTypes.json());
 
-      const resStats = await fetch(`${apiBase}/api/eventos/stats`, { headers });
-      if (resStats.ok) {
-          const st = await resStats.json();
-          console.log('[fetchData] Stats recebidas:', st);
-          setStats(st);
-      }
-      
-      if (canEdit) {
-        const resUsr = await fetch(`${apiBase}/api/auth/usuarios`, { headers });
-        if (resUsr.ok) {
-          const usrData = await resUsr.json();
-          setUsuarios(usrData);
-        } else {
-          console.error('[fetchData] Falha ao buscar utilizadores. Status:', resUsr.status);
-        }
-        const resTp = await fetch(`${apiBase}/api/eventos/templates`, { headers });
-        if (resTp.ok) setTemplates(await resTp.json());
-      }
-
-      const resTypes = await fetch(`${apiBase}/api/eventos/tipos`, { headers });
-      if (resTypes.ok) setTiposEvento(await resTypes.json());
-
-      if (isAdmin) {
-        const resLogs = await fetch(`${apiBase}/api/eventos/logs`, { headers });
-        if (resLogs.ok) setLogs(await resLogs.json());
-        const resBkps = await fetch(`${apiBase}/api/auth/backups`, { headers });
-        if (resBkps.ok) setBackups(await resBkps.json());
-        fetchConfigs();
-      }
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+          if (isAdmin) {
+              const resLogs = await fetch(`${apiBase}/api/eventos/logs`, { headers });
+              if (resLogs.ok) setLogs(await resLogs.json());
+              const resBkps = await fetch(`${apiBase}/api/auth/backups`, { headers });
+              if (resBkps.ok) setBackups(await resBkps.json());
+              fetchConfigs();
+          }
+      } catch (e) { console.error(e); }
   };
 
-  const fetchGrupos = async () => {
-    setGruposLoading(true);
-    try {
-      const res = await fetch(`${apiBase}/api/eventos/grupos`, { headers });
-      if (res.ok) {
-          const fetchedGrupos = await res.json();
-          // Aplicar estado de silenciamento do localstorage aos grupos vindos do servidor
-          const enriched = fetchedGrupos.map(g => ({
-              ...g,
-              isMuted: mutedGroups.includes(g.id)
-          }));
-          setGrupos(enriched);
-      }
-      else { const d = await res.json(); toast.error(d.erro || 'Bot offline'); }
-    } catch (e) { toast.error('Falha ao carregar grupos'); }
-    setGruposLoading(false);
-  };
-
-  const fetchWaStatus = async () => {
-    try {
-      const res = await fetch(`${apiBase}/api/eventos/whatsapp-status`, { headers });
-      if (res.ok) setWaStatus(await res.json());
-    } catch (e) { console.error('Erro status WP', e); }
-  };
-
-  useEffect(() => { fetchData(searchQuery); }, [activeTab, searchQuery]);
-  useEffect(() => { 
-    let interval;
-    if (activeTab === 'grupos') {
-      if (grupos.length === 0) fetchGrupos(); 
-      fetchWaStatus();
-      interval = setInterval(fetchWaStatus, 5000);
-    }
-    return () => clearInterval(interval);
-  }, [activeTab]);
+  useEffect(() => { fetchData(); }, [activeTab]);
 
   // =================== HANDLERS =================== //
   const handleReconectarWA = async () => {
     const result = await Swal.fire({ title: 'Reconectar WhatsApp?', text: 'Isto irá desconectar o WhatsApp atual e pedir um novo QR code. O bot vai reiniciar.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#10b981', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Reconectar', cancelButtonText: 'Cancelar' });
     if (!result.isConfirmed) return;
     try {
-      const res = await fetch(`${apiBase}/api/eventos/whatsapp-reconectar`, { method: 'POST', headers: jsonHeaders });
-      const d = await res.json();
-      toast.info(d.mensagem || 'A reiniciar...');
-      fetchWaStatus();
+      await reconnectBot();
+      toast.info('A reiniciar bot...');
     } catch (e) { toast.error('Erro ao pedir reconexão'); }
   };
 
@@ -447,7 +366,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     const file = e.target.files[0]; if (!file) return;
     const fd = new FormData(); fd.append('csv', file);
     const res = await fetch(`${apiBase}/api/eventos/importar`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd });
-    const data = await res.json(); Swal.fire({ title: 'Importado!', text: data.mensagem || 'Dados importados com sucesso.', icon: 'success', timer: 10000, timerProgressBar: true, confirmButtonColor: '#10b981' }); fetchData();
+    const data = await res.json(); Swal.fire({ title: 'Importado!', text: data.mensagem || 'Dados importados com sucesso.', icon: 'success', timer: 10000, timerProgressBar: true, confirmButtonColor: '#10b981' }); 
+    fetchData();
+    refreshData();
     e.target.value = '';
   };
 
@@ -458,11 +379,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     const payload = { nomes_principais: formNomes, data_evento: formData, tipo_evento: formTipo, grupo_id: formGrupo, criado_por: user.id, frequencia_lembrete: formFrequencia };
 
     if (!isOnline) {
-       const queue = JSON.parse(localStorage.getItem('offline_events') || '[]');
-       queue.push(payload);
-       localStorage.setItem('offline_events', JSON.stringify(queue));
-       setOfflineQueueLength(queue.length);
-       
+       addToQueue(payload);
        setFormNomes(''); setFormData(''); setFormFrequencia('anual');
        toast.info('📴 Guardado Offline! Será sincronizado assim que tiveres Internet.');
        return;
@@ -470,7 +387,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
     const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
     const data = await res.json();
-    if (res.ok) { setFormNomes(''); setFormData(''); setFormFrequencia('anual'); Swal.fire({ title: 'Sucesso!', text: 'Evento registado com sucesso.', icon: 'success', timer: 3000, confirmButtonColor: '#10b981' }); fetchData(); }
+    if (res.ok) { 
+        setFormNomes(''); setFormData(''); setFormFrequencia('anual'); 
+        Swal.fire({ title: 'Sucesso!', text: 'Evento registado com sucesso.', icon: 'success', timer: 3000, confirmButtonColor: '#10b981' }); 
+        fetchData(); 
+        refreshData();
+    }
     else toast.error('Erro ao guardar: ' + (data.erro || 'Falha desconhecida.'));
   };
 
@@ -508,7 +430,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     });
     if (res.ok) { 
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Evento atualizado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#3b82f6', color: '#fff', iconColor: '#fff' });
-        setEditingEvento(null); fetchData(); 
+        setEditingEvento(null); 
+        fetchData(); 
+        refreshData();
     }
     else {
         Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Falha ao atualizar', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
@@ -590,6 +514,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (result.isConfirmed) { 
         await fetch(`${apiBase}/api/eventos/${id}`, { method: 'DELETE', headers }); 
         fetchData(); 
+        refreshData();
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '🗑️ Evento apagado.', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
     }
   };
@@ -681,7 +606,6 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   };
 
   const handleTesteConexao = async (grupoId, nomeGrupo) => {
-    // Verificar se o grupo está desconectado antes de permitir o teste
     const groupStatus = grupos.find(g => g.id === grupoId);
     if (groupStatus?.isMuted || mutedGroups.includes(grupoId)) {
         return Swal.fire({ 
@@ -815,7 +739,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                     if (n) {
                         const { value: c } = await Swal.fire({ title: 'Cor do Tipo', input: 'text', inputLabel: 'Cor (Ex: #ff0000):', inputValue: '#3b82f6', showCancelButton: true });
                         fetch(`${apiBase}/api/eventos/tipos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: n, cor: c || '#3b82f6' }) })
-                        .then(res => { if(res.ok) { fetchData(); setFormTipo(n.toLowerCase()); toast.success('Tipo criado!'); } });
+                        .then(res => { if(res.ok) { fetchData(); refreshData(); setFormTipo(n.toLowerCase()); toast.success('Tipo criado!'); } });
                     }
                 } else setFormTipo(e.target.value);
               }}>
@@ -1058,7 +982,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       <div className="panel-card">
         <div className="eventos-toolbar">
           <div className="panel-title" style={{margin:0}}>📱 Grupos WhatsApp do Bot</div>
-          <button onClick={fetchGrupos} className="btn-submit" disabled={gruposLoading}>{gruposLoading ? 'A carregar...' : '🔄 Atualizar Lista'}</button>
+          <button onClick={refreshGrupos} className="btn-submit" disabled={gruposLoading}>{gruposLoading ? 'A carregar...' : '🔄 Atualizar Lista'}</button>
         </div>
         <p className="text-muted" style={{marginBottom:'1rem'}}>Estes são todos os grupos onde o bot está presente. Seleccione um grupo ao criar eventos para definir onde o lembrete será enviado.</p>
       
@@ -1126,8 +1050,6 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                       <button 
                         onClick={() => {
                             const isNowMuted = !g.isMuted;
-                            setGrupos(prev => prev.map(item => item.id === g.id ? {...item, isMuted: isNowMuted} : item));
-                            
                             if (isNowMuted) setMutedGroups(prev => [...prev, g.id]);
                             else setMutedGroups(prev => prev.filter(id => id !== g.id));
 
