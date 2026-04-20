@@ -891,9 +891,22 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
     return (
     <div className="panel-card" style={{gap:'1rem'}}>
-      <div className={`eventos-toolbar ${tutorialStep === 7 ? 'tutorial-highlight' : ''}`} id="step-export" style={{flexWrap:'wrap', gap:'1rem'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'1rem', flex:1}}>
-            <div className="panel-title" style={{margin:0}}>📅 Listagem de Eventos</div>
+      <div className={`eventos-toolbar ${tutorialStep === 7 ? 'tutorial-highlight' : ''}`} id="step-export" style={{flexWrap:'wrap', gap:'1rem', display:'flex', alignItems:'center'}}>
+        <div style={{display:'flex', alignItems:'center', gap:'1rem', flex:2, minWidth:'300px'}}>
+            <div className="panel-title" style={{margin:0, whiteSpace:'nowrap'}}>📅 Listagem de Eventos</div>
+            
+            {/* NOVO: Busca exclusiva na aba Eventos */}
+            <div className="search-bar-container" style={{flex:1, maxWidth:'400px'}}>
+              <input 
+                type="text" 
+                className="search-bar" 
+                placeholder="🔍 Buscar por nome, data ou tipo..." 
+                value={searchQuery} 
+                onChange={e=>setSearchQuery(e.target.value)} 
+                style={{width:'100%', border:'1px solid var(--border)', borderRadius:'8px', padding:'0.6rem 1rem'}}
+              />
+            </div>
+
             {(filterGroup || filterType) && (
                 <div style={{display:'flex', alignItems:'center', gap:'0.5rem', background:'var(--info)', color:'#fff', padding:'4px 12px', borderRadius:'20px', fontSize:'0.8rem', animation:'slideUp 0.3s ease'}}>
                     🔍 {filterType?.toUpperCase()} {filterGroup ? `em ${currentFilterGroupName}` : ''}
@@ -901,16 +914,16 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 </div>
             )}
         </div>
-        <div className="toolbar-buttons">
+        <div className="toolbar-buttons" style={{flex:1, display:'flex', justifyContent:'flex-end'}}>
           <div className="flex-wrap-responsive">
             <button onClick={handleExportCSV} className="btn-submit" style={{background:'#1e293b'}}>📥 CSV</button>
             <button onClick={handleExportExcel} className="btn-submit" style={{background:'#047857'}}>📊 Excel</button>
             <button onClick={handleExportPDF} className="btn-submit" style={{background:'#be123c'}}>📄 PDF</button>
+            {canEdit && (<>
+                <input type="file" accept=".csv" ref={csvRef} onChange={handleImportCSV} style={{display:'none'}} />
+                <button onClick={() => csvRef.current?.click()} className="btn-submit" style={{background:'#0f766e'}}>📤 Importar</button>
+            </>)}
           </div>
-          {canEdit && (<>
-            <input type="file" accept=".csv" ref={csvRef} onChange={handleImportCSV} style={{display:'none'}} />
-            <button onClick={() => csvRef.current?.click()} className="btn-submit" style={{background:'#0f766e'}}>📤 Importar CSV</button>
-          </>)}
         </div>
       </div>
       {canEdit && (
@@ -1891,7 +1904,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         </div>
         <nav className="nav-menu">
           <div className={`nav-item ${activeTab==='dashboard'?'active':''}`} onClick={()=>changeTab('dashboard')}><span>📊</span><span>Dashboard</span></div>
-          <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>changeTab('eventos')}><span>👥</span><span>Eventos/Casais</span></div>
+          <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>changeTab('eventos')}><span>👥</span><span>Eventos</span></div>
           <div className={`nav-item ${activeTab==='calendario'?'active':''}`} onClick={()=>changeTab('calendario')}><span>📅</span><span>Calendário</span></div>
           <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>changeTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>
           {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>changeTab('logs')}><span>📖</span><span>Histórico</span></div>}
@@ -1912,8 +1925,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       <main className="main-area">
         <header className="topbar">
           <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>☰</button>
-          <div className="search-bar-container">
-            <input type="text" className="search-bar" placeholder="🔍 Buscar nomes, datas, tipos..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} />
+          <div className="search-bar-container" style={{visibility:'hidden', flex:1}}>
+             {/* Busca removida do Header global */}
           </div>
           <div className="topbar-icons">
             <span className="icon-btn" title={`Nível: ${user.nivel_acesso}`}>{isAdmin ? '🛡️' : (isEditor ? '✏️' : '👁️')}</span>
@@ -1937,7 +1950,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
         <div className="content-wrapper">
           <h2 className="page-title">{
-            {dashboard:'Painel Executivo', eventos:'Gestão de Clientes', calendario:'Calendário de Eventos', grupos:'Grupos WhatsApp', logs:'Histórico e Auditoria', configuracoes:'Configurações'}[activeTab]
+            {dashboard:'Painel Executivo', eventos:'Gestão de Eventos', calendario:'Calendário de Eventos', grupos:'Grupos WhatsApp', logs:'Histórico e Auditoria', configuracoes:'Configurações'}[activeTab]
           }</h2>
           <p className="page-subtitle">LNSOTECH Automation CRM — {user.nivel_acesso?.toUpperCase()}</p>
           
