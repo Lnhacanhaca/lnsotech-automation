@@ -1622,7 +1622,18 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                                 <td>{editingTipoId === t.id ? <input className="inline-input" value={editTipoForm.nome} onChange={e=>setEditTipoForm({...editTipoForm, nome: e.target.value.toLowerCase()})} /> : <span className="badge-tipo" style={{background: t.cor, color:'#fff'}}>{t.nome.toUpperCase()}</span>}</td>
                                 <td>{editingTipoId === t.id ? <input type="color" value={editTipoForm.cor} onChange={e=>setEditTipoForm({...editTipoForm, cor: e.target.value})} /> : <div style={{display:'flex', alignItems:'center', gap:'0.5rem'}}><div style={{width:'12px', height:'12px', borderRadius:'50%', background:t.cor}} /> {t.cor}</div>}</td>
                                 <td>{editingTipoId === t.id ? <textarea className="inline-input" value={editTipoForm.template_resposta} onChange={e=>setEditTipoForm({...editTipoForm, template_resposta: e.target.value})} rows={1} /> : <span className="text-small text-muted">{t.template_resposta || 'Padrão'}</span>}</td>
-                                <td style={{textAlign:'right'}}>{editingTipoId === t.id ? <button onClick={handleUpdateTipo} className="btn-action" style={{color:'#10b981'}}>Salvar</button> : <button onClick={() => startEditTipo(t)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>}</td>
+                                <td style={{textAlign:'right'}}>
+                                  <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                                    {editingTipoId === t.id ? (
+                                      <button onClick={handleUpdateTipo} className="btn-action" style={{color:'#10b981'}}>Salvar</button>
+                                    ) : (
+                                      <>
+                                        <button onClick={() => startEditTipo(t)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
+                                        <button onClick={() => handleDeleteTipo(t.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                                      </>
+                                    )}
+                                  </div>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -1630,7 +1641,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                       </div>
                       <div style={{marginTop:'1.5rem', borderTop:'1px solid #eee', paddingTop:'1rem'}}>
                         <div className="panel-title" style={{fontSize:'0.9rem'}}>+ Adicionar Novo Tipo</div>
-                        <div style={{display:'flex', gap:'0.5rem', marginTop:'0.5rem'}}><input className="inline-input" placeholder="Nome" value={newTipoNome} onChange={e=>setNewTipoNome(e.target.value)} style={{flex:1}} /><input type="color" value={newTipoCor} onChange={e=>setNewTipoCor(e.target.value)} style={{width:'40px'}} /><button onClick={handleCreateTipo} className="btn-submit">Add</button></div>
+                        <div style={{display:'flex', gap:'0.5rem', marginTop:'0.5rem'}}><input className="inline-input" placeholder="Nome" value={newTipoNome} onChange={e=>setNewTipoNome(e.target.value)} style={{flex:1}} /><input type="color" value={newTipoCor} onChange={e=>setNewTipoCor(e.target.value)} style={{width:'40px'}} /><button onClick={handleCreateTipo} className="btn-submit">Adicionar</button></div>
                       </div>
                     </div>
 
