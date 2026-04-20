@@ -671,6 +671,19 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     }
   };
 
+
+
+  const handleDeleteBackup = async (filename) => {
+    const result = await Swal.fire({ title: 'Eliminar Backup?', text: 'Esta ação não pode ser revertida!', icon: 'error', showCancelButton: true, confirmButtonColor: '#ef4444' });
+    if (result.isConfirmed) {
+      const res = await fetch(`${apiBase}/api/auth/backups/${filename}`, { method: 'DELETE', headers });
+      if (res.ok) {
+        toast.success('Backup eliminado.');
+        fetchData();
+      }
+    }
+  };
+
   const handleTesteConexao = async (grupoId, nomeGrupo) => {
     const groupStatus = grupos.find(g => g.id === grupoId);
     if (groupStatus?.isMuted || mutedGroups.includes(grupoId)) {
@@ -1747,8 +1760,22 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                         </div>
                         <div className="table-responsive" style={{marginTop:'1.5rem'}}>
                             <table className="table-minimal">
-                                <thead><tr><th>Arquivo</th><th>Data</th><th style={{textAlign:'right'}}>Download</th></tr></thead>
-                                <tbody>{backups.map(b => ( <tr key={b.name}><td>📄 {b.name}</td><td>{new Date(b.date).toLocaleDateString()}</td><td style={{textAlign:'right'}}><a href={`${apiBase}/api/auth/backups/download/${b.name}?token=${token}`} download className="btn-action">Baixar</a></td></tr> ))}</tbody>
+                                <thead><tr><th>Arquivo</th><th>Data</th><th style={{textAlign:'right'}}>Ações</th></tr></thead>
+                                <tbody>
+                                  {backups.map(b => (
+                                    <tr key={b.name}>
+                                      <td>📄 {b.name}</td>
+                                      <td>{new Date(b.date).toLocaleDateString()}</td>
+                                      <td style={{textAlign:'right'}}>
+                                        <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                                          <a href={`${apiBase}/api/auth/backups/download/${b.name}?token=${token}`} download className="btn-action" style={{color:'#3b82f6'}}>Baixar</a>
+                                          <button onClick={()=>handleRestoreBackup(b.name)} className="btn-action" style={{color:'#f59e0b'}}>Restaurar</button>
+                                          <button onClick={()=>handleDeleteBackup(b.name)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
                             </table>
                         </div>
                     </div>

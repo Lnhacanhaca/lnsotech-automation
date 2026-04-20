@@ -20,6 +20,7 @@ router.get('/backups', BackupController.list);
 router.post('/backups/gerar', BackupController.generate);
 router.get('/backups/download/:filename', BackupController.download);
 router.post('/backups/restore/:filename', BackupController.restore);
+router.delete('/backups/:filename', BackupController.delete);
 
 // ========== CONFIGURAÇÕES ========== //
 router.get('/configuracoes', SystemController.listConfigs);

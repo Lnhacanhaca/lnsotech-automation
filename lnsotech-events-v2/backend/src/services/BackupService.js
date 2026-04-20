@@ -68,6 +68,14 @@ class BackupService {
             });
         });
     }
+
+    async apagarBackup(filename) {
+        const backupDir = this.getBackupDir();
+        const filePath = path.join(backupDir, filename);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+    }
 }
 
 module.exports = new BackupService();

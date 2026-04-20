@@ -11,15 +11,16 @@ services:
       - ./postgres_data_v2:/var/lib/postgresql/data
       - ./postgres/v2_update.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
       interval: 10s
       timeout: 5s
+
       retries: 5
     networks:
       - backend_network
 
   bot:
-    build: 
+    build:
       context: ./lnsotech-events-v2/backend
       dockerfile: Dockerfile
     container_name: lnsotech-backend

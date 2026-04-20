@@ -39,6 +39,15 @@ class BackupController {
             res.status(500).json({ erro: 'Erro ao restaurar', detalhes: err });
         }
     }
+
+    async delete(req, res) {
+        try {
+            await BackupService.apagarBackup(req.params.filename);
+            res.json({ mensagem: 'Backup apagado!' });
+        } catch (err) {
+            res.status(500).json({ erro: 'Erro ao apagar backup' });
+        }
+    }
 }
 
 module.exports = new BackupController();
