@@ -1,6 +1,6 @@
 services:
   database:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: lnsotech-db
     restart: unless-stopped
     environment:

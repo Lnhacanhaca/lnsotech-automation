@@ -222,55 +222,66 @@ async function connectToWhatsApp() {
 
     sock.ev.on('creds.update', saveCreds);
 
-        // 4. Ouvir mensagens (!reg adaptado para o novo modelo de dados "eventos")
+        // 4. Cache para evitar processamento duplo e Loops
+        const processedMessages = new Set();
+        const lastAutoReply = new Map();
+
         sock.ev.on('messages.upsert', async (m) => {
             if (!m.messages || m.messages.length === 0) return;
             const msg = m.messages[0];
+            const msgId = msg.key.id;
+
+            // Ignorar se já processado ou se for mensagem do próprio sistema
+            if (processedMessages.has(msgId)) return;
+            processedMessages.add(msgId);
+            if (processedMessages.size > 200) processedMessages.delete(processedMessages.values().next().value);
 
             if (msg.key.fromMe) return;
 
-            // Verificar se o grupo está silenciado
-            try {
-                const muteCheck = await pool.query('SELECT is_muted FROM grupos_config WHERE grupo_id = $1', [msg.key.remoteJid]);
-                if (muteCheck.rows[0]?.is_muted) {
-                    // console.log(`[Engine] Grupo ${msg.key.remoteJid} está silenciado. Ignorando interação.`);
-                    return;
-                }
-            } catch (e) { console.error('Erro ao verificar mute:', e); }
-
             const textMessage = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+            if (!textMessage) return;
 
             // TESTE DE CONEXÃO DIRETO
             if (textMessage === '!ping') {
-                console.log('🏓 PING recebido!');
-                return await sock.sendMessage(msg.key.remoteJid, { text: '🏓 PONG - VERSÃO NOVIDADE 2026! O robô está atualizado.' }, { quoted: msg });
+                return await sock.sendMessage(msg.key.remoteJid, { text: '🏓 PONG - VERSÃO NOVIDADE 2026!' }, { quoted: msg });
             }
 
-            // ========== RESPOSTAS AUTOMÁTICAS (AUTO-REPLY) ========== //
+            // ========== RESPOSTAS AUTOMÁTICAS (AUTO-REPLY) COM ANTI-LOOP ========== //
             const myId = sock.user.id.split(':')[0];
-            const myLid = sock.user.lid?.split(':')[0] || '24868565323955'; // Forçamos a deteção do LID visto nos logs
+            const myLid = sock.user.lid?.split(':')[0] || '24868565323955'; 
             
             const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
-            const repliedJid = contextInfo?.participant;
+            const repliedJid = contextInfo?.participant || '';
             const mentionedJids = contextInfo?.mentionedJid || [];
-            
+
             // Verifica se a resposta ou menção é para QUALQUER um dos IDs do bot
             const isReplyToBot = (repliedJid?.includes(myId)) || (repliedJid?.includes(myLid));
             const isMentioningBot = mentionedJids.some(jid => jid.includes(myId) || jid.includes(myLid)) || 
                                     textMessage?.includes(myId) || textMessage?.includes(myLid);
 
             if ((isReplyToBot || isMentioningBot) && textMessage) {
-                console.log(`🤖 Interação Direta: "${textMessage}"`);
+                const remoteJid = msg.key.remoteJid;
+                const now = Date.now();
+                
+                // 2. ANTI-SPAM: Limitar a 1 resposta por 10 segundos por conversa
+                const lastTime = lastAutoReply.get(remoteJid) || 0;
+                if (now - lastTime < 10000) return; 
+
                 const textLower = textMessage.toLowerCase();
                 
-                // Lista de gatilhos para usar o template do evento
+                // 3. ANTI-LOOP: Não responder a si próprio se o texto contiver palavras da nossa assinatura ou agradecimento
+                const selfTriggers = ['lnsotech', 'agradece', 'carinho', 'seguimos'];
+                if (selfTriggers.some(t => textLower.includes(t))) return;
+
+                console.log(`🤖 Interação Direta: "${textMessage}"`);
+                
+                // ... resta da lógica (triggers, templates, envio)
                 const triggers = ['paraben', 'felicid', 'feliz', 'amem', 'amém', 'obrigad', 'obg', 'obri ', 'grato', 'grata', 'viva', 'congrat'];
                 const isAgradecimento = triggers.some(t => textLower.includes(t));
                 
                 let templateParaEnviar = null;
 
                 if (isAgradecimento) {
-                    console.log("🎯 É um agradecimento. A tentar template do evento...");
                     try {
                         const resEvento = await pool.query(`
                             SELECT t.template_resposta 
@@ -279,12 +290,11 @@ async function connectToWhatsApp() {
                             WHERE e.grupo_id = $1 
                             AND TO_CHAR(e.data_evento, 'DD-MM') = TO_CHAR(CURRENT_DATE AT TIME ZONE 'Africa/Maputo', 'DD-MM')
                             LIMIT 1
-                        `, [msg.key.remoteJid]);
+                        `, [remoteJid]);
                         templateParaEnviar = resEvento.rows[0]?.template_resposta;
                     } catch (e) { console.error('Erro ao buscar template do evento:', e); }
                 }
 
-                // Se NÃO for agradecimento OU se o template do evento estiver vazio, usamos o Fallback
                 if (!templateParaEnviar || templateParaEnviar.trim() === '') {
                     try {
                         const resPadrao = await pool.query("SELECT valor FROM configuracoes WHERE chave = 'resposta_padrao_bot'");
@@ -296,8 +306,9 @@ async function connectToWhatsApp() {
                     ? templateParaEnviar 
                     : 'A LNSOTECH agradece o seu carinho! ✨';
 
-                await sock.sendMessage(msg.key.remoteJid, { text: mensagemFinal }, { quoted: msg });
-                await registarLog(null, msg.key.remoteJid, 'auto_resposta', `Respondido a user: ${textMessage.substring(0,30)}...`, 'sucesso');
+                lastAutoReply.set(remoteJid, now);
+                await sock.sendMessage(remoteJid, { text: mensagemFinal }, { quoted: msg });
+                await registarLog(null, remoteJid, 'auto_resposta', `Respondido a user: ${textMessage.substring(0,30)}...`, 'sucesso');
             }
     });
 
