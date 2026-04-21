@@ -361,7 +361,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const handleExportCSV = () => window.open(`${apiBase}/api/eventos?exportCsv=true`, '_blank');
 
   const handleCreateUsuario = async () => {
-    if (!newUserNome || !newUserEmail || !newUserSenha) return toast.warning('Preencha os dados!');
+    if (!newUserNome || !newUserEmail || !newUserSenha) return Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: '⚠️ Preencha os dados!', showConfirmButton: false, timer: 3000, background: '#f59e0b', color: '#fff'});
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUserEmail)) return Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: '📧 Email inválido!', text: 'Formato incorreto.', showConfirmButton: false, timer: 4000, background: '#ef4444', color: '#fff' });
+    
     try {
       const r = await fetch(`${apiBase}/api/auth/usuarios`, {
         method: 'POST',
@@ -369,11 +372,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         body: JSON.stringify({ nome: newUserNome, email: newUserEmail, senha: newUserSenha, nivel_acesso: newUserRole, grupos_permitidos: newUserGrupos, tipos_permitidos: newUserTipos })
       });
       if (r.ok) {
-        toast.success('Utilizador criado!');
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '👤 Utilizador criado!', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#10b981', color: '#fff' });
         setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserGrupos([]); setNewUserTipos([]);
         fetchData();
-      } else { const d = await r.json(); toast.error(d.erro || 'Falha ao criar'); }
-    } catch (e) { toast.error('Erro de rede'); }
+      } else { const d = await r.json(); Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: d.erro || 'Falha ao criar', showConfirmButton: false, timer: 4000, background: '#ef4444', color: '#fff' }); }
+    } catch (e) { Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro de rede', showConfirmButton: false, timer: 4000, background: '#ef4444', color: '#fff' }); }
   };
 
   const handleDeleteUsuario = async (id) => {
@@ -655,17 +658,20 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   };
 
   const handleUpdateUser = async () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editUserForm.email)) return Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: '📧 Email inválido!', text: 'Formato incorreto.', showConfirmButton: false, timer: 4000, background: '#ef4444', color: '#fff' });
+    
     const res = await fetch(`${apiBase}/api/auth/usuarios/${editingUserId}`, {
       method: 'PUT', headers: jsonHeaders,
       body: JSON.stringify(editUserForm)
     });
     const d = await res.json();
     if (res.ok) { 
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '💾 Dados guardados!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#3b82f6', color: '#fff', iconColor: '#fff' });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '💾 Utilizador atualizado!', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#475569', color: '#fff', iconColor: '#fff' });
         setEditingUserId(null); 
         fetchData(); 
     }
-    else toast.error(d.erro || 'Erro ao atualizar');
+    else Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: d.erro || 'Erro ao atualizar', showConfirmButton: false, timer: 4000, background: '#ef4444', color: '#fff' });
   };
 
   // ========== GESTÃO DE TIPOS ==========
@@ -1756,7 +1762,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                                             </td>
                                             <td>
                                                 {editingUserId === u.id ? (
-                                                    <input className="inline-input" value={editUserForm.email} onChange={e=>setEditUserForm({...editUserForm, email: e.target.value})} style={{fontSize:'0.8rem'}} />
+                                                    <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                                                        <input className="inline-input" value={editUserForm.email} onChange={e=>setEditUserForm({...editUserForm, email: e.target.value})} style={{fontSize:'0.8rem'}} placeholder="Email" />
+                                                        <input type="password" placeholder="Nova senha (vazio p/ manter)" className="inline-input" value={editUserForm.senha} onChange={e=>setEditUserForm({...editUserForm, senha: e.target.value})} style={{fontSize:'0.8rem'}} />
+                                                    </div>
                                                 ) : u.email}
                                             </td>
                                             <td>
