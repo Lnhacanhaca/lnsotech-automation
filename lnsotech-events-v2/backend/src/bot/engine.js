@@ -133,8 +133,6 @@ const pool = new Pool({
     port: process.env.DB_PORT || 5432,
 });
 
-// Helper: Esperar (delay)
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper: Registar log no banco de dados
 async function registarLog(eventoId, grupoId, tipoLog, mensagem, status) {
