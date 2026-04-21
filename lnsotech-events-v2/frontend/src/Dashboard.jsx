@@ -41,7 +41,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   }, [token, headers]);
 
   // 3. Estados de UI
-  const [activeTab, setActiveTab] = useState('dashboard'); 
+  const [activeTab, setActiveTab] = useState(rawUser?.nivel_acesso === 'leitor' ? 'calendario' : 'dashboard'); 
   const [configSubTab, setConfigSubTab] = useState('geral');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1975,10 +1975,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           <span>LNSOTECH</span>
         </div>
         <nav className="nav-menu">
-          <div className={`nav-item ${activeTab==='dashboard'?'active':''}`} onClick={()=>changeTab('dashboard')}><span>📊</span><span>Dashboard</span></div>
-          <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>changeTab('eventos')}><span>👥</span><span>Eventos</span></div>
+          {canEdit && <div className={`nav-item ${activeTab==='dashboard'?'active':''}`} onClick={()=>changeTab('dashboard')}><span>📊</span><span>Dashboard</span></div>}
+          {canEdit && <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>changeTab('eventos')}><span>👥</span><span>Eventos</span></div>}
           <div className={`nav-item ${activeTab==='calendario'?'active':''}`} onClick={()=>changeTab('calendario')}><span>📅</span><span>Calendário</span></div>
-          <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>changeTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>
+          {canEdit && <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>changeTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>}
           {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>changeTab('logs')}><span>📖</span><span>Histórico</span></div>}
           {(isAdmin || isEditor) && <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>changeTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>}
         </nav>
@@ -2026,12 +2026,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           }</h2>
           <p className="page-subtitle">LNSOTECH Automation CRM — {user.nivel_acesso?.toUpperCase()}</p>
           
-          {activeTab === 'dashboard' && renderDashboard()}
-          {activeTab === 'eventos' && renderEventos()}
+          {canEdit && activeTab === 'dashboard' && renderDashboard()}
+          {canEdit && activeTab === 'eventos' && renderEventos()}
           {activeTab === 'calendario' && renderCalendario()}
-          {activeTab === 'grupos' && renderGrupos()}
-          {activeTab === 'logs' && renderLogs()}
-          {activeTab === 'configuracoes' && renderConfig()}
+          {canEdit && activeTab === 'grupos' && renderGrupos()}
+          {isAdmin && activeTab === 'logs' && renderLogs()}
+          {(isAdmin || isEditor) && activeTab === 'configuracoes' && renderConfig()}
         </div>
       </main>
 
