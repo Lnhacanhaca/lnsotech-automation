@@ -21,9 +21,11 @@ class BotService {
             try { await global.waSocket.logout(); } catch(e) {}
         }
         
-        global.waState = { qr: null, status: 'a_reconectar', lastUpdate: new Date().toISOString() };
+        // Define status IMEDIATO antes de sair
+        global.waState = { qr: null, status: 'reiniciando', lastUpdate: new Date().toISOString() };
         
-        setTimeout(() => { process.exit(0); }, 2000);
+        console.log("♻️ [Reset] Sessão apagada. Reiniciando o processo do bot...");
+        setTimeout(() => { process.exit(0); }, 1000);
     }
 
     async listarGrupos() {

@@ -13,17 +13,21 @@ export const useBotStatus = (token, activeTab) => {
             if (res.ok) {
                 const data = await res.json();
                 setStatus(data);
+            } else {
+                // Se o servidor responder erro, provavelmente está a reiniciar
+                setStatus(prev => ({ ...prev, status: 'sincronizando...' }));
             }
         } catch (err) {
-            console.error('Erro status WP', err);
+            // Se falhar a conexão, o bot está off ou a subir
+            setStatus(prev => ({ ...prev, status: 'conectando...' }));
         }
-    }, [token]);
+    }, [token, headers]);
 
     useEffect(() => {
         let interval;
-        if (activeTab === 'grupos') {
+        if (activeTab === 'grupos' || activeTab === 'configuracoes' || activeTab === 'dashboard') {
             fetchStatus();
-            interval = setInterval(fetchStatus, 5000);
+            interval = setInterval(fetchStatus, 3000);
         }
         return () => clearInterval(interval);
     }, [activeTab, fetchStatus]);
