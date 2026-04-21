@@ -1183,60 +1183,65 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                   </td>
                   <td>
                     <div className="toolbar-buttons" style={{justifyContent:'flex-end'}}>
-                      <button 
-                        onClick={async () => {
-                            const isNowMuted = !g.isMuted;
-                            if (isNowMuted) setMutedGroups(prev => [...prev, g.id]);
-                            else setMutedGroups(prev => prev.filter(id => id !== g.id));
+                      {canEdit && (
+                        <>
+                          <button 
+                            onClick={async () => {
+                                const isNowMuted = !g.isMuted;
+                                if (isNowMuted) setMutedGroups(prev => [...prev, g.id]);
+                                else setMutedGroups(prev => prev.filter(id => id !== g.id));
 
-                            try {
-                                await fetch(`${apiBase}/api/auth/grupos/toggle-mute`, {
-                                    method: 'POST',
-                                    headers: jsonHeaders,
-                                    body: JSON.stringify({ grupo_id: g.id, nome: g.nome, is_muted: isNowMuted })
+                                try {
+                                    await fetch(`${apiBase}/api/auth/grupos/toggle-mute`, {
+                                        method: 'POST',
+                                        headers: jsonHeaders,
+                                        body: JSON.stringify({ grupo_id: g.id, nome: g.nome, is_muted: isNowMuted })
+                                    });
+                                    refreshData(); 
+                                } catch (e) {
+                                    console.error('Erro ao sincronizar mute:', e);
+                                }
+
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'success',
+                                    title: `Grupo ${isNowMuted ? 'Desconectado 📵' : 'Reativado 🔌'}!`,
+                                    showConfirmButton: false,
+                                    timer: 3000,
+                                    timerProgressBar: true,
+                                    background: isNowMuted ? '#ef4444' : '#10b981',
+                                    color: '#fff'
                                 });
-                                refreshData(); 
-                            } catch (e) {
-                                console.error('Erro ao sincronizar mute:', e);
-                            }
-
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'success',
-                                title: `Grupo ${isNowMuted ? 'Desconectado 📵' : 'Reativado 🔌'}!`,
-                                showConfirmButton: false,
-                                timer: 3000,
-                                timerProgressBar: true,
-                                background: isNowMuted ? '#ef4444' : '#10b981',
-                                color: '#fff'
-                            });
-                        }} 
-                        className="btn-submit" 
-                        style={{padding:'0.4rem 1rem', fontSize:'0.8rem', background: g.isMuted ? '#10b981' : '#ef4444', width:'auto'}}
-                      >
-                        {g.isMuted ? '🔌 Conectar' : '📵 Desconectar'}
-                      </button>
+                            }} 
+                            className="btn-submit" 
+                            style={{padding:'0.4rem 1rem', fontSize:'0.8rem', background: g.isMuted ? '#10b981' : '#ef4444', width:'auto'}}
+                          >
+                            {g.isMuted ? '🔌 Conectar' : '📵 Desconectar'}
+                          </button>
+                          
+                          <button onClick={() => {
+                            const copiar = (texto) => {
+                              navigator.clipboard.writeText(texto).then(() => {
+                                Swal.fire({
+                                    toast: true,
+                                    position: 'top-end',
+                                    icon: 'success',
+                                    title: '📋 ID Copiado!',
+                                    showConfirmButton: false,
+                                    timer: 4000,
+                                    timerProgressBar: true,
+                                    background: '#475569',
+                                    color: '#fff',
+                                    iconColor: '#fff'
+                                });
+                              });
+                            };
+                            copiar(g.id);
+                          }} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem',background:'#475569'}}>📋 ID</button>
+                        </>
+                      )}
                       {isAdmin && <button onClick={()=>handleTesteConexao(g.id, g.nome)} className="btn-submit" style={{padding:'0.4rem 1rem', fontSize:'0.8rem', background:'var(--info)', width:'auto'}}>🤖 Testar</button>}
-                      <button onClick={() => {
-                        const copiar = (texto) => {
-                          navigator.clipboard.writeText(texto).then(() => {
-                            Swal.fire({
-                                toast: true,
-                                position: 'top-end',
-                                icon: 'success',
-                                title: '📋 ID Copiado!',
-                                showConfirmButton: false,
-                                timer: 4000,
-                                timerProgressBar: true,
-                                background: '#475569',
-                                color: '#fff',
-                                iconColor: '#fff'
-                            });
-                          });
-                        };
-                        copiar(g.id);
-                      }} className="btn-submit" style={{padding:'0.3rem 0.6rem',fontSize:'0.75rem',background:'#475569'}}>📋 ID</button>
                     </div>
                   </td>
                 </tr>
@@ -1975,7 +1980,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           <div className={`nav-item ${activeTab==='calendario'?'active':''}`} onClick={()=>changeTab('calendario')}><span>📅</span><span>Calendário</span></div>
           <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>changeTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>
           {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>changeTab('logs')}><span>📖</span><span>Histórico</span></div>}
-          <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>changeTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>
+          {(isAdmin || isEditor) && <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>changeTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>}
         </nav>
         <div className="sidebar-footer" style={{padding:'1rem', borderTop:'1px solid #1e293b', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
           <div style={{display:'flex', alignItems:'center', gap:'0.8rem'}}>
