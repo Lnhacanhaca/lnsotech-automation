@@ -1,7 +1,8 @@
 name: LNSOTECH Deploy & Backup
 
 on:
-  workflow_dispatch: # Permite disparar manualmente se necessário
+  push:
+    branches: [main]
 
 jobs:
   deploy:
