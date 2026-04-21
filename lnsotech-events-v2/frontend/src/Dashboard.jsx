@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import Swal from 'sweetalert2';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -95,6 +95,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [newUserTipos, setNewUserTipos] = useState([]);
   const [editingUserId, setEditingUserId] = useState(null);
   const [editUserForm, setEditUserForm] = useState({ nome: '', email: '', senha: '', nivel_acesso: 'leitor', grupos_permitidos: [], tipos_permitidos: [] });
+  
+  const [logsAuditoria, setLogsAuditoria] = useState([]);
 
   const [filterGroup, setFilterGroup] = useState(null);
   const [filterType, setFilterType] = useState(null);
@@ -280,6 +282,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               if (resLogs.ok) setLogs(await resLogs.json());
               const resBkps = await fetch(`${apiBase}/api/auth/backups`, { headers });
               if (resBkps.ok) setBackups(await resBkps.json());
+              const resAuditoria = await fetch(`${apiBase}/api/auth/auditoria`, { headers });
+              if (resAuditoria.ok) setLogsAuditoria(await resAuditoria.json());
               fetchConfigs();
           }
       } catch (e) { console.error(e); }
@@ -785,14 +789,18 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     ].filter(d => d.value > 0);
     const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
     
-    // 2. Data for BarChart (Events by Month)
-    const monthCounts = Array(12).fill(0);
-    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    // 2. Data for Comparative LineChart (Events by Month)
+    const monthData = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map(m => ({ name: m, Aniversários: 0, Casamentos: 0, Outros: 0 }));
+    
     eventos.forEach(ev => {
         const m = new Date(ev.data_evento).getMonth();
-        if(!isNaN(m)) monthCounts[m]++;
+        if(!isNaN(m)) {
+             const t = (ev.tipo_evento || '').toLowerCase();
+             if(t.includes('anivers')) monthData[m].Aniversários++;
+             else if(t.includes('casament') || t.includes('boda')) monthData[m].Casamentos++;
+             else monthData[m].Outros++;
+        }
     });
-    const barData = monthNames.map((m, i) => ({ name: m, Eventos: monthCounts[i] }));
 
     return (
     <>
@@ -816,25 +824,22 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       {/* SECTION: GRÁFICOS COMPARATIVOS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
         <div className="panel-card" style={{ minHeight: '350px' }}>
-          <div className="panel-title" style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>📊 Distribuição Anual <span className="text-muted" style={{fontWeight:400, fontSize:'0.7rem'}}>(Eventos por Mês)</span></div>
+          <div className="panel-title" style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>📈 Evolução Comparativa <span className="text-muted" style={{fontWeight:400, fontSize:'0.7rem'}}>(Casamentos vs Aniversários)</span></div>
           <div style={{ width: '100%', height: 280, marginTop:'1rem' }}>
             <ResponsiveContainer>
-              <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                  </linearGradient>
-                </defs>
+              <LineChart data={monthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: 'var(--text-secondary)'}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: 'var(--text-secondary)'}} />
                 <Tooltip 
-                  cursor={{fill: 'var(--bg)'}} 
+                  cursor={{stroke: 'var(--border)', strokeWidth: 2}} 
                   contentStyle={{borderRadius: '12px', background:'var(--surface)', border: '1px solid var(--border)', color:'var(--text)', boxShadow: 'var(--shadow-md)'}} 
                 />
-                <Bar dataKey="Eventos" fill="url(#barGradient)" radius={[6, 6, 0, 0]} barSize={24} />
-              </BarChart>
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '0.8rem', paddingTop: '10px' }} />
+                <Line type="bump" dataKey="Aniversários" stroke="#3b82f6" strokeWidth={3} dot={{r:4, strokeWidth:2}} activeDot={{r: 6}} />
+                <Line type="bump" dataKey="Casamentos" stroke="#10b981" strokeWidth={3} dot={{r:4, strokeWidth:2}} activeDot={{r: 6}} />
+                <Line type="stepAfter" dataKey="Outros" stroke="#94a3b8" strokeWidth={2} dot={false} opacity={0.6}/>
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -1639,7 +1644,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             <div style={subTabStyle(configSubTab==='geral')} onClick={()=>setConfigSubTab('geral')}>⚙️ Geral</div>
             <div style={subTabStyle(configSubTab==='automacao')} onClick={()=>setConfigSubTab('automacao')}>🤖 Automação</div>
             <div style={subTabStyle(configSubTab==='personalizacao')} onClick={()=>setConfigSubTab('personalizacao')}>🎨 Personalização</div>
-            {isAdmin && <div style={subTabStyle(configSubTab==='seguranca')} onClick={()=>setConfigSubTab('seguranca')}>🛡️ Segurança</div>}
+            {isAdmin && <div style={subTabStyle(configSubTab==='seguranca')} onClick={()=>setConfigSubTab('seguranca')}>🛡️ Segurança & Acesso</div>}
+            {isAdmin && <div style={subTabStyle(configSubTab==='auditoria')} onClick={()=>setConfigSubTab('auditoria')}>🕵️ Auditoria (Logs)</div>}
         </div>
 
         <div className="tab-content" key={configSubTab}>
@@ -1870,6 +1876,38 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                                       </td>
                                     </tr>
                                   ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {configSubTab === 'auditoria' && isAdmin && (
+                <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', animation: 'fadeIn 0.3s'}}>
+                    <div className="panel-card">
+                        <div className="panel-title" style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>🕵️ Log de Atividades da Equipa</div>
+                        <p className="text-muted" style={{fontSize:'0.85rem'}}>Acompanhe aqui todas as criações, edições e remoções de eventos feitas pelos utilizadores do sistema. Os registos são imutáveis.</p>
+                        
+                        <div className="table-responsive" style={{marginTop:'1.5rem'}}>
+                            <table className="table-minimal">
+                                <thead><tr><th>Ocorrente</th><th>Ação</th><th>Detalhes</th><th>Tempo (UTC)</th></tr></thead>
+                                <tbody>
+                                    {logsAuditoria.length === 0 ? (
+                                        <tr><td colSpan="4" style={{textAlign:'center', padding:'2rem', color:'#94a3b8'}}>Nenhuma atividade registada.</td></tr>
+                                    ) : logsAuditoria.map(log => (
+                                        <tr key={log.id}>
+                                            <td style={{fontWeight:600}}>{log.nome_usuario} <span className="text-muted" style={{fontWeight:400, fontSize:'0.7rem'}}>ID:{log.usuario_id || '?'}</span></td>
+                                            <td>
+                                                <span className="badge-tipo" style={{
+                                                    background: log.acao === 'CRIAR' ? '#dcfce7' : log.acao === 'REMOVER' ? '#fee2e2' : log.acao==='IMPORTAR' ? '#fef3c7' : '#e0f2fe',
+                                                    color: log.acao === 'CRIAR' ? '#166534' : log.acao === 'REMOVER' ? '#991b1b' : log.acao==='IMPORTAR' ? '#92400e' : '#075985'
+                                                }}>{log.acao} {log.entidade}</span>
+                                            </td>
+                                            <td style={{fontSize:'0.8rem', color:'#475569'}}>{log.detalhes}</td>
+                                            <td className="text-muted" style={{fontSize:'0.8rem'}}>{new Date(log.data_hora).toLocaleString('pt-PT')}</td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>

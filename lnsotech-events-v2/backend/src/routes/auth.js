@@ -25,7 +25,8 @@ const upload = multer({ storage });
 router.post('/login', AuthController.login);
 router.get('/me', verificarToken, AuthController.me);
 
-// ========== GESTÃO DE USUÁRIOS (Admin) ========== //
+// ========== GESTÃO DE USUÁRIOS & AUDITORIA (Admin) ========== //
+router.get('/auditoria', AuthController.getLogsAuditoria);
 router.get('/usuarios', AuthController.listUsers);
 router.post('/usuarios', AuthController.createUser);
 router.put('/usuarios/:id', AuthController.updateUser);

@@ -1,5 +1,6 @@
 const AuthService = require('../services/AuthService');
 const UserService = require('../services/UserService');
+const AuditService = require('../services/AuditService');
 
 class AuthController {
     async login(req, res) {
@@ -25,6 +26,15 @@ class AuthController {
         res.json(req.usuarioLogado);
     }
 
+    async getLogsAuditoria(req, res) {
+        try {
+            const logs = await AuditService.obterLogs(200);
+            res.json(logs);
+        } catch (err) {
+            res.status(500).json({ erro: 'Falha ao buscar logs' });
+        }
+    }
+
     // Gestão de Usuários
     async listUsers(req, res) {
         try {
@@ -38,6 +48,7 @@ class AuthController {
     async createUser(req, res) {
         try {
             await UserService.criar(req.body);
+            await AuditService.log(req.usuarioLogado?.id, req.usuarioLogado?.nome, 'CRIAR', 'Utilizador', `Criou o utilizador ${req.body.email} (${req.body.nivel_acesso})`);
             res.status(201).json({ mensagem: 'Usuário registado com sucesso' });
         } catch (err) {
             res.status(500).json({ erro: 'O email já existe ou erro interno.' });
@@ -47,6 +58,7 @@ class AuthController {
     async updateUser(req, res) {
         try {
             await UserService.atualizar(req.params.id, req.body);
+            await AuditService.log(req.usuarioLogado?.id, req.usuarioLogado?.nome, 'ATUALIZAR', 'Utilizador', `Atualizou o utilizador ID: ${req.params.id} (${req.body.email})`);
             res.json({ mensagem: 'Utilizador atualizado' });
         } catch (err) {
             res.status(500).json({ erro: 'Falha ao atualizar utilizador' });
@@ -56,6 +68,7 @@ class AuthController {
     async deleteUser(req, res) {
         try {
             await UserService.eliminar(req.params.id);
+            await AuditService.log(req.usuarioLogado?.id, req.usuarioLogado?.nome, 'REMOVER', 'Utilizador', `Apagou o utilizador ID: ${req.params.id}`);
             res.json({ mensagem: 'Utilizador removido' });
         } catch (err) {
             if (err.message === 'ROOT_PROTECTED') return res.status(403).json({ erro: 'Não podes apagar o Super Admin!' });

@@ -25,6 +25,16 @@ class DatabaseService {
                     ALTER TABLE usuarios ADD COLUMN tipos_permitidos JSONB DEFAULT '[]'::jsonb;
                 END IF;
             END $$;
+
+            CREATE TABLE IF NOT EXISTS auditoria (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                nome_usuario VARCHAR(255),
+                acao VARCHAR(50),
+                entidade VARCHAR(50),
+                detalhes TEXT,
+                data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         `);
 
         // Configurações iniciais

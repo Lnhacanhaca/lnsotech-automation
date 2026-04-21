@@ -1,5 +1,6 @@
 const EventoService = require('../services/EventoService');
 const EventoRepository = require('../repositories/EventoRepository');
+const AuditService = require('../services/AuditService');
 
 class EventoController {
     async getStats(req, res) {
@@ -43,6 +44,7 @@ class EventoController {
     async create(req, res) {
         try {
             const id = await EventoService.criarEvento(req.body);
+            await AuditService.log(req.usuarioLogado?.id, req.usuarioLogado?.nome, 'CRIAR', 'Evento', `Criou evento de ${req.body.nomes_principais || 'N/A'}`);
             res.status(201).json({ mensagem: 'Evento criado com sucesso', id });
         } catch (err) {
             res.status(500).json({ erro: 'Erro ao salvar: ' + err.message });
@@ -54,6 +56,7 @@ class EventoController {
             const { id } = req.params;
             const { usuario_id } = req.body;
             await EventoService.atualizarEvento(id, req.body, usuario_id);
+            await AuditService.log(req.usuarioLogado?.id, req.usuarioLogado?.nome, 'ATUALIZAR', 'Evento', `Atualizou evento ID: ${id}`);
             res.json({ mensagem: 'Evento atualizado com sucesso' });
         } catch (err) {
             res.status(err.message === 'Evento não encontrado' ? 404 : 500).json({ erro: err.message });
@@ -63,6 +66,7 @@ class EventoController {
     async delete(req, res) {
         try {
             await EventoService.eliminarEvento(req.params.id);
+            await AuditService.log(req.usuarioLogado?.id, req.usuarioLogado?.nome, 'REMOVER', 'Evento', `Apagou o evento ID: ${req.params.id}`);
             res.json({ mensagem: 'Evento apagado com sucesso' });
         } catch (err) {
             res.status(500).json({ erro: 'Erro interno ao deletar evento' });
@@ -85,6 +89,9 @@ class EventoController {
             const result = await EventoService.importarCSV(req.file.path);
             const fs = require('fs');
             fs.unlinkSync(req.file.path); // Limpar arquivo temporário
+            
+            await AuditService.log(req.usuarioLogado?.id, req.usuarioLogado?.nome, 'IMPORTAR', 'Evento', `Realizou importação CSV. Importados: ${result.imported}, Erros: ${result.errors}`);
+
             res.json({ 
                 mensagem: `Importação concluída: ${result.imported} registos importados, ${result.errors} erros.`, 
                 ...result 
