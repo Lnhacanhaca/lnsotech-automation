@@ -15,6 +15,8 @@ const qrcodeTerminal = require('qrcode-terminal');
 const QRCode = require('qrcode');
 const PDFDocument = require('pdfkit');
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Estado global da conexão WhatsApp
 global.waState = { qr: null, status: 'desconectado', lastUpdate: null };
 
@@ -562,16 +564,16 @@ async function executarLembretes(sock, manual = false) {
                 await registarLog(evento.id, evento.grupo_id, manual ? 'teste_manual' : 'lembrete_enviado', mensagem, 'sucesso');
                 console.log(`✅ Enviado para: ${evento.nomes_principais} (Grupo: ${evento.grupo_id})`);
                 
-                // ESPERAR 5 a 10 SEGUNDOS ENTRE ENVIOS (conforme ordem de criação)
-                if (res.rows.length > 1) {
-                    const delay = Math.floor(Math.random() * 5000) + 5000; // Entre 5 e 10 segundos
-                    await sleep(delay);
+                enviados++;
+
+                // AGUARDAR 5 SEGUNDOS ANTES DA PRÓXIMA (evita queda de conexão)
+                if (res.rows.indexOf(evento) < res.rows.length - 1) {
+                    await sleep(5000);
                 }
             } catch (sendErr) {
-        await registarLog(evento.id, evento.grupo_id, 'lembrete_falha', sendErr.message, 'falha');
+                await registarLog(evento.id, evento.grupo_id, 'lembrete_falha', sendErr.message, 'falha');
                 console.error(`❌ Falha ao enviar para ${evento.grupo_id}:`, sendErr.message);
             }
-            enviados++;
         }
         return enviados;
     } catch (err) {
