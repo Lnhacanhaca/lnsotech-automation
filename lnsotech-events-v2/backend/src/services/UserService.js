@@ -7,9 +7,9 @@ class UserService {
     }
 
     async criar(dados) {
-        const { nome, email, senha, nivel_acesso } = dados;
+        const { nome, email, senha, nivel_acesso, grupos_permitidos, tipos_permitidos } = dados;
         const hashedPassword = await bcrypt.hash(senha, 10);
-        await UserRepository.create(nome, email, hashedPassword, nivel_acesso);
+        await UserRepository.create(nome, email, hashedPassword, nivel_acesso, grupos_permitidos, tipos_permitidos);
     }
 
     async atualizar(id, dados) {

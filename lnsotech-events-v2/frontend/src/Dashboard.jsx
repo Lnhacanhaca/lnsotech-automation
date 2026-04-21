@@ -91,8 +91,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserSenha, setNewUserSenha] = useState('');
   const [newUserRole, setNewUserRole] = useState('leitor');
+  const [newUserGrupos, setNewUserGrupos] = useState([]);
+  const [newUserTipos, setNewUserTipos] = useState([]);
   const [editingUserId, setEditingUserId] = useState(null);
-  const [editUserForm, setEditUserForm] = useState({ nome: '', email: '', senha: '', nivel_acesso: 'leitor' });
+  const [editUserForm, setEditUserForm] = useState({ nome: '', email: '', senha: '', nivel_acesso: 'leitor', grupos_permitidos: [], tipos_permitidos: [] });
 
   const [filterGroup, setFilterGroup] = useState(null);
   const [filterType, setFilterType] = useState(null);
@@ -364,11 +366,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       const r = await fetch(`${apiBase}/api/auth/usuarios`, {
         method: 'POST',
         headers: jsonHeaders,
-        body: JSON.stringify({ nome: newUserNome, email: newUserEmail, senha: newUserSenha, nivel_acesso: newUserRole })
+        body: JSON.stringify({ nome: newUserNome, email: newUserEmail, senha: newUserSenha, nivel_acesso: newUserRole, grupos_permitidos: newUserGrupos, tipos_permitidos: newUserTipos })
       });
       if (r.ok) {
         toast.success('Utilizador criado!');
-        setNewUserNome(''); setNewUserEmail(''); setNewUserSenha('');
+        setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserGrupos([]); setNewUserTipos([]);
         fetchData();
       } else { const d = await r.json(); toast.error(d.erro || 'Falha ao criar'); }
     } catch (e) { toast.error('Erro de rede'); }
@@ -646,7 +648,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const startEditUser = (u) => {
     setEditingUserId(u.id);
-    setEditUserForm({ nome: u.nome, email: u.email, senha: '', nivel_acesso: u.nivel_acesso });
+    let gp = [], tp = [];
+    try { gp = typeof u.grupos_permitidos === 'string' ? JSON.parse(u.grupos_permitidos) : (u.grupos_permitidos || []); } catch(e){}
+    try { tp = typeof u.tipos_permitidos === 'string' ? JSON.parse(u.tipos_permitidos) : (u.tipos_permitidos || []); } catch(e){}
+    setEditUserForm({ nome: u.nome, email: u.email, senha: '', nivel_acesso: u.nivel_acesso, grupos_permitidos: gp, tipos_permitidos: tp });
   };
 
   const handleUpdateUser = async () => {
@@ -1347,6 +1352,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     
     // Eventos do mês (aniversario anual - mesmo dia e mês)
     const getEventosForDay = (day) => eventos.filter(ev => {
+      // 1. Filtro de Segurança para Leitores (se não for admin/editor, tem restrições)
+      if (!canEdit) {
+         const tipoPermitido = user.tipos_permitidos?.includes(ev.tipo_evento);
+         const grupoPermitido = user.grupos_permitidos?.includes(ev.grupo_id);
+         if (!tipoPermitido || !grupoPermitido) return false;
+      }
+
       const d = new Date(ev.data_evento);
       return d.getDate() === day && d.getMonth() === calMonth;
     });
@@ -1749,11 +1761,23 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                                             </td>
                                             <td>
                                                 {editingUserId === u.id ? (
-                                                    <select className="inline-input" value={editUserForm.nivel_acesso} onChange={e=>setEditUserForm({...editUserForm, nivel_acesso: e.target.value})} style={{fontSize:'0.8rem'}}>
-                                                        <option value="leitor">LEITOR</option>
-                                                        <option value="editor">EDITOR</option>
-                                                        <option value="admin">ADMIN</option>
-                                                    </select>
+                                                    <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                                                        <select className="inline-input" value={editUserForm.nivel_acesso} onChange={e=>setEditUserForm({...editUserForm, nivel_acesso: e.target.value})} style={{fontSize:'0.8rem'}}>
+                                                            <option value="leitor">LEITOR</option>
+                                                            <option value="editor">EDITOR</option>
+                                                            <option value="admin">ADMIN</option>
+                                                        </select>
+                                                        {editUserForm.nivel_acesso === 'leitor' && (
+                                                            <div style={{display:'flex', gap:'0.4rem'}}>
+                                                                <select multiple className="inline-input" value={editUserForm.tipos_permitidos} onChange={e=>setEditUserForm({...editUserForm, tipos_permitidos: Array.from(e.target.selectedOptions, o=>o.value)})} style={{fontSize:'0.7rem', flex:1}} title="Tipos (Ctrl/Cmd para vários)">
+                                                                    {tiposEvento.map(t => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}
+                                                                </select>
+                                                                <select multiple className="inline-input" value={editUserForm.grupos_permitidos} onChange={e=>setEditUserForm({...editUserForm, grupos_permitidos: Array.from(e.target.selectedOptions, o=>o.value)})} style={{fontSize:'0.7rem', flex:1}} title="Grupos (Ctrl/Cmd para vários)">
+                                                                    {grupos.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
+                                                                </select>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 ) : (
                                                     <span className="badge-tipo" style={{background:'#f1f5f9', color:'#475569'}}>{u.nivel_acesso.toUpperCase()}</span>
                                                 )}
@@ -1791,6 +1815,23 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                                 </select>
                                 <button onClick={handleCreateUsuario} className="btn-submit" style={{padding:'0.4rem 1rem'}}>Criar</button>
                             </div>
+                            
+                            {newUserRole === 'leitor' && (
+                                <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
+                                    <div style={{flex:1}}>
+                                        <label style={{fontSize:'0.75rem', fontWeight:600}}>Tipos de Evento Permitidos (Ctrl/Cmd para múltipla seleção)</label>
+                                        <select multiple className="inline-input" value={newUserTipos} onChange={e=>setNewUserTipos(Array.from(e.target.selectedOptions, o=>o.value))} style={{width:'100%', minHeight:'60px'}}>
+                                            {tiposEvento.map(t => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}
+                                        </select>
+                                    </div>
+                                    <div style={{flex:1}}>
+                                        <label style={{fontSize:'0.75rem', fontWeight:600}}>Grupos Permitidos (Ctrl/Cmd para múltipla seleção)</label>
+                                        <select multiple className="inline-input" value={newUserGrupos} onChange={e=>setNewUserGrupos(Array.from(e.target.selectedOptions, o=>o.value))} style={{width:'100%', minHeight:'60px'}}>
+                                            {grupos.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

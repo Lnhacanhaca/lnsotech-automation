@@ -35,12 +35,27 @@ class AuthService {
         await UserRepository.resetLoginAttempts(usuario.id);
 
         const token = jwt.sign(
-            { id: usuario.id, nome: usuario.nome, nivel_acesso: usuario.nivel_acesso },
+            { 
+                id: usuario.id, 
+                nome: usuario.nome, 
+                nivel_acesso: usuario.nivel_acesso,
+                grupos_permitidos: usuario.grupos_permitidos || '[]',
+                tipos_permitidos: usuario.tipos_permitidos || '[]'
+            },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
 
-        return { token, usuario: { id: usuario.id, nome: usuario.nome, nivel_acesso: usuario.nivel_acesso } };
+        return { 
+            token, 
+            usuario: { 
+                id: usuario.id, 
+                nome: usuario.nome, 
+                nivel_acesso: usuario.nivel_acesso,
+                grupos_permitidos: usuario.grupos_permitidos || '[]',
+                tipos_permitidos: usuario.tipos_permitidos || '[]'
+            } 
+        };
     }
 
     verificarToken(token) {

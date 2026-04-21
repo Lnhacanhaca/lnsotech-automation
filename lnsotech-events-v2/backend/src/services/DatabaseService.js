@@ -18,6 +18,12 @@ class DatabaseService {
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='usuarios' AND column_name='bloqueado_ate') THEN
                     ALTER TABLE usuarios ADD COLUMN bloqueado_ate TIMESTAMP;
                 END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='usuarios' AND column_name='grupos_permitidos') THEN
+                    ALTER TABLE usuarios ADD COLUMN grupos_permitidos JSONB DEFAULT '[]'::jsonb;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='usuarios' AND column_name='tipos_permitidos') THEN
+                    ALTER TABLE usuarios ADD COLUMN tipos_permitidos JSONB DEFAULT '[]'::jsonb;
+                END IF;
             END $$;
         `);
 
