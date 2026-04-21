@@ -48,6 +48,16 @@ class BackupController {
             res.status(500).json({ erro: 'Erro ao apagar backup' });
         }
     }
+
+    async uploadRestore(req, res) {
+        try {
+            if (!req.file) throw new Error('Nenhum ficheiro enviado');
+            await BackupService.restaurarBackup(req.file.filename);
+            res.json({ mensagem: 'Backup enviado e restaurado com sucesso!' });
+        } catch (err) {
+            res.status(500).json({ erro: 'Erro ao fazer upload ou restaurar', detalhes: err.message });
+        }
+    }
 }
 
 module.exports = new BackupController();

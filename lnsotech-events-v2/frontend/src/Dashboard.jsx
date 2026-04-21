@@ -320,6 +320,42 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     }
   };
 
+  const handleUploadRestore = async (file) => {
+    if (!file) return;
+    const confirm = await Swal.fire({ 
+        title: 'Fazer Upload e Restaurar?', 
+        text: 'Este ficheiro será enviado para o servidor e restaurado IMEDIATAMENTE. Deseja continuar?', 
+        icon: 'warning', 
+        showCancelButton: true, 
+        confirmButtonText: 'Sim, subir e restaurar' 
+    });
+    
+    if (confirm.isConfirmed) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        Swal.fire({ title: '📤 Enviando ficheiro...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        
+        try {
+            const res = await fetch(`${apiBase}/api/auth/backups/upload`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }, // Form Data não leva JSON headers
+                body: formData
+            });
+            
+            if (res.ok) {
+                await Swal.fire({ title: 'Sucesso!', text: 'Backup enviado e restaurado!', icon: 'success' });
+                window.location.reload();
+            } else {
+                const d = await res.json();
+                Swal.fire('Erro', d.erro || 'Falha no upload/restauro', 'error');
+            }
+        } catch (e) {
+            Swal.fire('Erro', 'Erro de conexão.', 'error');
+        }
+    }
+  };
+
   const handleExportCSV = () => window.open(`${apiBase}/api/eventos?exportCsv=true`, '_blank');
 
   const handleCreateUsuario = async () => {
@@ -1756,7 +1792,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                     <div className="panel-card">
                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                             <div className="panel-title">🗄️ Base de Dados & Backups</div>
-                            <button onClick={async () => { Swal.fire({ title: '📦 Gerando Backup...', allowOutsideClick: false, didOpen: () => Swal.showLoading() }); const r = await fetch(`${apiBase}/api/auth/backups/gerar`, { method: 'POST', headers }); if (r.ok) { Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Backup!', showConfirmButton: false, timer: 3000, background: '#10b981', color: '#fff' }); fetchData(); } }} className="btn-submit" style={{background:'#6366f1'}}>➕ Backup</button>
+                            <div style={{display:'flex', gap:'0.5rem'}}>
+                                <input type="file" id="upload-backup" style={{display:'none'}} onChange={e => handleUploadRestore(e.target.files[0])} />
+                                <button onClick={() => document.getElementById('upload-backup').click()} className="btn-submit" style={{background:'#f59e0b', fontSize:'0.8rem'}}>📤 Upload e Restaurar</button>
+                                <button onClick={async () => { Swal.fire({ title: '📦 Gerando Backup...', allowOutsideClick: false, didOpen: () => Swal.showLoading() }); const r = await fetch(`${apiBase}/api/auth/backups/gerar`, { method: 'POST', headers }); if (r.ok) { Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Backup!', showConfirmButton: false, timer: 3000, background: '#10b981', color: '#fff' }); fetchData(); } }} className="btn-submit" style={{background:'#6366f1', fontSize:'0.8rem'}}>➕ Gerar Backup</button>
+                            </div>
                         </div>
                         <div className="table-responsive" style={{marginTop:'1.5rem'}}>
                             <table className="table-minimal">

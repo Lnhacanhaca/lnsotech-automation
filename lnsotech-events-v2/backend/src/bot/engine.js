@@ -163,7 +163,6 @@ async function connectToWhatsApp() {
     const sock = makeWASocket({
         version,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true,
         auth: state,
         generateHighQualityLinkPreview: true,
     });
@@ -183,13 +182,17 @@ async function connectToWhatsApp() {
         }
 
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('[Connection] Conexão encerrada pelo motivo:', lastDisconnect.error, ', deve reconectar:', shouldReconnect);
+            const statusCode = (lastDisconnect.error)?.output?.statusCode;
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+            
+            console.log(`[Connection] Conexão encerrada (Status: ${statusCode}). Reconectando: ${shouldReconnect}`);
             
             if (shouldReconnect) {
-                connectToWhatsApp();
+                // Se for erro 428 (Precondition Required), aguardar um pouco mais
+                const delay = statusCode === 428 ? 5000 : 2000;
+                setTimeout(() => connectToWhatsApp(), delay);
             } else {
-                console.log('[Connection] Utilizador desconectou-se. Apague a pasta auth_info_baileys e reinicie para ler um novo QR Code.');
+                console.log('[Connection] Utilizador desconectou-se. Elimine a pasta auth_info_baileys para ler um novo QR.');
             }
         } else if (connection === 'open') {
             global.waSocket = sock; // GUARDAR SOCKET GLOBALMENTE PARA O PAINEL PODER TESTAR
