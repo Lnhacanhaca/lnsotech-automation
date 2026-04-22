@@ -110,6 +110,18 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [bots, setBots] = useState([]);
   const [botsLoading, setBotsLoading] = useState(false);
   const [analyticsData, setAnalyticsData] = useState({ stats: { logs: [], bots: [] }, predictions: [] });
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [tempTemplateMsg, setTempTemplateMsg] = useState('');
+
+  const renderLivePreview = (text) => {
+    if (!text) return '';
+    return text
+        .replace(/{nomes}/g, 'Ana & Pedro')
+        .replace(/{anos}/g, '12')
+        .replace(/{tipo}/g, 'Casamento')
+        .replace(/{bodas}/g, 'Seda ou Ônix')
+        .replace(/{significado}/g, 'Simboliza a suavidade, a sofisticação e a proteção mútua.');
+  };
 
   const today = new Date();
   const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -2166,15 +2178,135 @@ const renderMultiBot = () => {
                       </div>
                     </div>
 
-                    <div className="panel-card">
-                      <div className="panel-title">📝 Templates de Mensagem</div>
-                      {templates.map(t => (
-                        <div key={t.id} style={{marginBottom:'1rem', padding:'1rem', background:'#f8fafc', borderRadius:'8px', border:'1px solid #eee'}}>
-                          <div style={{fontWeight:700, marginBottom:'0.4rem', fontSize:'0.85rem'}}>{t.tipo_evento.toUpperCase()}</div>
-                          <textarea className="inline-input" style={{width:'100%', minHeight:'50px', background:'#fff', fontSize:'0.85rem'}} defaultValue={t.mensagem} onBlur={(e) => handleUpdateTemplate(t.id, e.target.value)} />
+                    <div className="panel-card" style={{gridColumn: '1 / -1'}}>
+                      <div className="panel-title" style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>📝 Live Template Editor & Preview</div>
+                      <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.5rem'}}>Configure como as mensagens automáticas são enviadas. Use as variáveis dinâmicas para personalizar cada envio.</p>
+                      
+                      <div className="template-editor-layout">
+                        <div className="editor-controls">
+                          <div style={{display:'flex', gap:'0.5rem', marginBottom:'1rem', overflowX:'auto', paddingBottom:'5px'}}>
+                            {templates.map(t => (
+                              <button 
+                                key={t.id} 
+                                onClick={() => {
+                                    setEditingTemplate(t);
+                                    setTempTemplateMsg(t.mensagem);
+                                }}
+                                className={`btn-tab-mini ${editingTemplate?.id === t.id ? 'active' : ''}`}
+                                style={{borderRadius:'8px', padding:'0.5rem 1rem', fontSize:'0.75rem', fontWeight:600}}
+                              >
+                                {t.tipo_evento.toUpperCase()}
+                              </button>
+                            ))}
+                          </div>
+
+                          {editingTemplate && (
+                            <div style={{animation: 'fadeIn 0.3s'}}>
+                              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.5rem'}}>
+                                <span style={{fontSize:'0.8rem', fontWeight:700, color:'var(--primary)'}}>Editando: {editingTemplate.tipo_evento.toUpperCase()}</span>
+                                <div style={{display:'flex', gap:'0.4rem'}}>
+                                  {['{nomes}', '{anos}', '{tipo}', '{bodas}', '{significado}'].map(v => (
+                                    <button 
+                                      key={v} 
+                                      onClick={() => {
+                                        const area = document.getElementById('template-textarea');
+                                        const start = area.selectionStart;
+                                        const end = area.selectionEnd;
+                                        const text = tempTemplateMsg;
+                                        const before = text.substring(0, start);
+                                        const after = text.substring(end);
+                                        const newText = before + v + after;
+                                        setTempTemplateMsg(newText);
+                                        area.focus();
+                                        setTimeout(() => area.setSelectionRange(start + v.length, start + v.length), 0);
+                                      }}
+                                      className="btn-variable"
+                                      title={`Inserir ${v}`}
+                                    >
+                                      {v}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <textarea 
+                                id="template-textarea"
+                                className="inline-input" 
+                                style={{width:'100%', minHeight:'120px', background:'#fff', fontSize:'0.9rem', lineHeight:'1.5', padding:'1rem', borderRadius:'12px', border:'2px solid #e2e8f0'}} 
+                                value={tempTemplateMsg}
+                                onChange={(e) => setTempTemplateMsg(e.target.value)}
+                                placeholder="Escreva a sua mensagem aqui..."
+                              />
+                              
+                              <div style={{marginTop:'1rem', display:'flex', gap:'0.5rem'}}>
+                                <button 
+                                  onClick={() => handleUpdateTemplate(editingTemplate.id, tempTemplateMsg)} 
+                                  className="btn-submit" 
+                                  style={{padding:'0.6rem 2rem', background:'var(--primary)', color:'#fff'}}
+                                >
+                                  💾 Guardar Template
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setEditingTemplate(null);
+                                    setTempTemplateMsg('');
+                                  }} 
+                                  className="btn-secondary"
+                                  style={{padding:'0.6rem 1.5rem'}}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {!editingTemplate && (
+                            <div style={{height:'200px', display:'flex', alignItems:'center', justifyContent:'center', border:'2px dashed #e2e8f0', borderRadius:'12px', color:'#94a3b8', fontSize:'0.9rem'}}>
+                              Selecione um tipo de evento acima para editar o template
+                            </div>
+                          )}
+
+                          <div style={{marginTop:'2rem'}}>
+                            {renderBodaGlossary()}
+                          </div>
                         </div>
-                      ))}
-                      {renderBodaGlossary()}
+
+                        <div className="preview-smartphone">
+                          <div className="smartphone-frame">
+                            <div className="smartphone-header">
+                              <div className="speaker"></div>
+                            </div>
+                            <div className="smartphone-screen">
+                              <div className="wa-header">
+                                <div className="wa-back">←</div>
+                                <div className="wa-avatar">K</div>
+                                <div className="wa-info">
+                                  <div className="wa-name">KUMBUKA Automation</div>
+                                  <div className="wa-status">online</div>
+                                </div>
+                                <div className="wa-icons">📞 ⋮</div>
+                              </div>
+                              <div className="wa-chat-bg">
+                                <div className="wa-date-pill">HOJE</div>
+                                <div className="wa-bubble received">
+                                  <div className="wa-msg-text">
+                                    {renderLivePreview(tempTemplateMsg || editingTemplate?.mensagem || "Selecione um template...")}
+                                    <div style={{marginTop:'1.2rem', paddingTop:'0.8rem', borderTop:'1px dashed #ced4da', fontSize:'0.75rem', color:'#667781', fontFamily:'monospace'}}>
+                                      {assinaturaBot || '⚡ Enviado via KUMBUKA'}
+                                    </div>
+                                  </div>
+                                  <div className="wa-msg-time">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                </div>
+                              </div>
+                              <div className="wa-input-bottom">
+                                <div className="wa-input-mock"><span>Type a message</span> 😊 📎 📷</div>
+                                <div className="wa-mic">🎤</div>
+                              </div>
+                            </div>
+                          </div>
+                          <span style={{fontSize:'0.7rem', color:'#94a3b8', marginTop:'0.5rem', display:'block', textAlign:'center'}}>Simulação de visualização no WhatsApp</span>
+                        </div>
+                      </div>
                     </div>
                 </div>
             )}
