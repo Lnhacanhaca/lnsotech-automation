@@ -7,7 +7,7 @@ class UserRepository {
     }
 
     async findById(id) {
-        const { rows } = await db.query('SELECT id, nome, email, nivel_acesso, grupos_permitidos, tipos_permitidos FROM usuarios WHERE id = $1', [id]);
+        const { rows } = await db.query('SELECT id, nome, email, nivel_acesso, grupos_permitidos, tipos_permitidos, two_factor_secret, two_factor_enabled FROM usuarios WHERE id = $1', [id]);
         return rows[0];
     }
 
@@ -55,6 +55,10 @@ class UserRepository {
 
     async resetLoginAttempts(id) {
         await db.query('UPDATE usuarios SET tentativas_falhas = 0, bloqueado_ate = NULL WHERE id = $1', [id]);
+    }
+
+    async update2FA(id, secret, enabled) {
+        await db.query('UPDATE usuarios SET two_factor_secret = $1, two_factor_enabled = $2 WHERE id = $3', [secret, enabled, id]);
     }
 }
 

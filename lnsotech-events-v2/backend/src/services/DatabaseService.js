@@ -19,6 +19,8 @@ class DatabaseService {
                 bloqueado_ate TIMESTAMP,
                 grupos_permitidos JSONB DEFAULT '[]'::jsonb,
                 tipos_permitidos JSONB DEFAULT '[]'::jsonb,
+                two_factor_secret TEXT,
+                two_factor_enabled BOOLEAN DEFAULT FALSE,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -51,6 +53,12 @@ class DatabaseService {
                 END IF;
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='usuarios' AND column_name='tipos_permitidos') THEN
                     ALTER TABLE usuarios ADD COLUMN tipos_permitidos JSONB DEFAULT '[]'::jsonb;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='usuarios' AND column_name='two_factor_secret') THEN
+                    ALTER TABLE usuarios ADD COLUMN two_factor_secret TEXT;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='usuarios' AND column_name='two_factor_enabled') THEN
+                    ALTER TABLE usuarios ADD COLUMN two_factor_enabled BOOLEAN DEFAULT FALSE;
                 END IF;
 
                 -- Eventos

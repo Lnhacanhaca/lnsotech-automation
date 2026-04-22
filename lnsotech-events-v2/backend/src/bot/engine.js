@@ -48,6 +48,8 @@ class BotManager {
             await this.startBot(bot);
         }
 
+        this.retryCounts = new Map(); // id -> count
+        
         // Iniciar Crons Globais (Backup e Relatório)
         this.iniciarCronsGlobais();
         // Iniciar Cron de Lembretes
@@ -102,9 +104,18 @@ class BotManager {
                 const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
                 
                 if (shouldReconnect) {
-                    console.log(`🔄 [Bot: ${botConfig.nome}] Reconectando...`);
-                    await NotificationService.notifyHealthIssue(botConfig.nome, `Conexão instável (Status: ${statusCode}). A tentar reconectar...`);
-                    setTimeout(() => this.startBot(botConfig), 5000);
+                    const retries = (this.retryCounts.get(id) || 0) + 1;
+                    if (retries <= 5) {
+                        console.log(`🔄 [Bot: ${botConfig.nome}] Reconectando (Tentativa ${retries}/5)...`);
+                        this.retryCounts.set(id, retries);
+                        await NotificationService.notifyHealthIssue(botConfig.nome, `Conexão instável. A tentar reconectar (${retries}/5)...`);
+                        setTimeout(() => this.startBot(botConfig), 5000 * retries);
+                    } else {
+                        console.error(`❌ [Bot: ${botConfig.nome}] Limite de reconexões atingido.`);
+                        await NotificationService.notifyHealthIssue(botConfig.nome, 'Limite de auto-reconexão atingido. Intervenção manual necessária.');
+                        const BotRepository = require('../repositories/BotRepository');
+                        await BotRepository.updateStatus(id, 'erro_conexao');
+                    }
                 } else {
                     console.log(`❌ [Bot: ${botConfig.nome}] Desconectado permanentemente.`);
                     await NotificationService.notifyHealthIssue(botConfig.nome, 'Logout detetado ou sessão expirada.');
@@ -114,6 +125,7 @@ class BotManager {
                 }
             } else if (connection === 'open') {
                 console.log(`✅ [Bot: ${botConfig.nome}] Online!`);
+                this.retryCounts.set(id, 0); // Reset retries on success
                 instance.state = { qr: null, status: 'conectado', lastUpdate: new Date().toISOString() };
                 const BotRepository = require('../repositories/BotRepository');
                 await BotRepository.updateStatus(id, 'conectado');

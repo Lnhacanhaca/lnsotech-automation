@@ -34,17 +34,11 @@ class AuthService {
 
         await UserRepository.resetLoginAttempts(usuario.id);
 
-        const token = jwt.sign(
-            { 
-                id: usuario.id, 
-                nome: usuario.nome, 
-                nivel_acesso: usuario.nivel_acesso,
-                grupos_permitidos: usuario.grupos_permitidos || '[]',
-                tipos_permitidos: usuario.tipos_permitidos || '[]'
-            },
-            JWT_SECRET,
-            { expiresIn: '24h' }
-        );
+        if (usuario.two_factor_enabled) {
+            return { require2FA: true, userId: usuario.id };
+        }
+
+        const token = this.gerarTokenFinal(usuario);
 
         return { 
             token, 
@@ -56,6 +50,20 @@ class AuthService {
                 tipos_permitidos: usuario.tipos_permitidos || '[]'
             } 
         };
+    }
+
+    gerarTokenFinal(usuario) {
+        return jwt.sign(
+            { 
+                id: usuario.id, 
+                nome: usuario.nome, 
+                nivel_acesso: usuario.nivel_acesso,
+                grupos_permitidos: usuario.grupos_permitidos || '[]',
+                tipos_permitidos: usuario.tipos_permitidos || '[]'
+            },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
     }
 
     verificarToken(token) {

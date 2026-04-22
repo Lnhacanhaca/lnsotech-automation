@@ -126,6 +126,16 @@ class SystemController {
             res.status(500).json({ erro: 'Falha ao atualizar estado do grupo' });
         }
     }
+
+    async getAnalytics(req, res) {
+        try {
+            const stats = await SystemRepository.getAnalyticsStats();
+            const predictions = await SystemRepository.predictFutureEvents(90); // 90 dias conforme roadmap
+            res.json({ stats, predictions });
+        } catch (error) {
+            res.status(500).json({ erro: error.message });
+        }
+    }
 }
 
 module.exports = new SystemController();

@@ -32,6 +32,7 @@ services:
     volumes:
       - ./auth_info_baileys:/app/auth_info_baileys
       - ./uploads:/app/uploads
+      - ./lnsotech-events-v2/backend/src:/app/src
     networks:
       - backend_network
 

@@ -109,6 +109,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const [bots, setBots] = useState([]);
   const [botsLoading, setBotsLoading] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState({ stats: { logs: [], bots: [] }, predictions: [] });
 
   const today = new Date();
   const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -300,7 +301,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           if (isAdmin || isEditor) {
               const resBots = await fetch(`${apiBase}/api/eventos/bots`, { headers });
               if (resBots.ok) setBots(await resBots.json());
-              
+
+              const resAnalytics = await fetch(`${apiBase}/api/eventos/analytics`, { headers });
+              if (resAnalytics.ok) setAnalyticsData(await resAnalytics.json());
+
               fetchConfigs();
               refreshMuted();
           }
@@ -1227,6 +1231,138 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   );
 };
 
+  const handleSetup2FA = async () => {
+    try {
+        const res = await fetch(`${apiBase}/api/auth/2fa/setup`, { headers });
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.erro || 'Falha ao iniciar configuração 2FA');
+        }
+
+        Swal.fire({
+            title: 'Configurar 2FA (Segurança)',
+            html: `
+                <div style="text-align:center">
+                    <p style="font-size:0.85rem">Digitalize este código no Google Authenticator ou similar:</p>
+                    <img src="${data.qrCode}" style="width:200px; height:200px; margin:1rem 0; border:1px solid #eee; padding:5px" />
+                    <p style="font-size:0.75rem; color:#64748b">Ou insira manualmente: <br/> <b>${data.secret}</b></p>
+                    <hr />
+                    <p style="font-size:0.85rem; font-weight:600">Insira o código de 6 dígitos para confirmar:</p>
+                    <input id="2fa-confirm-token" class="swal2-input" placeholder="000000" style="text-align:center; font-size:1.4rem" maxlength="6">
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '✅ Ativar Agora',
+            cancelButtonText: 'Cancelar',
+            reverseButtons: true,
+            confirmButtonColor: 'var(--primary)',
+            preConfirm: () => {
+                const token = document.getElementById('2fa-confirm-token').value;
+                if (!token || token.length < 6) return Swal.showValidationMessage('Insira o código de 6 dígitos!');
+                return { token, secret: data.secret };
+            }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                Swal.showLoading();
+                const enableRes = await fetch(`${apiBase}/api/auth/2fa/enable`, {
+                    method: 'POST',
+                    headers: jsonHeaders,
+                    body: JSON.stringify(result.value)
+                });
+                const enableData = await enableRes.json();
+                
+                if (enableRes.ok) {
+                    Swal.fire({
+                        title: 'Ativado!',
+                        text: 'A autenticação de dois fatores está ativa. No próximo login será solicitado o código.',
+                        icon: 'success',
+                        confirmButtonColor: '#10b981'
+                    });
+                    // Recarregar o perfil do usuário para atualizar o estado global
+                    const refreshProfile = await fetch(`${apiBase}/api/auth/me`, { headers });
+                    if (refreshProfile.ok) {
+                        const newUserData = await refreshProfile.json();
+                        localStorage.setItem('@lnsotech:user', JSON.stringify(newUserData));
+                        window.location.reload();
+                    }
+                } else {
+                    Swal.fire('Erro', enableData.erro || 'Código inválido. Tente novamente.', 'error');
+                }
+            }
+        });
+    } catch (err) {
+        console.error('2FA Setup Error:', err);
+        Swal.fire('Erro', err.message || 'Não foi possível configurar 2FA agora.', 'error');
+    }
+  };
+
+  /* ========== RENDER: ANALYTICS & PREVISIONS ========== */
+  const renderAnalytics = () => {
+    const COLORS = ['#10b981', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4'];
+    const logs = analyticsData?.stats?.logs || [];
+    const botsStats = analyticsData?.stats?.bots || [];
+    const predictions = analyticsData?.predictions || [];
+
+    const logChartData = logs.map(l => ({ name: `${l.tipo_log.replace('envio_','')}`, value: parseInt(l.total) }));
+    const botStatsData = botsStats.map(b => ({ name: b.mensagem?.split('respondeu')[0]?.replace('Bot','')?.trim() || 'Principal', value: parseInt(b.total) }));
+
+    return (
+        <div style={{display:'flex', flexDirection:'column', gap:'2rem', animation:'fadeIn 0.5s', paddingBottom:'2rem'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <h2 style={{margin:0}}>📊 Analytics & Previsões</h2>
+                <button onClick={fetchData} className="btn-action" style={{background:'var(--primary)', color:'#fff', padding:'8px 16px', borderRadius:'8px'}}>🔄 Atualizar Dados</button>
+            </div>
+
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(320px, 1fr))', gap:'1.5rem'}}>
+                <div className="panel-card">
+                    <div className="panel-title">🔥 Eficiência de Envios</div>
+                    <div style={{height:'250px', width:'100%'}}>
+                        <ResponsiveContainer>
+                            <PieChart>
+                                <Pie data={logChartData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                    {logChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                </Pie>
+                                <Tooltip />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                <div className="panel-card">
+                    <div className="panel-title">🤖 Volume por Instância</div>
+                    <div style={{height:'300px', width:'100%'}}>
+                        <ResponsiveContainer>
+                            <PieChart>
+                                <Pie data={botStatsData} cx="50%" cy="50%" labelLine={false} label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`} outerRadius={80} dataKey="value">
+                                    {botStatsData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />)}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            <div className="panel-card">
+                <div className="panel-title">📅 Projetado de Atividade (Próximos 90 Dias)</div>
+                <div style={{height:'350px', width:'100%', marginTop:'1rem'}}>
+                    <ResponsiveContainer>
+                        <LineChart data={predictions}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                            <XAxis dataKey="date" fontSize={10} tickFormatter={(str) => str.substring(5)} />
+                            <YAxis fontSize={12} width={30} />
+                            <Tooltip contentStyle={{borderRadius:'10px', border:'none', boxShadow:'0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                            <Line type="monotone" dataKey="count" stroke="var(--primary)" strokeWidth={3} dot={{r:3, strokeWidth:2, fill:'#fff'}} activeDot={{r:6}} name="Eventos" />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        </div>
+    );
+  }
+
 /* ========== RENDER: MULTI-BOT MANAGEMENT ========== */
 const renderMultiBot = () => {
     const handleEditBot = async (bot) => {
@@ -1938,7 +2074,7 @@ const renderMultiBot = () => {
             <div style={subTabStyle(configSubTab==='geral')} onClick={()=>setConfigSubTab('geral')}>⚙️ Geral</div>
             <div style={subTabStyle(configSubTab==='automacao')} onClick={()=>setConfigSubTab('automacao')}>🤖 Automação</div>
             <div style={subTabStyle(configSubTab==='personalizacao')} onClick={()=>setConfigSubTab('personalizacao')}>🎨 Personalização</div>
-            {isAdmin && <div style={subTabStyle(configSubTab==='seguranca')} onClick={()=>setConfigSubTab('seguranca')}>🛡️ Segurança & Acesso</div>}
+            {canEdit && <div style={subTabStyle(configSubTab==='seguranca')} onClick={()=>setConfigSubTab('seguranca')}>🛡️ Segurança & Acesso</div>}
             {isAdmin && <div style={subTabStyle(configSubTab==='auditoria')} onClick={()=>setConfigSubTab('auditoria')}>🕵️ Auditoria (Logs)</div>}
         </div>
 
@@ -2043,137 +2179,173 @@ const renderMultiBot = () => {
                 </div>
             )}
 
-            {configSubTab === 'seguranca' && isAdmin && (
+            {configSubTab === 'seguranca' && canEdit && (
                 <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', animation: 'fadeIn 0.3s'}}>
-                    <div className="panel-card">
-                        <div className="panel-title">👥 Gestão de Utilizadores</div>
-                        <div className="table-responsive">
-                            <table className="table-minimal">
-                                <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
-                                <tbody>
-                                    {usuarios.map(u => (
-                                        <tr key={u.id}>
-                                            <td>
-                                                {editingUserId === u.id ? (
-                                                    <input className="inline-input" value={editUserForm.nome} onChange={e=>setEditUserForm({...editUserForm, nome: e.target.value})} style={{fontSize:'0.8rem'}} />
-                                                ) : (
-                                                    <span>{u.nome} {u.id === 1 && '⭐'} {u.id === user.id && '(Eu)'}</span>
-                                                )}
-                                            </td>
-                                            <td>
-                                                {editingUserId === u.id ? (
-                                                    <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
-                                                        <input className="inline-input" value={editUserForm.email} onChange={e=>setEditUserForm({...editUserForm, email: e.target.value})} style={{fontSize:'0.8rem'}} placeholder="Email" />
-                                                        <input type="password" placeholder="Nova senha (vazio p/ manter)" className="inline-input" value={editUserForm.senha} onChange={e=>setEditUserForm({...editUserForm, senha: e.target.value})} style={{fontSize:'0.8rem'}} />
-                                                    </div>
-                                                ) : u.email}
-                                            </td>
-                                            <td>
-                                                {editingUserId === u.id ? (
-                                                    <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
-                                                        <select className="inline-input" value={editUserForm.nivel_acesso} onChange={e=>setEditUserForm({...editUserForm, nivel_acesso: e.target.value})} style={{fontSize:'0.8rem'}}>
-                                                            <option value="leitor">LEITOR</option>
-                                                            <option value="editor">EDITOR</option>
-                                                            <option value="admin">ADMIN</option>
-                                                        </select>
-                                                        {editUserForm.nivel_acesso === 'leitor' && (
-                                                            <div style={{display:'flex', gap:'0.4rem'}}>
-                                                                <select multiple className="inline-input" value={editUserForm.tipos_permitidos} onChange={e=>setEditUserForm({...editUserForm, tipos_permitidos: Array.from(e.target.selectedOptions, o=>o.value)})} style={{fontSize:'0.7rem', flex:1}} title="Tipos (Ctrl/Cmd para vários)">
-                                                                    {tiposEvento.map(t => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}
-                                                                </select>
-                                                                <select multiple className="inline-input" value={editUserForm.grupos_permitidos} onChange={e=>setEditUserForm({...editUserForm, grupos_permitidos: Array.from(e.target.selectedOptions, o=>o.value)})} style={{fontSize:'0.7rem', flex:1}} title="Grupos (Ctrl/Cmd para vários)">
-                                                                    {grupos.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
-                                                                </select>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <span className="badge-tipo" style={{background:'#f1f5f9', color:'#475569'}}>{u.nivel_acesso.toUpperCase()}</span>
-                                                )}
-                                            </td>
-                                            <td style={{textAlign:'right'}}>
-                                                {editingUserId === u.id ? (
-                                                    <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
-                                                        <button onClick={handleUpdateUser} className="btn-action" style={{color:'#10b981'}}>✔</button>
-                                                        <button onClick={()=>setEditingUserId(null)} className="btn-action">✖</button>
-                                                    </div>
-                                                ) : (
-                                                    <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
-                                                        <button onClick={() => startEditUser(u)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
-                                                        {u.id !== 1 && u.id !== user.id && (
-                                                            <button onClick={() => handleDeleteUsuario(u.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div style={{marginTop:'1.5rem', borderTop:'1px solid #eee', paddingTop:'1rem'}}>
-                            <div className="panel-title" style={{fontSize:'0.9rem'}}>+ Novo Utilizador</div>
-                            <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
-                                <input className="inline-input" placeholder="Nome" value={newUserNome} onChange={e=>setNewUserNome(e.target.value)} style={{flex:1}} />
-                                <input className="inline-input" placeholder="Email" value={newUserEmail} onChange={e=>setNewUserEmail(e.target.value)} style={{flex:1}} />
-                                <input type="password" className="inline-input" placeholder="Senha" value={newUserSenha} onChange={e=>setNewUserSenha(e.target.value)} style={{flex:1}} />
-                                <select className="inline-input" value={newUserRole} onChange={e=>setNewUserRole(e.target.value)} style={{flex:0.5}}>
-                                    <option value="leitor">Leitor</option>
-                                    <option value="editor">Editor</option>
-                                    <option value="admin">Admin</option>
-                                </select>
-                                <button onClick={handleCreateUsuario} className="btn-submit" style={{padding:'0.4rem 1rem'}}>Criar</button>
+                    {/* Painel de Ativação 2FA */}
+                    <div className="panel-card" style={{borderLeft:'4px solid var(--primary)', borderRadius:'12px', background:'#f8fafc'}}>
+                        <div className="panel-title" style={{display:'flex', alignItems:'center', gap:'0.6rem'}}>🛡️ Segurança: Autenticação Multi-Fator (2FA)</div>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'1.5rem', marginTop:'0.5rem'}}>
+                            <div style={{flex:1, minWidth:'280px'}}>
+                                <div style={{display:'flex', alignItems:'center', gap:'0.8rem', marginBottom:'0.5rem'}}>
+                                    <span style={{fontSize:'1.5rem'}}>{user.two_factor_enabled ? '🔐' : '🔓'}</span>
+                                    <span style={{fontWeight:800, fontSize:'1rem', color: user.two_factor_enabled ? '#10b981' : '#64748b'}}>
+                                        {user.two_factor_enabled ? 'Status: PROTEGIDO (Ativo)' : 'Status: SEM PROTEÇÃO (Desativado)'}
+                                    </span>
+                                </div>
+                                <p className="text-muted" style={{fontSize:'0.85rem', lineHeight:'1.4'}}>
+                                    A autenticação de dois fatores (2FA) adiciona uma camada de segurança vital. 
+                                    Para entrar no sistema, precisará da sua senha e de um código gerado no seu telemóvel.
+                                </p>
                             </div>
                             
-                            {newUserRole === 'leitor' && (
-                                <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
-                                    <div style={{flex:1}}>
-                                        <label style={{fontSize:'0.75rem', fontWeight:600}}>Tipos de Evento Permitidos (Ctrl/Cmd para múltipla seleção)</label>
-                                        <select multiple className="inline-input" value={newUserTipos} onChange={e=>setNewUserTipos(Array.from(e.target.selectedOptions, o=>o.value))} style={{width:'100%', minHeight:'60px'}}>
-                                            {tiposEvento.map(t => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}
-                                        </select>
-                                    </div>
-                                    <div style={{flex:1}}>
-                                        <label style={{fontSize:'0.75rem', fontWeight:600}}>Grupos Permitidos (Ctrl/Cmd para múltipla seleção)</label>
-                                        <select multiple className="inline-input" value={newUserGrupos} onChange={e=>setNewUserGrupos(Array.from(e.target.selectedOptions, o=>o.value))} style={{width:'100%', minHeight:'60px'}}>
-                                            {grupos.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
-                                        </select>
-                                    </div>
+                            {!user.two_factor_enabled ? (
+                                <button onClick={handleSetup2FA} className="btn-submit" style={{width:'auto', padding:'0.8rem 1.8rem', background:'var(--primary)', color:'#fff', border:'none', borderRadius:'10px', fontWeight:700, boxShadow:'0 4px 6px -1px rgb(0 0 0 / 0.1)'}}>
+                                    🚀 Configurar 2FA Agora
+                                </button>
+                            ) : (
+                                <div style={{display:'flex', flexDirection:'column', gap:'0.5rem'}}>
+                                    <button onClick={() => Swal.fire('Informação', 'Para desativar ou redefinir o seu 2FA, por questões de segurança, entre em contacto com o Administrador do sistema.', 'info')} className="btn-action" style={{opacity:0.8, background:'#e2e8f0'}}>
+                                        ⚙️ Gerir Proteção
+                                    </button>
+                                    <span style={{fontSize:'0.7rem', color:'#10b981', textAlign:'center'}}>✔ Conta Segura</span>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    <div className="panel-card">
-                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                            <div className="panel-title">🗄️ Base de Dados & Backups</div>
-                            <div style={{display:'flex', gap:'0.5rem'}}>
-                                <input type="file" id="upload-backup" style={{display:'none'}} onChange={e => handleUploadRestore(e.target.files[0])} />
-                                <button onClick={() => document.getElementById('upload-backup').click()} className="btn-submit" style={{background:'#f59e0b', fontSize:'0.8rem'}}>📤 Upload e Restaurar</button>
-                                <button onClick={async () => { Swal.fire({ title: '📦 Gerando Backup...', allowOutsideClick: false, didOpen: () => Swal.showLoading() }); const r = await fetch(`${apiBase}/api/auth/backups/gerar`, { method: 'POST', headers }); if (r.ok) { Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Backup!', showConfirmButton: false, timer: 3000, background: '#10b981', color: '#fff' }); fetchData(); } }} className="btn-submit" style={{background:'#6366f1', fontSize:'0.8rem'}}>➕ Gerar Backup</button>
-                            </div>
-                        </div>
-                        <div className="table-responsive" style={{marginTop:'1.5rem'}}>
-                            <table className="table-minimal">
-                                <thead><tr><th>Arquivo</th><th>Data</th><th style={{textAlign:'right'}}>Ações</th></tr></thead>
-                                <tbody>
-                                  {backups.map(b => (
-                                    <tr key={b.name}>
-                                      <td>📄 {b.name}</td>
-                                      <td>{new Date(b.date).toLocaleDateString()}</td>
-                                      <td style={{textAlign:'right'}}>
-                                        <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
-                                          <a href={`${apiBase}/api/auth/backups/download/${b.name}?token=${token}`} download className="btn-action" style={{color:'#3b82f6'}}>Baixar</a>
-                                          <button onClick={()=>handleRestoreBackup(b.name)} className="btn-action" style={{color:'#f59e0b'}}>Restaurar</button>
-                                          <button onClick={()=>handleDeleteBackup(b.name)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                    {isAdmin && (
+                        <>
+                            <div className="panel-card">
+                                <div className="panel-title">👥 Gestão de Utilizadores</div>
+                                <div className="table-responsive">
+                                    <table className="table-minimal">
+                                        <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
+                                        <tbody>
+                                            {usuarios.map(u => (
+                                                <tr key={u.id}>
+                                                    <td>
+                                                        {editingUserId === u.id ? (
+                                                            <input className="inline-input" value={editUserForm.nome} onChange={e=>setEditUserForm({...editUserForm, nome: e.target.value})} style={{fontSize:'0.8rem'}} />
+                                                        ) : (
+                                                            <span>{u.nome} {u.id === 1 && '⭐'} {u.id === user.id && '(Eu)'}</span>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        {editingUserId === u.id ? (
+                                                            <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                                                                <input className="inline-input" value={editUserForm.email} onChange={e=>setEditUserForm({...editUserForm, email: e.target.value})} style={{fontSize:'0.8rem'}} placeholder="Email" />
+                                                                <input type="password" placeholder="Nova senha (vazio p/ manter)" className="inline-input" value={editUserForm.senha} onChange={e=>setEditUserForm({...editUserForm, senha: e.target.value})} style={{fontSize:'0.8rem'}} />
+                                                            </div>
+                                                        ) : u.email}
+                                                    </td>
+                                                    <td>
+                                                        {editingUserId === u.id ? (
+                                                            <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                                                                <select className="inline-input" value={editUserForm.nivel_acesso} onChange={e=>setEditUserForm({...editUserForm, nivel_acesso: e.target.value})} style={{fontSize:'0.8rem'}}>
+                                                                    <option value="leitor">LEITOR</option>
+                                                                    <option value="editor">EDITOR</option>
+                                                                    <option value="admin">ADMIN</option>
+                                                                </select>
+                                                                {editUserForm.nivel_acesso === 'leitor' && (
+                                                                    <div style={{display:'flex', gap:'0.4rem'}}>
+                                                                        <select multiple className="inline-input" value={editUserForm.tipos_permitidos} onChange={e=>setEditUserForm({...editUserForm, tipos_permitidos: Array.from(e.target.selectedOptions, o=>o.value)})} style={{fontSize:'0.7rem', flex:1}} title="Tipos (Ctrl/Cmd para vários)">
+                                                                            {tiposEvento.map(t => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}
+                                                                        </select>
+                                                                        <select multiple className="inline-input" value={editUserForm.grupos_permitidos} onChange={e=>setEditUserForm({...editUserForm, grupos_permitidos: Array.from(e.target.selectedOptions, o=>o.value)})} style={{fontSize:'0.7rem', flex:1}} title="Grupos (Ctrl/Cmd para vários)">
+                                                                            {grupos.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
+                                                                        </select>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="badge-tipo" style={{background:'#f1f5f9', color:'#475569'}}>{u.nivel_acesso.toUpperCase()}</span>
+                                                        )}
+                                                    </td>
+                                                    <td style={{textAlign:'right'}}>
+                                                        {editingUserId === u.id ? (
+                                                            <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                                                                <button onClick={handleUpdateUser} className="btn-action" style={{color:'#10b981'}}>✔</button>
+                                                                <button onClick={()=>setEditingUserId(null)} className="btn-action">✖</button>
+                                                            </div>
+                                                        ) : (
+                                                            <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                                                                <button onClick={() => startEditUser(u)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
+                                                                {u.id !== 1 && u.id !== user.id && (
+                                                                    <button onClick={() => handleDeleteUsuario(u.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div style={{marginTop:'1.5rem', borderTop:'1px solid #eee', paddingTop:'1rem'}}>
+                                    <div className="panel-title" style={{fontSize:'0.9rem'}}>+ Novo Utilizador</div>
+                                    <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
+                                        <input className="inline-input" placeholder="Nome" value={newUserNome} onChange={e=>setNewUserNome(e.target.value)} style={{flex:1}} />
+                                        <input className="inline-input" placeholder="Email" value={newUserEmail} onChange={e=>setNewUserEmail(e.target.value)} style={{flex:1}} />
+                                        <input type="password" className="inline-input" placeholder="Senha" value={newUserSenha} onChange={e=>setNewUserSenha(e.target.value)} style={{flex:1}} />
+                                        <select className="inline-input" value={newUserRole} onChange={e=>setNewUserRole(e.target.value)} style={{flex:0.5}}>
+                                            <option value="leitor">Leitor</option>
+                                            <option value="editor">Editor</option>
+                                            <option value="admin">Admin</option>
+                                        </select>
+                                        <button onClick={handleCreateUsuario} className="btn-submit" style={{padding:'0.4rem 1rem'}}>Criar</button>
+                                    </div>
+                                    
+                                    {newUserRole === 'leitor' && (
+                                        <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
+                                            <div style={{flex:1}}>
+                                                <label style={{fontSize:'0.75rem', fontWeight:600}}>Tipos de Evento Permitidos (Ctrl/Cmd para múltipla seleção)</label>
+                                                <select multiple className="inline-input" value={newUserTipos} onChange={e=>setNewUserTipos(Array.from(e.target.selectedOptions, o=>o.value))} style={{width:'100%', minHeight:'60px'}}>
+                                                    {tiposEvento.map(t => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}
+                                                </select>
+                                            </div>
+                                            <div style={{flex:1}}>
+                                                <label style={{fontSize:'0.75rem', fontWeight:600}}>Grupos Permitidos (Ctrl/Cmd para múltipla seleção)</label>
+                                                <select multiple className="inline-input" value={newUserGrupos} onChange={e=>setNewUserGrupos(Array.from(e.target.selectedOptions, o=>o.value))} style={{width:'100%', minHeight:'60px'}}>
+                                                    {grupos.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
+                                                </select>
+                                            </div>
                                         </div>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="panel-card">
+                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                                    <div className="panel-title">🗄️ Base de Dados & Backups</div>
+                                    <div style={{display:'flex', gap:'0.5rem'}}>
+                                        <input type="file" id="upload-backup" style={{display:'none'}} onChange={e => handleUploadRestore(e.target.files[0])} />
+                                        <button onClick={() => document.getElementById('upload-backup').click()} className="btn-submit" style={{background:'#f59e0b', fontSize:'0.8rem'}}>📤 Upload e Restaurar</button>
+                                        <button onClick={async () => { Swal.fire({ title: '📦 Gerando Backup...', allowOutsideClick: false, didOpen: () => Swal.showLoading() }); const r = await fetch(`${apiBase}/api/auth/backups/gerar`, { method: 'POST', headers }); if (r.ok) { Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Backup!', showConfirmButton: false, timer: 3000, background: '#10b981', color: '#fff' }); fetchData(); } }} className="btn-submit" style={{background:'#6366f1', fontSize:'0.8rem'}}>➕ Gerar Backup</button>
+                                    </div>
+                                </div>
+                                <div className="table-responsive" style={{marginTop:'1.5rem'}}>
+                                    <table className="table-minimal">
+                                        <thead><tr><th>Arquivo</th><th>Data</th><th style={{textAlign:'right'}}>Ações</th></tr></thead>
+                                        <tbody>
+                                        {backups.map(b => (
+                                            <tr key={b.name}>
+                                            <td>📄 {b.name}</td>
+                                            <td>{new Date(b.date).toLocaleDateString()}</td>
+                                            <td style={{textAlign:'right'}}>
+                                                <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                                                <a href={`${apiBase}/api/auth/backups/download/${b.name}?token=${token}`} download className="btn-action" style={{color:'#3b82f6'}}>Baixar</a>
+                                                <button onClick={()=>handleRestoreBackup(b.name)} className="btn-action" style={{color:'#f59e0b'}}>Restaurar</button>
+                                                <button onClick={()=>handleDeleteBackup(b.name)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>
+                                                </div>
+                                            </td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 
@@ -2360,6 +2532,7 @@ const renderMultiBot = () => {
           {canEdit && <div className={`nav-item ${activeTab==='dashboard'?'active':''}`} onClick={()=>changeTab('dashboard')}><span>📊</span><span>Dashboard</span></div>}
           {canEdit && <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>changeTab('eventos')}><span>👥</span><span>Eventos</span></div>}
           <div className={`nav-item ${activeTab==='calendario'?'active':''}`} onClick={()=>changeTab('calendario')}><span>📅</span><span>Calendário</span></div>
+          {isAdmin && <div className={`nav-item ${activeTab==='analytics'?'active':''}`} onClick={()=>changeTab('analytics')}><span>📊</span><span>Analytics</span></div>}
           {canEdit && <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>changeTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>}
           {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>changeTab('logs')}><span>📖</span><span>Histórico</span></div>}
           {(isAdmin || isEditor) && <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>changeTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>}
@@ -2411,6 +2584,7 @@ const renderMultiBot = () => {
           {canEdit && activeTab === 'dashboard' && renderDashboard()}
           {canEdit && activeTab === 'eventos' && renderEventos()}
           {activeTab === 'calendario' && renderCalendario()}
+          {activeTab === 'analytics' && renderAnalytics()}
           {canEdit && activeTab === 'grupos' && 
           renderMultiBot()}
           {isAdmin && activeTab === 'logs' && renderLogs()}

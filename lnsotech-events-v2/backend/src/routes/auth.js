@@ -23,7 +23,10 @@ const upload = multer({ storage });
 
 // ========== AUTENTICAÇÃO ========== //
 router.post('/login', AuthController.login);
+router.post('/login/2fa/verify', AuthController.verify2FA);
 router.get('/me', verificarToken, AuthController.me);
+router.get('/2fa/setup', verificarToken, AuthController.setup2FA);
+router.post('/2fa/enable', verificarToken, AuthController.enable2FA);
 
 // ========== GESTÃO DE USUÁRIOS & AUDITORIA (Admin) ========== //
 router.get('/auditoria', AuthController.getLogsAuditoria);

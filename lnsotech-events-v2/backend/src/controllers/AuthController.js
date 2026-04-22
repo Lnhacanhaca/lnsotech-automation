@@ -1,6 +1,8 @@
 const AuthService = require('../services/AuthService');
 const UserService = require('../services/UserService');
 const AuditService = require('../services/AuditService');
+const TwoFactorService = require('../services/TwoFactorService');
+const UserRepository = require('../repositories/UserRepository');
 
 class AuthController {
     async login(req, res) {
@@ -23,7 +25,16 @@ class AuthController {
     }
 
     async me(req, res) {
-        res.json(req.usuarioLogado);
+        try {
+            const user = await UserRepository.findById(req.usuarioLogado.id);
+            if (!user) return res.status(404).json({ erro: 'Utilizador não encontrado' });
+            
+            // Não retornar a senha nem o segredo 2FA
+            const { senha, two_factor_secret, ...safeUser } = user;
+            res.json(safeUser);
+        } catch (err) {
+            res.status(500).json({ erro: 'Erro ao obter dados do utilizador' });
+        }
     }
 
     async getLogsAuditoria(req, res) {
@@ -73,6 +84,72 @@ class AuthController {
         } catch (err) {
             if (err.message === 'ROOT_PROTECTED') return res.status(403).json({ erro: 'Não podes apagar o Super Admin!' });
             res.status(500).json({ erro: 'Falha a remover utilizador' });
+        }
+    }
+
+    // 2FA Methods
+    async setup2FA(req, res) {
+        try {
+            const userId = req.usuarioLogado?.id;
+            if (!userId) return res.status(401).json({ erro: 'Utilizador não identificado' });
+
+            const user = await UserRepository.findById(userId);
+            if (!user) return res.status(404).json({ erro: 'Utilizador não encontrado na base de dados' });
+            if (!user.email) return res.status(400).json({ erro: 'Utilizador sem email configurado (obrigatório para 2FA)' });
+
+            const { secret, otpauth } = TwoFactorService.generateSecret(user.email);
+            const qrCode = await TwoFactorService.generateQRCode(otpauth);
+            
+            res.json({ secret, qrCode });
+        } catch (err) {
+            console.error('[2FA_SETUP_ERROR]', err);
+            res.status(500).json({ erro: 'Erro interno ao configurar 2FA: ' + err.message });
+        }
+    }
+
+    async enable2FA(req, res) {
+        try {
+            const { token, secret } = req.body;
+            if (!token || !secret) return res.status(400).json({ erro: 'Token e Segredo são obrigatórios' });
+
+            const valid = TwoFactorService.verifyToken(token, secret);
+            if (valid) {
+                await UserRepository.update2FA(req.usuarioLogado.id, secret, true);
+                await AuditService.log(req.usuarioLogado.id, req.usuarioLogado.nome, 'ATIVAR_2FA', 'Segurança', 'Ativou a autenticação de dois fatores');
+                res.json({ sucesso: true });
+            } else {
+                res.status(400).json({ erro: 'Código de verificação 2FA estancado ou inválido' });
+            }
+        } catch (err) {
+            console.error('[2FA_ENABLE_ERROR]', err);
+            res.status(500).json({ erro: 'Erro ao ativar 2FA: ' + err.message });
+        }
+    }
+
+    async verify2FA(req, res) {
+        const { userId, token } = req.body;
+        try {
+            const user = await UserRepository.findById(userId);
+            if (!user) return res.status(404).json({ erro: 'Utilizador não encontrado' });
+
+            const valid = TwoFactorService.verifyToken(token, user.two_factor_secret);
+            if (valid) {
+                const authToken = AuthService.gerarTokenFinal(user);
+                res.json({ 
+                    token: authToken, 
+                    usuario: { 
+                        id: user.id, 
+                        nome: user.nome, 
+                        nivel_acesso: user.nivel_acesso,
+                        grupos_permitidos: user.grupos_permitidos || '[]',
+                        tipos_permitidos: user.tipos_permitidos || '[]'
+                    } 
+                });
+            } else {
+                res.status(401).json({ erro: 'Código 2FA inválido' });
+            }
+        } catch (err) {
+            res.status(500).json({ erro: err.message });
         }
     }
 }

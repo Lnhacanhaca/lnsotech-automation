@@ -150,6 +150,68 @@ class SystemRepository {
             await db.query('UPDATE grupos_config SET is_muted = TRUE, atualizado_em = CURRENT_TIMESTAMP WHERE grupo_id = ANY($1)', [groupIds]);
         }
     }
+
+    async getAnalyticsStats() {
+        const stats = {};
+        
+        // Sucesso vs Erro
+        const logRes = await db.query(`
+            SELECT tipo_log, status, COUNT(*) as total 
+            FROM logs_envio 
+            WHERE tipo_log IN ('envio_sucesso', 'envio_erro', 'auto_resposta')
+            GROUP BY tipo_log, status
+        `);
+        stats.logs = logRes.rows;
+
+        // Volume por Bot (estimado via logs de envio_sucesso)
+        const botRes = await db.query(`
+            SELECT mensagem, COUNT(*) as total 
+            FROM logs_envio 
+            WHERE tipo_log = 'envio_sucesso' 
+            GROUP BY mensagem
+        `); // Nota: mensagem contém o nome do bot nas versões atuais, mas idealmente usaríamos bot_id
+        stats.bots = botRes.rows;
+
+        return stats;
+    }
+
+    async predictFutureEvents(days = 30) {
+        // Busca todos os eventos para processar recorrências localmente
+        const { rows: eventos } = await db.query("SELECT nomes_principais, data_evento, tipo_evento, frequencia_lembrete FROM eventos");
+        const predictions = [];
+        const today = new Date();
+        const end = new Date();
+        end.setDate(today.getDate() + days);
+
+        for (let d = new Date(today); d <= end; d.setDate(d.getDate() + 1)) {
+            const dStr = d.toISOString().split('T')[0];
+            const dShort = dStr.substring(5); // MM-DD
+
+            eventos.forEach(ev => {
+                const evDate = new Date(ev.data_evento);
+                const evShort = ev.data_evento.toISOString().split('T')[0].substring(5);
+                const freq = ev.frequencia_lembrete?.toLowerCase() || 'anual';
+
+                let match = false;
+                if (freq === 'diario') match = true;
+                else if (freq === 'semanal' && d.getDay() === evDate.getDay()) match = true;
+                else if (freq === 'mensal' && d.getDate() === evDate.getDate()) match = true;
+                else if (freq === 'anual' && dShort === evShort) match = true;
+
+                if (match) {
+                    predictions.push({ date: dStr, type: ev.tipo_evento });
+                }
+            });
+        }
+
+        // Agrupar por data para o gráfico
+        const aggregated = {};
+        predictions.forEach(p => {
+            aggregated[p.date] = (aggregated[p.date] || 0) + 1;
+        });
+
+        return Object.entries(aggregated).map(([date, count]) => ({ date, count })).sort((a,b) => a.date.localeCompare(b.date));
+    }
 }
 
 module.exports = new SystemRepository();

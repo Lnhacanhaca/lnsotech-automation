@@ -22,6 +22,7 @@ const uploadCSV = multer({ dest: path.join(__dirname, '../uploads/tmp/') });
 
 // ========== EVENTOS ========== //
 router.get('/stats', EventoController.getStats);
+router.get('/analytics', SystemController.getAnalytics);
 router.get('/', EventoController.list);
 router.get('/feed.ics', EventoController.getFeed);
 router.get('/imagem-evento/:id', EventoController.serveImage); // Rota infalível para fotos
