@@ -1,20 +1,25 @@
 {
   "short_name": "KUMBUKA",
   "name": "KUMBUKA Automation CRM",
+  "description": "Sistema de Automação e CRM para Gestão de Eventos",
   "icons": [
     {
       "src": "android-chrome-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "android-chrome-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "theme_color": "#1e293b",
   "background_color": "#ffffff"
 }
