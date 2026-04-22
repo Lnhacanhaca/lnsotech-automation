@@ -27,9 +27,9 @@ class QueueRepository {
     async updateStatus(id, status, erro = null) {
         const query = `
             UPDATE mensagens_fila 
-            SET status = $1, 
+            SET status = $1::varchar, 
                 erro = $2, 
-                enviado_em = CASE WHEN $1 = 'enviado' THEN CURRENT_TIMESTAMP ELSE enviado_em END,
+                enviado_em = CASE WHEN $1::varchar = 'enviado' THEN CURRENT_TIMESTAMP ELSE enviado_em END,
                 tentativas = tentativas + 1
             WHERE id = $3
         `;
