@@ -11,9 +11,10 @@ const { Pool } = require('pg');
 const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
-const qrcodeTerminal = require('qrcode-terminal');
 const QRCode = require('qrcode');
 const PDFDocument = require('pdfkit');
+const QueueRepository = require('../repositories/QueueRepository');
+const NotificationService = require('../services/NotificationService');
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -51,6 +52,8 @@ class BotManager {
         this.iniciarCronsGlobais();
         // Iniciar Cron de Lembretes
         this.iniciarCronLembretes();
+        // Iniciar Consumidor de Fila (Priority 1)
+        this.iniciarQueueConsumer();
     }
 
     async startBot(botConfig) {
@@ -100,9 +103,11 @@ class BotManager {
                 
                 if (shouldReconnect) {
                     console.log(`🔄 [Bot: ${botConfig.nome}] Reconectando...`);
+                    await NotificationService.notifyHealthIssue(botConfig.nome, `Conexão instável (Status: ${statusCode}). A tentar reconectar...`);
                     setTimeout(() => this.startBot(botConfig), 5000);
                 } else {
                     console.log(`❌ [Bot: ${botConfig.nome}] Desconectado permanentemente.`);
+                    await NotificationService.notifyHealthIssue(botConfig.nome, 'Logout detetado ou sessão expirada.');
                     instance.state = { qr: null, status: 'desconectado', lastUpdate: new Date().toISOString() };
                     const BotRepository = require('../repositories/BotRepository');
                     await BotRepository.updateStatus(id, 'desconectado');
@@ -314,34 +319,75 @@ class BotManager {
                 
                 msgFinal = `${msgFinal}\n\n${assinatura}`.trim();
 
-                if (evento.foto_url && typeof evento.foto_url === 'string') {
-                    // Limpar URL para pegar apenas o nome do arquivo, removendo /uploads/ e possíveis prefixos
-                    const fileName = path.basename(evento.foto_url);
-                    const fotoPath = path.resolve(__dirname, '../../uploads', fileName);
-                    
-                    if (fs.existsSync(fotoPath)) {
-                        console.log(`📸 [Bot: ${config.nome}] Enviando imagem: ${fileName}`);
-                        await sock.sendMessage(evento.grupo_id, { 
-                            image: { url: fotoPath }, 
-                            caption: msgFinal 
-                        });
-                    } else {
-                        console.warn(`⚠️ [Bot: ${config.nome}] Foto não encontrada no caminho: ${fotoPath}. Enviando apenas texto.`);
-                        await sock.sendMessage(evento.grupo_id, { text: msgFinal });
-                    }
-                } else {
-                    await sock.sendMessage(evento.grupo_id, { text: msgFinal });
-                }
+                // EM VEZ DE ENVIAR DIRETAMENTE, ADICIONA À FILA (Priority 1)
+                await QueueRepository.enqueue(
+                    instance.config.id,
+                    evento.grupo_id,
+                    msgFinal,
+                    evento.foto_url || null,
+                    1 // Prioridade de lembrete
+                );
 
-                await registarLog(evento.id, evento.grupo_id, 'envio_sucesso', `Lembrete enviado: ${evento.nomes_principais}`, 'sucesso');
                 enviados++;
-                await sleep(4000); // Delay maior para evitar detecção de spam com imagens
             } catch (err) {
-                console.error(`Erro envio bot ${config.nome}:`, err);
-                await registarLog(evento.id, evento.grupo_id, 'envio_erro', err.message, 'erro');
+                console.error(`Erro ao enfileirar bot ${config.nome}:`, err);
+                await registarLog(evento.id, evento.grupo_id, 'queue_erro', err.message, 'erro');
             }
         }
         return enviados;
+    }
+
+    iniciarQueueConsumer() {
+        const QueueRepository = require('../repositories/QueueRepository');
+        console.log('📬 [Queue] Consumidor de fila iniciado.');
+        
+        const loop = async () => {
+            try {
+                // Busca a próxima mensagem pendente
+                const [msg] = await QueueRepository.getNextPending(1);
+                
+                if (msg) {
+                    const instance = this.instances.get(msg.bot_id);
+                    
+                    if (instance && instance.state.status === 'conectado') {
+                        const { sock } = instance;
+                        console.log(`✉️ [Queue] Enviando para ${msg.grupo_id} via Bot ${msg.bot_id}...`);
+                        
+                        try {
+                            if (msg.foto_url) {
+                                // Limpeza básica de URL
+                                const fileName = path.basename(msg.foto_url);
+                                const fotoPath = path.resolve(__dirname, '../../uploads', fileName);
+                                
+                                if (fs.existsSync(fotoPath)) {
+                                    await sock.sendMessage(msg.grupo_id, { image: { url: fotoPath }, caption: msg.mensagem });
+                                } else {
+                                    await sock.sendMessage(msg.grupo_id, { text: msg.mensagem });
+                                }
+                            } else {
+                                await sock.sendMessage(msg.grupo_id, { text: msg.mensagem });
+                            }
+                            
+                            await QueueRepository.updateStatus(msg.id, 'enviado');
+                            await registarLog(null, msg.grupo_id, 'envio_sucesso', 'Mensagem enviada via fila', 'sucesso');
+                        } catch (sendErr) {
+                            console.error('Erro envio fila:', sendErr);
+                            await QueueRepository.updateStatus(msg.id, 'erro', sendErr.message);
+                        }
+                    } else {
+                        // Bot offline, aguarda ou pula? Vamos aguardar.
+                    }
+                }
+            } catch (err) {
+                console.error('Erro no consumidor de fila:', err);
+            }
+            
+            // Intervalo variável entre 5 a 10 segundos para anti-spam (Rate Limiting)
+            const delay = Math.floor(Math.random() * 5000) + 5000;
+            setTimeout(loop, delay);
+        };
+        
+        loop();
     }
 
     async triggerManually() {

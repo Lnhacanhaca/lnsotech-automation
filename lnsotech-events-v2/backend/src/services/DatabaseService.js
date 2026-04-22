@@ -100,9 +100,24 @@ class DatabaseService {
 
             CREATE TABLE IF NOT EXISTS tipos_evento (
                 id SERIAL PRIMARY KEY,
-                nome VARCHAR(100) UNIQUE NOT NULL,
-                cor VARCHAR(20) DEFAULT '#3b82f6',
+                nome VARCHAR(255) UNIQUE NOT NULL,
+                cor VARCHAR(7) DEFAULT '#3b82f6',
                 template_resposta TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS mensagens_fila (
+                id SERIAL PRIMARY KEY,
+                bot_id INTEGER,
+                grupo_id VARCHAR(255) NOT NULL,
+                mensagem TEXT NOT NULL,
+                foto_url TEXT,
+                prioridade INTEGER DEFAULT 0,
+                tentativas INTEGER DEFAULT 0,
+                status VARCHAR(50) DEFAULT 'pendente',
+                erro TEXT,
+                agendado_para TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                enviado_em TIMESTAMP,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
