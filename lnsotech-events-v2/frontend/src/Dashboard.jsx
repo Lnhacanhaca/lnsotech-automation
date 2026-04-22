@@ -47,7 +47,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [searchQuery, setSearchQuery] = useState('');
 
   // 4. Hook de Eventos e Estatísticas
-  const { eventos, stats, loading, refresh: refreshData } = useEventos(token, searchQuery);
+  const { eventos, stats, loading: dataLoading, refresh: refreshData } = useEventos(token, searchQuery);
 
   // 5. Hook de Bot WhatsApp
   const { status: waStatus, reconnect: reconnectBot } = useBotStatus(token, activeTab);
@@ -67,10 +67,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [respostaPadraoBot, setRespostaPadraoBot] = useState('');
 
   const [formNomes, setFormNomes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState('');
   const [formTipo, setFormTipo] = useState('casamento');
   const [formGrupo, setFormGrupo] = useState('');
   const [formFrequencia, setFormFrequencia] = useState('anual');
+  const [formPrioridade, setFormPrioridade] = useState('normal');
 
   const [usuarios, setUsuarios] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -104,11 +106,15 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [editingTipoId, setEditingTipoId] = useState(null);
   const [editTipoForm, setEditTipoForm] = useState({ nome: '', cor: '#3b82f6', template_resposta: '' });
 
+  const [bots, setBots] = useState([]);
+  const [botsLoading, setBotsLoading] = useState(false);
+
   const today = new Date();
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calSelectedDay, setCalSelectedDay] = useState(null);
 
+  const [selectedBotIdForGrupos, setSelectedBotIdForGrupos] = useState('');
   const [tutorialStep, setTutorialStep] = useState(0);
   const skipTutorial = () => { setTutorialStep(0); setActiveTab('dashboard'); localStorage.setItem('tutorial_done', 'true'); };
   
@@ -243,19 +249,24 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     });
 
     if (result.isConfirmed) {
-      Swal.fire({ title: 'A processar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      Swal.fire({ title: '🎓 A processar...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       try {
         const r = await fetch(`${apiBase}/api/eventos/testar-lembretes`, { method: 'POST', headers: jsonHeaders });
-        const data = await r.json();
+        let data = {};
+        try { 
+            data = await r.json(); 
+        } catch(e) { 
+            data = { erro: 'O servidor retornou uma resposta inválida (HTML). Verifique se o servidor backend está a correr.' }; 
+        }
+
         if (r.ok) {
-            Swal.fire('Concluído', data.mensagem || 'Disparo finalizado!', 'success');
+            Swal.fire('Concluído', data.mensagem || 'Lembretes disparados com sucesso!', 'success');
             if (isAdmin) fetchData();
         } else {
-            Swal.fire('Erro', data.erro || 'Erro no processamento', 'error');
+            Swal.fire({ icon: 'error', title: 'Falha no processamento', text: data.erro || 'Erro interno do servidor' });
         }
-      } catch (e) { 
-        console.error(e);
-        Swal.fire('Erro', 'Falha na conexão com o servidor de lembretes: ' + e.message, 'error'); 
+      } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Erro de Rede', text: 'Não foi possível ligar ao servidor de lembretes. Verifique a sua ligação.' });
       }
     }
   };
@@ -278,18 +289,31 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           if (resTypes.ok) setTiposEvento(await resTypes.json());
 
           if (isAdmin) {
-              const resLogs = await fetch(`${apiBase}/api/eventos/logs`, { headers });
-              if (resLogs.ok) setLogs(await resLogs.json());
-              const resBkps = await fetch(`${apiBase}/api/auth/backups`, { headers });
-              if (resBkps.ok) setBackups(await resBkps.json());
               const resAuditoria = await fetch(`${apiBase}/api/auth/auditoria`, { headers });
               if (resAuditoria.ok) setLogsAuditoria(await resAuditoria.json());
+              
+              const resBots = await fetch(`${apiBase}/api/eventos/bots`, { headers });
+              if (resBots.ok) setBots(await resBots.json());
+              
               fetchConfigs();
           }
       } catch (e) { console.error(e); }
   };
 
-  useEffect(() => { fetchData(); }, [activeTab]);
+  useEffect(() => { 
+    fetchData(); 
+    // Se estiver na aba de grupos, atualiza o status dos bots a cada 5 segundos para refletir o scan do QR
+    let interval;
+    if (activeTab === 'grupos' && isAdmin) {
+        interval = setInterval(() => {
+            fetch(`${apiBase}/api/eventos/bots`, { headers })
+                .then(r => r.ok ? r.json() : [])
+                .then(data => setBots(data))
+                .catch(e => console.error(e));
+        }, 5000);
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [activeTab, isAdmin]);
 
   // =================== HANDLERS =================== //
   const handleReconectarWA = async () => {
@@ -309,9 +333,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (!step2.isConfirmed) { toast.info('Operação cancelada.'); return; }
 
     try {
-        setLoading(true);
+        setIsSubmitting(true);
         const res = await fetch(`${apiBase}/api/auth/backups/restore/${filename}`, { method: 'POST', headers: jsonHeaders });
-        const data = await res.json();
+        let data = {};
+        try { data = await res.json(); } catch(e) { data = { erro: 'Resposta inválida' }; }
         
         if (res.ok) {
             await Swal.fire({ title: 'Restaurado!', text: 'Backup restaurado com sucesso. A página será atualizada.', icon: 'success', timer: 2000, showConfirmButton: false });
@@ -322,7 +347,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     } catch (err) {
         Swal.fire('Erro', 'Erro na comunicação com o servidor.', 'error');
     } finally {
-        setLoading(false);
+        setIsSubmitting(false);
     }
   };
 
@@ -485,26 +510,70 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const handleCreateEvento = async (e) => {
     e.preventDefault();
-    if (!canEdit) return toast.warning('Permissão negada!');
-    if (!formGrupo) return toast.warning('Seleccione um grupo WhatsApp!');
-    const payload = { nomes_principais: formNomes, data_evento: formData, tipo_evento: formTipo, grupo_id: formGrupo, criado_por: user.id, frequencia_lembrete: formFrequencia };
-
-    if (!isOnline) {
-       addToQueue(payload);
-       setFormNomes(''); setFormData(''); setFormFrequencia('anual');
-       toast.info('📴 Guardado Offline! Será sincronizado assim que tiveres Internet.');
-       return;
+    
+    if (!user || !user.id) {
+        Swal.fire({ icon: 'error', title: 'Sessão Expirada', text: 'Por favor, faça login novamente.' });
+        return;
     }
 
-    const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
-    const data = await res.json();
-    if (res.ok) { 
-        setFormNomes(''); setFormData(''); setFormFrequencia('anual'); 
-        Swal.fire({ title: 'Sucesso!', text: 'Evento registado com sucesso.', icon: 'success', timer: 3000, confirmButtonColor: '#10b981' }); 
-        fetchData(); 
-        refreshData();
+    if (!canEdit) {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Permissão negada!', showConfirmButton: false, timer: 10000, timerProgressBar: true, background: '#f59e0b', color: '#fff', iconColor: '#fff' });
+        return;
     }
-    else toast.error('Erro ao guardar: ' + (data.erro || 'Falha desconhecida.'));
+
+    if (!formNomes || !formData || !formTipo || !formGrupo) {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Campos Incompletos', text: 'Por favor, preencha todos os campos obrigatórios.', showConfirmButton: false, timer: 10000, timerProgressBar: true, background: '#f59e0b', color: '#fff', iconColor: '#fff' });
+        return;
+    }
+    
+    const payload = { 
+        nomes_principais: formNomes, 
+        data_evento: formData, 
+        tipo_evento: formTipo, 
+        grupo_id: formGrupo, 
+        criado_por: user.id, 
+        frequencia_lembrete: formFrequencia,
+        prioridade: formPrioridade
+    };
+
+    setIsSubmitting(true);
+    try {
+        if (!isOnline) {
+           addToQueue(payload);
+           setFormNomes(''); setFormData(''); setFormFrequencia('anual');
+           Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: '📴 Guardado Offline!', text: 'Será sincronizado automaticamente.', showConfirmButton: false, timer: 10000, timerProgressBar: true, background: '#3b82f6', color: '#fff', iconColor: '#fff' });
+           setIsSubmitting(false);
+           return;
+        }
+
+        const res = await fetch(`${apiBase}/api/eventos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
+        
+        let data = {};
+        try { data = await res.json(); } catch(e) { data = { erro: 'Resposta inválida do servidor' }; }
+
+        if (res.ok) { 
+            setFormNomes(''); setFormData(''); setFormFrequencia('anual'); 
+            Swal.fire({ title: 'Sucesso!', text: 'Evento registado com sucesso.', icon: 'success', timer: 4000, confirmButtonColor: '#10b981' }); 
+            fetchData(); 
+            refreshData();
+        } else {
+            Swal.fire({ 
+                toast: true, position: 'top-end', icon: 'error', 
+                title: 'Erro ao guardar', text: data.erro || 'Falha no servidor', 
+                showConfirmButton: false, timer: 10000, timerProgressBar: true, 
+                background: '#ef4444', color: '#fff', iconColor: '#fff' 
+            });
+        }
+    } catch (err) {
+        Swal.fire({ 
+            toast: true, position: 'top-end', icon: 'error', 
+            title: 'Erro de Conexão', text: err.message, 
+            showConfirmButton: false, timer: 10000, timerProgressBar: true, 
+            background: '#ef4444', color: '#fff', iconColor: '#fff' 
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const handleUploadFoto = async (eventoId, file) => {
@@ -534,19 +603,36 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   };
 
   const handleUpdateEvento = async () => {
-    const res = await fetch(`${apiBase}/api/eventos/${editingEvento}`, {
-        method: 'PUT',
-        headers: jsonHeaders,
-        body: JSON.stringify({ ...editEventoForm, usuario_id: user.id })
-    });
-    if (res.ok) { 
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Evento atualizado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#3b82f6', color: '#fff', iconColor: '#fff' });
-        setEditingEvento(null); 
-        fetchData(); 
-        refreshData();
-    }
-    else {
-        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Falha ao atualizar', showConfirmButton: false, timer: 5000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
+    try {
+        const res = await fetch(`${apiBase}/api/eventos/${editingEvento}`, {
+            method: 'PUT',
+            headers: jsonHeaders,
+            body: JSON.stringify({ ...editEventoForm, usuario_id: user.id })
+        });
+
+        let data = {};
+        try { data = await res.json(); } catch(e) { data = { erro: 'Resposta inválida' }; }
+
+        if (res.ok) { 
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Evento atualizado!', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
+            setEditingEvento(null); 
+            fetchData(); 
+            refreshData();
+        } else {
+            Swal.fire({ 
+                toast: true, position: 'top-end', icon: 'error', 
+                title: 'Erro ao atualizar', text: data.erro || 'Falha no servidor', 
+                showConfirmButton: false, timer: 10000, timerProgressBar: true, 
+                background: '#ef4444', color: '#fff', iconColor: '#fff' 
+            });
+        }
+    } catch (err) {
+        Swal.fire({ 
+            toast: true, position: 'top-end', icon: 'error', 
+            title: 'Erro de Conexão', text: err.message, 
+            showConfirmButton: false, timer: 10000, timerProgressBar: true, 
+            background: '#ef4444', color: '#fff', iconColor: '#fff' 
+        });
     }
   };
 
@@ -597,10 +683,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 Swal.fire('Eliminado!', 'Todo o histórico de logs foi removido.', 'success');
                 fetchData();
             } else {
-                toast.error('Falha ao limpar histórico completo');
+                Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Falha ao limpar histórico completo', showConfirmButton: false, timer: 10000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
             }
         } catch (e) {
-            toast.error('Erro de conexão ao limpar histórico');
+            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro de conexão ao limpar histórico', showConfirmButton: false, timer: 10000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
         }
     }
   };
@@ -610,17 +696,20 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         const r = await fetch(`${apiBase}/api/eventos/logs/${id}`, { method: 'DELETE', headers });
         if (r.ok) {
             setLogs(logs.filter(l => l.id !== id));
-            toast.success('Registo removido');
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Registo removido', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
         } else {
-            toast.error('Falha ao apagar registo');
+            Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Falha ao apagar registo', showConfirmButton: false, timer: 10000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
         }
     } catch (e) {
-        toast.error('Erro ao eliminar log');
+        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao eliminar log', showConfirmButton: false, timer: 10000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
     }
   };
 
   const apagarEvento = async (id) => {
-    if (!isAdmin) return toast.warning('Só Admins podem apagar!');
+    if (!isAdmin) {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Permissão negada!', text: 'Só Admins podem apagar.', showConfirmButton: false, timer: 10000, timerProgressBar: true, background: '#f59e0b', color: '#fff', iconColor: '#fff' });
+        return;
+    }
     const result = await Swal.fire({ title: 'Apagar Evento?', text: 'Esta ação não pode ser revertida.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#64748b', confirmButtonText: 'Sim, Apagar', cancelButtonText: 'Cancelar' });
     if (result.isConfirmed) { 
         await fetch(`${apiBase}/api/eventos/${id}`, { method: 'DELETE', headers }); 
@@ -639,7 +728,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         setNewUserNome(''); setNewUserEmail(''); setNewUserSenha(''); setNewUserRole('leitor'); 
         fetchData(); 
     }
-    else toast.error(d.erro || 'Erro ao criar utilizador');
+    else {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: d.erro || 'Erro ao criar utilizador', showConfirmButton: false, timer: 10000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
+    }
   };
 
   const handleDeleteUser = async (id) => {
@@ -680,7 +771,10 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   // ========== GESTÃO DE TIPOS ==========
   const handleCreateTipo = async () => {
-    if (!newTipoNome) return toast.warning('Nome é obrigatório');
+    if (!newTipoNome) {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Nome é obrigatório', showConfirmButton: false, timer: 10000, timerProgressBar: true, background: '#f59e0b', color: '#fff', iconColor: '#fff' });
+        return;
+    }
     const r = await fetch(`${apiBase}/api/eventos/tipos`, {
       method: 'POST',
       headers: jsonHeaders,
@@ -729,7 +823,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (result.isConfirmed) {
       const res = await fetch(`${apiBase}/api/auth/backups/${filename}`, { method: 'DELETE', headers });
       if (res.ok) {
-        toast.success('Backup eliminado.');
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Backup eliminado', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
         fetchData();
       }
     }
@@ -751,7 +845,11 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     if (!result.isConfirmed) return;
 
     try {
-        const res = await fetch(`${apiBase}/api/eventos/teste-conexao`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ grupo_id: grupoId }) });
+        const res = await fetch(`${apiBase}/api/eventos/teste-conexao`, { 
+            method: 'POST', 
+            headers: jsonHeaders, 
+            body: JSON.stringify({ grupo_id: grupoId, botId: selectedBotIdForGrupos }) 
+        });
         const d = await res.json();
         if (res.ok) {
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '🤖 Teste enviado com sucesso!', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#10b981', color: '#fff', iconColor: '#fff' });
@@ -910,13 +1008,20 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 else setFormGrupo(e.target.value);
               }} />
 
+              <select className="inline-input" style={{flex:'0.2'}} value={formPrioridade} onChange={e=>setFormPrioridade(e.target.value)}>
+                <option value="normal">⚪ Normal</option>
+                <option value="urgente">🔴 Urgente</option>
+              </select>
+
               <select className="inline-input" style={{flex:'0.25'}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
                 <option value="anual">📅 Anual</option>
                 <option value="mensal">🔄 Mensal</option>
                 <option value="semanal">📆 Semanal</option>
                 <option value="diario">⏰ Diário</option>
               </select>
-              <button type="submit" className="btn-submit" disabled={loading}>+ Guardar</button>
+              <button type="submit" className="btn-submit" disabled={isSubmitting}>
+              {isSubmitting ? '🔄 A Guardar...' : '+ Guardar'}
+          </button>
             </form>
           ) : <div className="text-muted">Apenas admins/editores podem registar.</div>}
           <div className="panel-title" style={{marginTop:'1.5rem'}}>Últimos Registos</div>
@@ -924,7 +1029,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             <table className="table-minimal">
                 <thead><tr><th>Nomes</th><th>Tipo</th><th style={{textAlign:'right'}}>Data</th></tr></thead>
                 <tbody>
-                {loading ? <tr><td colSpan="3">A carregar...</td></tr> : eventos.length === 0 ? <tr><td colSpan="3">Sem eventos.</td></tr> :
+                {dataLoading ? <tr><td colSpan="3">A carregar...</td></tr> : eventos.length === 0 ? <tr><td colSpan="3">Sem eventos.</td></tr> :
                     eventos.slice(0,5).map(ev => (
                     <tr key={ev.id}><td className="fw-bold">{ev.nomes_principais}</td><td><span className="badge-tipo">{ev.tipo_evento}</span></td><td style={{textAlign:'right'}}>{new Date(ev.data_evento).toLocaleDateString('pt-PT')}</td></tr>
                 ))}
@@ -1036,14 +1141,20 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
             <option value="semanal">📆 Semanal</option>
             <option value="diario">⏰ Diário</option>
           </select>
-          <button type="submit" className="btn-submit" disabled={loading}>+ Guardar</button>
+          <select className="inline-input" style={{flex:'0.2'}} value={formPrioridade} onChange={e=>setFormPrioridade(e.target.value)}>
+            <option value="normal">⚪ Normal</option>
+            <option value="urgente">🔴 Urgente</option>
+          </select>
+          <button type="submit" className="btn-submit" disabled={isSubmitting}>
+              {isSubmitting ? '🔄 A Guardar...' : '+ Guardar'}
+          </button>
         </form>
       )}
       <div className="table-responsive">
         <table className="table-minimal" style={{marginTop:'1rem'}}>
           <thead><tr><th>Nomes</th><th>Data</th><th>Tipo</th><th>Freq.</th><th>Grupo</th><th>Foto</th><th>Gestão</th></tr></thead>
           <tbody>
-            {loading ? (
+            {dataLoading ? (
                 <tr><td colSpan="7" style={{textAlign:'center', padding:'2rem'}}>A carregar eventos...</td></tr>
             ) : filtered.length === 0 ? (
                 <tr><td colSpan="7" style={{textAlign:'center', padding:'3rem'}}>
@@ -1094,40 +1205,171 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       </div>
     </div>
   );
-  };
+};
 
-  /* ========== RENDER: GRUPOS WHATSAPP E QR CODE ========== */
-  const renderGrupos = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {isAdmin && (
-        <div className={`panel-card ${tutorialStep === 3 ? 'tutorial-highlight' : ''}`} id="step-bot">
-          <div className="panel-title" style={{margin:0}}>🔌 Conexão WhatsApp</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', alignItems: 'center', marginTop: '1rem' }}>
-            <div style={{ flex: '1', minWidth: '250px' }}>
-              <p>Status: <span className="badge-tipo" style={{fontSize: '0.85rem'}}>{waStatus.status?.toUpperCase()}</span></p>
-              {waStatus.status === 'aguardando_qr' && waStatus.qr && (
-                <div style={{ marginTop: '1rem', background: '#fff', padding: '10px', display: 'inline-block', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <img src={waStatus.qr} alt="WhatsApp QR Code" style={{ width: '220px', height: '220px', display: 'block' }} />
-                  <p style={{ fontSize: '0.8rem', textAlign: 'center', marginTop: '0.5rem', color: 'var(--text-secondary)' }}>Escaneie com o app do WhatsApp</p>
-                </div>
-              )}
-              {waStatus.status === 'conectado' && (
-                <div style={{ marginTop: '1rem', color: '#10b981', fontWeight: 'bold' }}>✅ Bot conectado e a comunicar!</div>
-              )}
-            </div>
-            <div style={{ flex: '1', minWidth: '250px' }}>
-              <p className="text-muted" style={{ marginBottom: '1rem', fontSize: '0.85rem' }}>
-                Se quiseres ligar outro dispositivo ou se o bot perdeu a conexão, podes forçar uma nova ligação. Isto apagará a sessão antiga e gerará um novo QR Code.
-              </p>
-              <button onClick={handleReconectarWA} className="btn-submit" style={{ background: '#f59e0b', color: '#000' }}>
-                🔄 Forçar Nova Conexão (Gerar QR)
-              </button>
-            </div>
-          </div>
+/* ========== RENDER: MULTI-BOT MANAGEMENT ========== */
+const renderMultiBot = () => {
+    const handleEditBot = async (bot) => {
+        const { value: formValues } = await Swal.fire({
+            title: 'Editar Bot: ' + bot.nome,
+            html:
+              `<input id="swal-input-edit1" class="swal2-input" placeholder="Nome" value="${bot.nome}">` +
+              `<p style="font-size:0.8rem; margin-top:1rem;">Categorias permitidas (separadas por vírgula):</p>` +
+              `<input id="swal-input-edit2" class="swal2-input" placeholder="casamento, aniversario" value="${bot.tipos_permitidos?.join(', ') || ''}">`,
+            focusConfirm: false,
+            preConfirm: () => {
+              return [
+                document.getElementById('swal-input-edit1').value,
+                document.getElementById('swal-input-edit2').value
+              ]
+            }
+        });
+
+        if (formValues && formValues[0]) {
+            try {
+                const tipos = formValues[1].split(',').map(s => s.trim().toLowerCase()).filter(s => s !== '');
+                const res = await fetch(`${apiBase}/api/eventos/bots/${bot.id}`, {
+                    method: 'PUT',
+                    headers: jsonHeaders,
+                    body: JSON.stringify({ nome: formValues[0], tipos_permitidos: tipos })
+                });
+                if (res.ok) {
+                    Swal.fire('Sucesso', 'Configurações salvas!', 'success');
+                    fetchData();
+                }
+            } catch (e) { console.error(e); }
+        }
+    };
+
+    const handleAddBot = async () => {
+        const { value: formValues } = await Swal.fire({
+            title: 'Configurar Novo Bot',
+            html:
+              '<input id="swal-input1" class="swal2-input" placeholder="Nome do Bot (ex: Bot Vendas)">' +
+              '<p style="font-size:0.8rem; margin-top:1rem;">Categorias permitidas (separadas por vírgula):</p>' +
+              '<input id="swal-input2" class="swal2-input" placeholder="casamento, aniversario">',
+            focusConfirm: false,
+            preConfirm: () => {
+              return [
+                document.getElementById('swal-input1').value,
+                document.getElementById('swal-input2').value
+              ]
+            }
+        });
+
+        if (formValues && formValues[0]) {
+            try {
+                const tipos = formValues[1].split(',').map(s => s.trim().toLowerCase()).filter(s => s !== '');
+                const res = await fetch(`${apiBase}/api/eventos/bots`, {
+                    method: 'POST',
+                    headers: jsonHeaders,
+                    body: JSON.stringify({ nome: formValues[0], tipos_permitidos: tipos })
+                });
+                if (res.ok) {
+                    Swal.fire('Sucesso', 'Bot instanciado! Aguarda o QR Code nos cartões.', 'success');
+                    fetchData();
+                }
+            } catch (e) { 
+                Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Erro ao criar bot', showConfirmButton: false, timer: 10000, timerProgressBar: true, background: '#ef4444', color: '#fff', iconColor: '#fff' });
+            }
+        }
+    };
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'1rem'}}>
+            <h2 style={{margin:0, fontSize:'1.5rem'}}>🔌 Gestão Multi-Bot</h2>
+            {isAdmin && <button onClick={handleAddBot} className="btn-submit" style={{width:'auto', padding:'0.5rem 1rem', fontSize:'0.85rem', background:'var(--primary)', border:'none', borderRadius:'8px', fontWeight:600}}>➕ Novo Bot</button>}
         </div>
-      )}
 
-      <div className="panel-card">
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(320px, 1fr))', gap:'1.5rem'}}>
+            {bots.length === 0 ? (
+                <div className="panel-card" style={{textAlign:'center', padding:'3rem'}}>
+                    <p className="text-muted">Nenhum bot configurado. Clica em "Novo Bot" para começar.</p>
+                </div>
+            ) : bots.map(bot => (
+                <div key={bot.id} className="panel-card" style={{borderLeft:`5px solid ${bot.status === 'conectado' ? '#10b981' : '#f59e0b'}`}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'1rem'}}>
+                        <div>
+                            <h3 style={{margin:0}}>{bot.nome}</h3>
+                            <span className="badge-tipo" style={{fontSize:'0.7rem', background: bot.status==='conectado' ? '#dcfce7':'#fef3c7', color: bot.status==='conectado' ? '#166534':'#92400e'}}>
+                                ● {bot.status?.toUpperCase()}
+                            </span>
+                        </div>
+                        <div style={{display:'flex', gap:'0.5rem'}}>
+                            <button onClick={() => handleEditBot(bot)} className="btn-action" style={{background:'#f1f5f9', border:'none', padding:'4px 8px', borderRadius:'6px', cursor:'pointer'}} title="Editar">✏️</button>
+                            <button onClick={async () => {
+                                if (await Swal.fire({title:'Remover Bot?', text:'A sessão será destruída permanentemente.', icon:'warning', showCancelButton:true, confirmButtonColor:'#ef4444'}).then(r=>r.isConfirmed)) {
+                                    await fetch(`${apiBase}/api/eventos/bots/${bot.id}`, { method: 'DELETE', headers });
+                                    fetchData();
+                                }
+                            }} className="btn-action" style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', fontSize:'1.1rem'}} title="Apagar">🗑️</button>
+                        </div>
+                    </div>
+                    
+                    <p style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>
+                        🎯 Categorias: <b>{bot.tipos_permitidos?.join(', ') || 'Todas'}</b>
+                    </p>
+
+                    {bot.status === 'aguardando_qr' && bot.qr ? (
+                        <div style={{textAlign:'center', marginTop:'1rem', background:'#fff', padding:'1rem', borderRadius:'12px', border:'1px solid var(--border)'}}>
+                            <img src={bot.qr} alt="QR Code" style={{width:'180px', height:'180px'}} />
+                            <p style={{fontSize:'0.75rem', marginTop:'0.5rem'}}>Lê com o teu WhatsApp</p>
+                        </div>
+                    ) : bot.status === 'conectado' ? (
+                        <div style={{display:'flex', flexDirection:'column', gap:'0.75rem', marginTop:'1.5rem'}}>
+                            <div style={{textAlign:'center', color:'#10b981', background:'#dcfce7', padding:'1rem', borderRadius:'12px', fontWeight:600}}>
+                                🚀 Bot em Operação!
+                            </div>
+                            <button onClick={async () => {
+                                if (await Swal.fire({title:'Desconectar Bot?', text:'Isto encerrará a sessão do WhatsApp sem remover o bot do sistema.', icon:'warning', showCancelButton:true, confirmButtonColor:'#ef4444'}).then(r=>r.isConfirmed)) {
+                                    try {
+                                        await fetch(`${apiBase}/api/eventos/bots/${bot.id}/desconectar`, { method: 'POST', headers });
+                                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Desconectado com sucesso!', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#ef4444', color: '#fff' });
+                                        fetchData();
+                                    } catch (e) {
+                                        Swal.fire('Erro', 'Falha ao desconectar bot.', 'error');
+                                    }
+                                }
+                            }} className="btn-submit" style={{background:'#fee2e2', color:'#b91c1c', border:'1px solid #fecaca', fontSize:'0.85rem', padding:'0.6rem'}}>
+                                📴 Desconectar Bot
+                            </button>
+                        </div>
+                    ) : (
+                        <div style={{display:'flex', flexDirection:'column', gap:'0.75rem', marginTop:'1.5rem'}}>
+                            <button onClick={async () => {
+                                await fetch(`${apiBase}/api/eventos/bots/${bot.id}/reconectar`, { method: 'POST', headers });
+                                Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'A gerar novo QR...', showConfirmButton: false, timer: 6000, timerProgressBar: true, background: '#3b82f6', color: '#fff', iconColor: '#fff' });
+                                fetchData();
+                            }} className="btn-submit" style={{background:'#f8fafc', color:'#475569', border:'1px solid var(--border)'}}>
+                                🔄 Gerar QR Code
+                            </button>
+                            <button onClick={async () => {
+                                if (await Swal.fire({title:'Desconectar Bot?', text:'Isto encerrará a sessão se estiver aberta.', icon:'warning', showCancelButton:true}).then(r=>r.isConfirmed)) {
+                                    await fetch(`${apiBase}/api/eventos/bots/${bot.id}/desconectar`, { method: 'POST', headers });
+                                    fetchData();
+                                }
+                            }} className="btn-submit" style={{background:'transparent', color:'#ef4444', border:'1px solid #fee2e2', fontSize:'0.8rem'}}>
+                                Desconectar Sessão
+                            </button>
+                        </div>
+                    )}
+                </div>
+            ))}
+        </div>
+
+        <div className="panel-card">
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem', flexWrap:'wrap', gap:'1rem'}}>
+            <div className="panel-title" style={{margin:0}}>📋 Grupos de WhatsApp</div>
+            <select className="inline-input" style={{width:'auto', minWidth:'200px'}} value={selectedBotIdForGrupos} onChange={(e) => {
+                setSelectedBotIdForGrupos(e.target.value);
+                refreshGrupos(e.target.value);
+            }}>
+                <option value="">Seleciona o Bot...</option>
+                {bots.filter(b=>b.status==='conectado').map(b=><option key={b.id} value={b.id}>{b.nome}</option>)}
+            </select>
+          </div>
+          {/* ... continuação da tabela de grupos ... */}
         <div className={`panel-card ${tutorialStep === 4 ? 'tutorial-highlight' : ''}`} id="step-groups-list">
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem', flexWrap:'wrap', gap:'1rem'}}>
             <div className="panel-title" style={{margin:0}}>📋 Lista de Grupos Participados</div>
@@ -1270,6 +1512,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       </div>
     </div>
   );
+};
 
   /* ========== RENDER: HISTÓRICO (LOGS) ========== */
   const renderLogs = () => {
@@ -2117,7 +2360,8 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           {canEdit && activeTab === 'dashboard' && renderDashboard()}
           {canEdit && activeTab === 'eventos' && renderEventos()}
           {activeTab === 'calendario' && renderCalendario()}
-          {canEdit && activeTab === 'grupos' && renderGrupos()}
+          {canEdit && activeTab === 'grupos' && 
+          renderMultiBot()}
           {isAdmin && activeTab === 'logs' && renderLogs()}
           {(isAdmin || isEditor) && activeTab === 'configuracoes' && renderConfig()}
         </div>
@@ -2169,8 +2413,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                     </div>
                 </div>
 
+
                 <div style={{display:'flex', gap:'0.75rem', marginTop:'1.5rem'}}>
-                    <button onClick={handleUpdateEvento} className="btn-submit" style={{flex:1, padding:'0.8rem'}}>💾 Guardar Alterações</button>
+                    <button onClick={handleUpdateEvento} className="btn-submit" style={{flex:1, padding:'0.8rem', background:'var(--primary)'}}>💾 Guardar Alterações</button>
                     <button onClick={()=>setEditingEvento(null)} className="btn-submit" style={{flex:0.4, background:'#64748b', padding:'0.8rem'}}>Cancelar</button>
                 </div>
             </div>

@@ -47,11 +47,15 @@ router.get('/logs', SystemController.listLogs);
 router.delete('/logs/all', SystemController.clearAllLogs);
 router.delete('/logs/:id', SystemController.deleteLog);
 
-// ========== BOT / WHATSAPP ========== //
-router.get('/whatsapp-status', BotController.getStatus);
-router.post('/whatsapp-reconectar', BotController.reconnect);
+// ========== BOT / WHATSAPP (MULTI-INSTANCE) ========== //
+router.get('/bots', BotController.listBots);
+router.post('/bots', BotController.createBot);
+router.put('/bots/:id', BotController.updateBot);
+router.delete('/bots/:id', BotController.deleteBot);
+router.post('/bots/:id/reconectar', BotController.reconnect);
+router.post('/bots/:id/desconectar', BotController.disconnect);
 router.get('/grupos', BotController.listGroups);
 router.post('/teste-conexao', BotController.testConnection);
-router.post('/testar-lembretes', BotController.runManualReminders);
+router.post('/testar-lembretes', BotController.triggerRemindersNow);
 
 module.exports = router;

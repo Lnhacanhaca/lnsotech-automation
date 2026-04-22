@@ -8,29 +8,28 @@ export const useGrupos = (token, activeTab, mutedGroups = []) => {
     const apiBase = '';
     const headers = { 'Authorization': `Bearer ${token}` };
 
-    const fetchGrupos = useCallback(async () => {
+    const fetchGrupos = useCallback(async (botId) => {
         setLoading(true);
         try {
-            const res = await fetch(`${apiBase}/api/eventos/grupos`, { headers });
+            const url = botId ? `${apiBase}/api/eventos/grupos?botId=${botId}` : `${apiBase}/api/eventos/grupos`;
+            const res = await fetch(url, { headers });
             if (res.ok) {
                 const data = await res.json();
                 setRawGrupos(data);
             } else {
                 const d = await res.json();
-                toast.error(d.erro || 'Bot offline ao buscar grupos');
+                toast.error(d.erro || 'Instância offline ao buscar grupos');
             }
         } catch (e) {
-            toast.error('Falha ao carregar grupos');
+            toast.error('Falha ao carregar grupos (Servidor)');
         } finally {
             setLoading(false);
         }
     }, [token]);
 
     useEffect(() => {
-        if (activeTab === 'grupos' && rawGrupos.length === 0) {
-            fetchGrupos();
-        }
-    }, [activeTab, fetchGrupos, rawGrupos.length]);
+        // Agora o carregamento automático só acontece se já houver grupos salvos ou o user escolher um bot
+    }, [activeTab, fetchGrupos]);
 
     const grupos = useMemo(() => {
         return rawGrupos.map(g => ({

@@ -6,7 +6,7 @@ const fs = require('fs');
 
 const db = require('./config/database');
 const DatabaseService = require('./services/DatabaseService');
-const { connectToWhatsApp } = require('./bot/engine');
+const manager = require('./bot/engine');
 
 // Importar rotas
 const eventosRoutes = require('./routes/eventos');
@@ -47,9 +47,9 @@ const start = async () => {
         // 1. Inicializar Base de Dados
         await DatabaseService.initialize();
 
-        // 2. Iniciar Bot do WhatsApp
-        await connectToWhatsApp().catch(err => {
-            console.error('❌ Erro ao iniciar motor WhatsApp:', err.message);
+        // 2. Iniciar Sistema Multi-Bot
+        await manager.init().catch(err => {
+            console.error('❌ Erro ao iniciar motor Multi-Bot:', err.message);
         });
 
         // 3. Iniciar Servidor Web
