@@ -442,15 +442,27 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const handleUpdateTemplate = async (id, mensagem) => {
     try {
+      Swal.fire({ title: 'A guardar template...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       const r = await fetch(`${apiBase}/api/eventos/templates/${id}`, {
         method: 'PUT',
         headers: jsonHeaders,
         body: JSON.stringify({ mensagem })
       });
       if (r.ok) {
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '📝 Template guardado!', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#3b82f6', color: '#fff', iconColor: '#fff' });
+        Swal.fire({ 
+            toast: true, position: 'top-end', icon: 'success', 
+            title: '📝 Template guardado!', showConfirmButton: false, 
+            timer: 3000, timerProgressBar: true, background: '#10b981', color: '#fff' 
+        });
+        fetchData(); // Recarregar a lista de templates
+        setEditingTemplate(null); // Fechar o editor
+        setTempTemplateMsg(''); // Limpar mensagem temporária
+      } else {
+        throw new Error('Falha ao guardar no servidor');
       }
-    } catch (e) { toast.error('Erro ao guardar template'); }
+    } catch (e) { 
+        Swal.fire('Erro', 'Não foi possível guardar o template. Verifique a ligação.', 'error');
+    }
   };
 
   // Export CSV ja definido acima
