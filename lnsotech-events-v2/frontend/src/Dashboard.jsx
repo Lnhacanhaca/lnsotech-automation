@@ -153,9 +153,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         if (next === 6) setActiveTab('calendario');
         if (next === 7) setActiveTab('calendario');
         if (next === 8) setActiveTab('eventos');
-        if (next === 9) {
-            // Confetti effect logic here if needed or just show the last step
-        }
+        if (next === 9) { setActiveTab('configuracoes'); setConfigSubTab('auditoria'); }
+        if (next === 10) { setActiveTab('configuracoes'); setConfigSubTab('personalizacao'); setEditingTemplate(null); }
+        if (next === 11) { setActiveTab('configuracoes'); setConfigSubTab('seguranca'); }
         return next;
     });
   };
@@ -2522,7 +2522,7 @@ const renderMultiBot = () => {
     if (tutorialStep === 0) return null;
 
     const steps = [
-        { title: "👋 Olá!", text: "Benvindo ao seu novo CRM. Vamos configurar tudo em 1 minuto?", target: null },
+        { title: "👋 Olá!", text: "Benvindo ao seu novo CRM. Vamos configurar tudo em 2 minutos?", target: null },
         { title: "📊 Visão Geral", text: "Aqui vê o resumo vital: eventos, grupos ativos e lembretes de hoje.", target: "step-stats" },
         { title: "🤖 Status Bot", text: "Mantenha o WhatsApp ligado. Se ficar a vermelho, re-conecte o QR.", target: "step-bot" },
         { title: "🔌 Conectar Grupos", text: "Active ou silencie grupos individualmente para controlar os envios.", target: "step-groups-list" },
@@ -2530,7 +2530,10 @@ const renderMultiBot = () => {
         { title: "📲 Sincronizar", text: "Link ICS para importar todos os eventos para o seu telemóvel.", target: "step-calendar-sync" },
         { title: "🗓️ Mapa Mensal", text: "Planeie o seu mês. Clique nos dias coloridos para ver os detalhes.", target: "step-calendar-grid" },
         { title: "📂 Exportar", text: "Gere relatórios PDF/Excel para backups ou auditorias externas.", target: "step-export" },
-        { title: "🚀 Sucesso!", text: "Tudo configurado! Explore à vontade e automatize o seu negócio.", target: null }
+        { title: "🕵️ Histórico", text: "Acompanhe todas as alterações feitas pela equipa no Log de Auditoria.", target: null },
+        { title: "📝 Live Editor", text: "Personalize as mensagens com o novo editor em tempo real estilo smartphone.", target: null },
+        { title: "🔐 Segurança", text: "Proteja a sua conta com a Autenticação de Dois Fatores (2FA).", target: null },
+        { title: "🚀 Sucesso!", text: "Tudo configurado! Explore à vontade e automatize o seu negócio comercial.", target: null }
     ];
 
     const current = steps[tutorialStep - 1] || steps[0];

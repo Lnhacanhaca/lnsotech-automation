@@ -1,10 +1,10 @@
-const CACHE_NAME = 'lnso-cache-v2';
+const CACHE_NAME = 'kumbuka-cache-v3';
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo192.png',
-  '/logo512.png'
+  '/android-chrome-192x192.png',
+  '/android-chrome-512x512.png'
 ];
 
 self.addEventListener('install', event => {
