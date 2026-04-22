@@ -468,7 +468,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       ];
       const wsStats = XLSX.utils.aoa_to_sheet(statsData);
       XLSX.utils.book_append_sheet(wb, wsStats, 'Estatisticas');
-      XLSX.writeFile(wb, `lnsotech-relatorio-${new Date().toISOString().slice(0,10)}.xlsx`);
+      XLSX.writeFile(wb, `kumbuka-relatorio-${new Date().toISOString().slice(0,10)}.xlsx`);
     } catch (err) { console.error(err); toast.error('Erro ao gerar Excel: ' + err.message); }
   };
 
@@ -481,7 +481,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text('LNSOTECH Events CRM - Relatorio de Eventos', 14, 13);
+      doc.text('KUMBUKA Events CRM - Relatorio de Eventos', 14, 13);
       doc.setFontSize(9);
       doc.text('Gerado em: ' + dataHoje, 240, 13);
       doc.setTextColor(0, 0, 0);
@@ -504,7 +504,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         alternateRowStyles: { fillColor: [248, 250, 252] },
         columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 60 }, 2: { cellWidth: 25 }, 3: { cellWidth: 22 }, 4: { cellWidth: 22 }, 5: { cellWidth: 50 } },
       });
-      doc.save('lnsotech-relatorio-' + new Date().toISOString().slice(0, 10) + '.pdf');
+      doc.save('kumbuka-relatorio-' + new Date().toISOString().slice(0, 10) + '.pdf');
     } catch (err) { console.error(err); toast.error('Erro ao gerar PDF: ' + err.message); }
   };
 
@@ -2117,7 +2117,7 @@ const renderMultiBot = () => {
                     <div className="panel-card">
                       <div className="panel-title">🤝 Resposta Padrão do Bot (Fallback)</div>
                       <p className="text-muted" style={{fontSize:'0.85rem', marginBottom:'1.2rem'}}>Mensagem enviada quando alguém agradece e não existe template específico.</p>
-                      <textarea className="inline-input" rows={3} placeholder="Ex: A LNSOTECH agradece!" value={respostaPadraoBot} onChange={(e) => setRespostaPadraoBot(e.target.value)} style={{width:'100%', fontSize:'0.9rem', resize:'vertical'}} />
+                      <textarea className="inline-input" rows={3} placeholder="Ex: A KUMBUKA agradece!" value={respostaPadraoBot} onChange={(e) => setRespostaPadraoBot(e.target.value)} style={{width:'100%', fontSize:'0.9rem', resize:'vertical'}} />
                       <button onClick={() => handleSaveConfig('resposta_padrao_bot', respostaPadraoBot)} className="btn-submit" style={{alignSelf:'flex-start', padding:'0.6rem 2rem', background:'var(--info)', marginTop:'1rem'}}>💾 Salvar Resposta Padrão</button>
                     </div>
 
@@ -2525,8 +2525,7 @@ const renderMultiBot = () => {
 
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
-          <span>LNSOTECH</span>
+          <img src="/logo.png" alt="KUMBUKA" style={{width:'80%', objectFit:'contain'}} />
         </div>
         <nav className="nav-menu">
           {canEdit && <div className={`nav-item ${activeTab==='dashboard'?'active':''}`} onClick={()=>changeTab('dashboard')}><span>📊</span><span>Dashboard</span></div>}
@@ -2579,7 +2578,7 @@ const renderMultiBot = () => {
           <h2 className="page-title">{
             {dashboard:'Painel Executivo', eventos:'Gestão de Eventos', calendario:'Calendário de Eventos', grupos:'Grupos WhatsApp', logs:'Histórico e Auditoria', configuracoes:'Configurações'}[activeTab]
           }</h2>
-          <p className="page-subtitle">LNSOTECH Automation CRM — {user.nivel_acesso?.toUpperCase()}</p>
+          <p className="page-subtitle">KUMBUKA Automation CRM — {user.nivel_acesso?.toUpperCase()}</p>
           
           {canEdit && activeTab === 'dashboard' && renderDashboard()}
           {canEdit && activeTab === 'eventos' && renderEventos()}

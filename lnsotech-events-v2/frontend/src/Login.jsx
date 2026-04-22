@@ -61,9 +61,10 @@ export default function Login({ onLogin }) {
   return (
     <div className="login-container">
       <div className="glass-panel login-card">
-        <div className="login-icon">💍</div>
-        <h1 className="login-title">LNSOTECH Events</h1>
-        <p className="login-subtitle">Aceda ao Painel de Administração v2</p>
+        <div className="login-icon">
+          <img src="/icon.png" alt="KUMBUKA" style={{width:'120px', marginBottom:'1.5rem'}} />
+        </div>
+        <h1 className="login-title">KUMBUKA Events</h1>
 
         <form onSubmit={handleSubmit}>
           {!require2FA ? (
@@ -75,7 +76,7 @@ export default function Login({ onLogin }) {
                   className="auth-input" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Ex: admin@lnsotech.com"
+                  placeholder="Ex: admin@kumbuka.com"
                   required 
                 />
               </div>
