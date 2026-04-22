@@ -167,9 +167,11 @@ class DatabaseService {
         await db.query(`
             DO $$ 
             BEGIN
-                IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='logs_envio' AND column_name='data_hora') THEN
+                IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='logs_envio' AND column_name='data_hora') 
+                   AND NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='logs_envio' AND column_name='criado_em') THEN
                     ALTER TABLE logs_envio RENAME COLUMN data_hora TO criado_em;
-                ELSIF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='logs_envio' AND column_name='data_envio') THEN
+                ELSIF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='logs_envio' AND column_name='data_envio') 
+                   AND NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='logs_envio' AND column_name='criado_em') THEN
                     ALTER TABLE logs_envio RENAME COLUMN data_envio TO criado_em;
                 END IF;
 

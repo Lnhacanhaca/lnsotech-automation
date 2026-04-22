@@ -4,7 +4,7 @@ Este documento detalha o estado atual do desenvolvimento e as metas futuras para
 
 ---
 
-## ✅ Concluído (Fase 1 & 2)
+## ✅ Concluído (Fase 1, 2 & 3)
 
 | Funcionalidade | Descrição | Impacto |
 | :--- | :--- | :--- |
@@ -19,27 +19,45 @@ Este documento detalha o estado atual do desenvolvimento e as metas futuras para
 
 ---
 
-## ⏳ Em Desenvolvimento (Fase 3)
+## 📅 Planeado (Fase 4 & 5: Robustez e IA)
 
-- [ ] **Otimização de Cache**: Melhorar a resposta do sistema em grupos de WhatsApp com volume extremo de participantes.
-- [ ] **Dashboards Avançados**: Gráficos mais detalhados sobre a performance de cada bot e taxa de leitura.
-- [ ] **Sistema de Notificações Internas**: Alertas no dashboard para reconexão de bots ou falhas de sistema.
+### 🚀 Funcionalidades Comercial e Financeira
+- [ ] **Módulo de Vendas (Kanban)**: Gestão de leads e oportunidades de eventos (Pipeline).
+- [ ] **Módulo Financeiro**: Controlo de pagamentos, sinalizações e gestão de saldos por evento.
+- [ ] **Gestão de Documentos**: Upload e vinculação de contratos (PDF) diretamente nos eventos.
+- [ ] **Recalls Inteligentes**: Sugestões automáticas de vendas baseadas no histórico do cliente.
+
+### 🎨 Excelência em UX/UI & IA
+- [ ] **Command Palette (Ctrl+K)**: Navegação ultra-rápida por teclado para todo o sistema.
+- [ ] **AI Message Assistant**: Assistente para redigir e otimizar o tom das mensagens nos templates.
+- [ ] **Interface Adaptativa**: Temas customizáveis (Dark Mode, High Contrast) e dashboards modulares.
+- [ ] **Voice-to-Task Webhook**: Integração de áudio do WhatsApp para criação automática de tarefas.
 
 ---
 
-## 📅 Planeado (Fase 4 & 5 - Futuro Próximo)
+## 🎭 Fase 6: Gestão de Convidados & Local (On-Site)
 
-### 🎭 Fase 6: Gestão de Convidados & Local (On-Site)
 - [ ] **RSVP Digital via WhatsApp**: Confirmação de presença interativa integrada na base de dados.
 - [ ] **Check-in via QR Code**: Leitura de ingressos/presença na entrada dos eventos por staff.
 - [ ] **Mapa de Mesas Visual**: Ferramenta interativa de organização de lugares e logística de sala.
 - [ ] **Photo Share Hub**: Centralização de memórias pós-evento para convidados.
 
-### ⚙️ Fase 7: Marketing & Logística Avançada
+---
+
+## ⚙️ Fase 7: Marketing & Logística Avançada
+
 - [ ] **Gestão de Stock & Inventário**: Controlo de disponibilidade de materiais (Cadeiras, Som, etc).
 - [ ] **Análise de Lucratividade**: Dashboards de Custo vs Receita por evento individual.
 - [ ] **Sistema de Member-Get-Member**: Programa de recompensas por indicações via bot.
 - [ ] **Portal do Staff**: Acesso restrito para colaboradores consultarem cronogramas de serviço.
+
+---
+
+## 🌐 Expansão & Integração
+
+- [ ] **Multi-Idioma (i18n)**: Tradução completa (En, Es, Fr) para expansão internacional.
+- [ ] **Calendários Externos**: Sincronização bi-direcional com Google Calendar e Outlook.
+- [ ] **API Pública**: Documentação para integrações de terceiros via Webhooks.
 
 ---
 
