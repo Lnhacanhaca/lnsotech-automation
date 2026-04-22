@@ -62,9 +62,9 @@ export default function Login({ onLogin }) {
     <div className="login-container">
       <div className="glass-panel login-card">
         <div className="login-icon">
-          <img src="/icon.png" alt="KUMBUKA" style={{width:'120px', marginBottom:'1.5rem'}} />
+          <img src="/icon.png" alt="KUMBUKA" style={{width:'120px', marginBottom:'0.5rem'}} />
         </div>
-        <h1 className="login-title">KUMBUKA Events</h1>
+        <h1 className="login-title" style={{marginBottom:'2.5rem'}}>KUMBUKA Events</h1>
 
         <form onSubmit={handleSubmit}>
           {!require2FA ? (
