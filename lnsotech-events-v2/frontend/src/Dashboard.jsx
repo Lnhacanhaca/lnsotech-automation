@@ -26,18 +26,19 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const [mutedGroups, setMutedGroups] = useState(() => JSON.parse(localStorage.getItem('muted_groups') || '[]'));
   useEffect(() => { localStorage.setItem('muted_groups', JSON.stringify(mutedGroups)); }, [mutedGroups]);
 
+  const refreshMuted = async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/auth/grupos/muted`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setMutedGroups(data.map(m => m.grupo_id));
+      }
+    } catch (e) { console.error('Erro ao buscar grupos silenciados:', e); }
+  };
+
   // Sincronizar grupos silenciados com o backend no início
   useEffect(() => {
-    const initMuted = async () => {
-      try {
-        const res = await fetch(`${apiBase}/api/auth/grupos/muted`, { headers });
-        if (res.ok) {
-          const data = await res.json();
-          setMutedGroups(data.map(m => m.grupo_id));
-        }
-      } catch (e) { console.error('Erro ao buscar grupos silenciados:', e); }
-    };
-    if (token) initMuted();
+    if (token) refreshMuted();
   }, [token, headers]);
 
   // 3. Estados de UI
@@ -288,26 +289,29 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           const resTypes = await fetch(`${apiBase}/api/eventos/tipos`, { headers });
           if (resTypes.ok) setTiposEvento(await resTypes.json());
 
-          if (isAdmin) {
+          if (isAdmin || isEditor) {
               const resAuditoria = await fetch(`${apiBase}/api/auth/auditoria`, { headers });
               if (resAuditoria.ok) setLogsAuditoria(await resAuditoria.json());
               
               const resLogs = await fetch(`${apiBase}/api/eventos/logs`, { headers });
               if (resLogs.ok) setLogs(await resLogs.json());
-              
+          }
+
+          if (isAdmin || isEditor) {
               const resBots = await fetch(`${apiBase}/api/eventos/bots`, { headers });
               if (resBots.ok) setBots(await resBots.json());
               
               fetchConfigs();
+              refreshMuted();
           }
       } catch (e) { console.error(e); }
   };
 
   useEffect(() => { 
     fetchData(); 
-    // Se estiver na aba de grupos, atualiza o status dos bots a cada 5 segundos para refletir o scan do QR
+    // Se estiver na aba de grupos ou configurações, atualiza o status dos bots periodicamente
     let interval;
-    if (activeTab === 'grupos' && isAdmin) {
+    if ((activeTab === 'grupos' || activeTab === 'configuracoes') && (isAdmin || isEditor)) {
         interval = setInterval(() => {
             fetch(`${apiBase}/api/eventos/bots`, { headers })
                 .then(r => r.ok ? r.json() : [])
@@ -316,7 +320,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         }, 5000);
     }
     return () => { if (interval) clearInterval(interval); };
-  }, [activeTab, isAdmin]);
+  }, [activeTab, isAdmin, isEditor]);
 
   // =================== HANDLERS =================== //
   const handleReconectarWA = async () => {
@@ -1047,10 +1051,23 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   /* ========== RENDER: EVENTOS ========== */
   const renderEventos = () => {
-    let filtered = eventos.filter(ev => 
-      (ev.nomes_principais?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-      (ev.tipo_evento?.toLowerCase() || '').includes(searchQuery.toLowerCase())
-    );
+    let filtered = eventos.filter(ev => {
+      // 1. Filtro de Segurança para Leitores (se não for admin/editor, tem restrições)
+      if (!canEdit) {
+         const hasTypeRest = user.tipos_permitidos?.length > 0;
+         const hasGroupRest = user.grupos_permitidos?.length > 0;
+         const tipoPermitido = !hasTypeRest || user.tipos_permitidos.includes(ev.tipo_evento);
+         const grupoPermitido = !hasGroupRest || user.grupos_permitidos.includes(ev.grupo_id);
+         if (!tipoPermitido || !grupoPermitido) return false;
+      }
+
+      const matchesSearch = 
+        (ev.nomes_principais?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        (ev.tipo_evento?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+        (ev.id?.toString() === searchQuery);
+      
+      return matchesSearch;
+    });
 
     // Aplicar filtros avançados se existirem
     if (filterGroup) {
@@ -1315,9 +1332,14 @@ const renderMultiBot = () => {
                     </p>
 
                     {bot.status === 'aguardando_qr' && bot.qr ? (
-                        <div style={{textAlign:'center', marginTop:'1rem', background:'#fff', padding:'1rem', borderRadius:'12px', border:'1px solid var(--border)'}}>
-                            <img src={bot.qr} alt="QR Code" style={{width:'180px', height:'180px'}} />
-                            <p style={{fontSize:'0.75rem', marginTop:'0.5rem'}}>Lê com o teu WhatsApp</p>
+                        <div style={{display:'flex', flexDirection:'column', gap:'0.75rem'}}>
+                            <div style={{textAlign:'center', color:'#f59e0b', background:'#fef3c7', padding:'1rem', borderRadius:'12px', fontWeight:600}}>
+                                🟡 Aguardando Leitura do QR Code
+                            </div>
+                            <div style={{textAlign:'center', marginTop:'0.5rem', background:'#fff', padding:'1rem', borderRadius:'12px', border:'1px solid var(--border)'}}>
+                                <img src={bot.qr} alt="QR Code" style={{width:'180px', height:'180px'}} />
+                                <p style={{fontSize:'0.75rem', marginTop:'0.5rem'}}>Lê com o teu WhatsApp</p>
+                            </div>
                         </div>
                     ) : bot.status === 'conectado' ? (
                         <div style={{display:'flex', flexDirection:'column', gap:'0.75rem', marginTop:'1.5rem'}}>
@@ -1325,11 +1347,19 @@ const renderMultiBot = () => {
                                 🚀 Bot em Operação!
                             </div>
                             <button onClick={async () => {
-                                if (await Swal.fire({title:'Desconectar Bot?', text:'Isto encerrará a sessão do WhatsApp sem remover o bot do sistema.', icon:'warning', showCancelButton:true, confirmButtonColor:'#ef4444'}).then(r=>r.isConfirmed)) {
+                                if (await Swal.fire({
+                                    title: 'Desconectar Bot e Silenciar Grupos?', 
+                                    text: 'Isto encerrará a sessão do WhatsApp e marcará todos os grupos deste bot como DESCONECTADOS.', 
+                                    icon: 'warning', 
+                                    showCancelButton: true, 
+                                    confirmButtonColor: '#ef4444',
+                                    confirmButtonText: 'Sim, Desconectar'
+                                }).then(r => r.isConfirmed)) {
                                     try {
                                         await fetch(`${apiBase}/api/eventos/bots/${bot.id}/desconectar`, { method: 'POST', headers });
                                         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Desconectado com sucesso!', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#ef4444', color: '#fff' });
                                         fetchData();
+                                        if (String(selectedBotIdForGrupos) === String(bot.id)) refreshGrupos(bot.id);
                                     } catch (e) {
                                         Swal.fire('Erro', 'Falha ao desconectar bot.', 'error');
                                     }
@@ -1340,6 +1370,9 @@ const renderMultiBot = () => {
                         </div>
                     ) : (
                         <div style={{display:'flex', flexDirection:'column', gap:'0.75rem', marginTop:'1.5rem'}}>
+                            <div style={{textAlign:'center', color:'#ef4444', background:'#fee2e2', padding:'1rem', borderRadius:'12px', fontWeight:600}}>
+                                🛑 Sessão Encerrada / Desconectado
+                            </div>
                             <button onClick={async () => {
                                 await fetch(`${apiBase}/api/eventos/bots/${bot.id}/reconectar`, { method: 'POST', headers });
                                 Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'A gerar novo QR...', showConfirmButton: false, timer: 6000, timerProgressBar: true, background: '#3b82f6', color: '#fff', iconColor: '#fff' });
@@ -1396,6 +1429,8 @@ const renderMultiBot = () => {
               {grupos.map(g => {
                 // Encontrar tipos únicos de eventos associados a este grupo
                 const tiposNoGrupo = [...new Set(eventos.filter(ev => ev.grupo_id === g.id).map(ev => ev.tipo_evento))];
+                const selectedBot = bots.find(b => b.id === Number(selectedBotIdForGrupos));
+                const isBotConnected = selectedBot?.status === 'conectado';
                 
                 return (
                 <tr key={g.id}>
@@ -1405,7 +1440,7 @@ const renderMultiBot = () => {
                         background: (g.isMuted ? '#fecaca' : '#dcfce7'),
                         color: (g.isMuted ? '#b91c1c' : '#15803d')
                     }}>
-                        {g.isMuted ? '📵 DESCONECTADO' : '🟢 ATIVO'}
+                        {g.isMuted ? (isBotConnected ? '📵 SILENCIADO' : '📵 BOT DESCONECTADO') : '🟢 ATIVO'}
                     </span>
                   </td>
                   <td className="fw-bold" style={{fontSize:'0.95rem'}}>{g.nome}</td>
@@ -1611,12 +1646,25 @@ const renderMultiBot = () => {
     const getEventosForDay = (day) => eventos.filter(ev => {
       // 1. Filtro de Segurança para Leitores (se não for admin/editor, tem restrições)
       if (!canEdit) {
-         const tipoPermitido = user.tipos_permitidos?.includes(ev.tipo_evento);
-         const grupoPermitido = user.grupos_permitidos?.includes(ev.grupo_id);
+         const hasTypeRest = user.tipos_permitidos?.length > 0;
+         const hasGroupRest = user.grupos_permitidos?.length > 0;
+         const tipoPermitido = !hasTypeRest || user.tipos_permitidos.includes(ev.tipo_evento);
+         const grupoPermitido = !hasGroupRest || user.grupos_permitidos.includes(ev.grupo_id);
          if (!tipoPermitido || !grupoPermitido) return false;
       }
 
       const d = new Date(ev.data_evento);
+      const freq = (ev.frequencia_lembrete || 'anual').toLowerCase();
+
+      // Comparação baseada na frequência
+      if (freq === 'diario') return true;
+      if (freq === 'mensal') return d.getDate() === day;
+      if (freq === 'semanal') {
+          const currentDayObj = new Date(calYear, calMonth, day);
+          return d.getDay() === currentDayObj.getDay();
+      }
+      
+      // Anual ou Padrão (Verifica dia e mês)
       return d.getDate() === day && d.getMonth() === calMonth;
     });
     

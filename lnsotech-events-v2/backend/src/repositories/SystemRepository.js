@@ -122,6 +122,34 @@ class SystemRepository {
             [grupo_id, 'config_grupo', `Grupo "${nome}" foi ${acao}`, 'sucesso']
         );
     }
+
+    async saveGruposFromBot(botId, groups) {
+        for (const g of groups) {
+            const res = await db.query(
+                'UPDATE grupos_config SET nome = $1, last_seen_by_bot_id = $2, atualizado_em = CURRENT_TIMESTAMP WHERE grupo_id = $3',
+                [g.nome, botId, g.id]
+            );
+            if (res.rowCount === 0) {
+                await db.query(
+                    'INSERT INTO grupos_config (grupo_id, nome, last_seen_by_bot_id) VALUES ($1, $2, $3)',
+                    [g.id, g.nome, botId]
+                );
+            }
+        }
+    }
+
+    async findGruposByBot(botId) {
+        const { rows } = await db.query('SELECT grupo_id as id, nome, is_muted FROM grupos_config WHERE last_seen_by_bot_id = $1', [botId]);
+        return rows;
+    }
+
+    async bulkMuteGrupos(groupIds, botId = null) {
+        if (botId) {
+            await db.query('UPDATE grupos_config SET is_muted = TRUE, atualizado_em = CURRENT_TIMESTAMP WHERE last_seen_by_bot_id = $1', [botId]);
+        } else if (groupIds && groupIds.length > 0) {
+            await db.query('UPDATE grupos_config SET is_muted = TRUE, atualizado_em = CURRENT_TIMESTAMP WHERE grupo_id = ANY($1)', [groupIds]);
+        }
+    }
 }
 
 module.exports = new SystemRepository();

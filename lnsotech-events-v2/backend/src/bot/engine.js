@@ -123,11 +123,22 @@ class BotManager {
 
     async stopBot(id) {
         const instance = this.instances.get(id);
-        if (instance && instance.sock) {
-            try {
-                await instance.sock.logout();
-                this.instances.delete(id);
-            } catch (e) {}
+        if (instance) {
+            // Atualizar estado imediatamente para evitar que listBots retorne 'conectado'
+            instance.state.status = 'desconectado';
+            const sock = instance.sock;
+            
+            // Remover da memória ativa imediatamente
+            this.instances.delete(id);
+            
+            // Atualizar banco de dados
+            const BotRepository = require('../repositories/BotRepository');
+            await BotRepository.updateStatus(id, 'desconectado');
+
+            // Limpeza do socket em background (não bloqueia a resposta da API)
+            if (sock) {
+                sock.logout().catch(() => sock.end()).catch(() => {});
+            }
         }
     }
 

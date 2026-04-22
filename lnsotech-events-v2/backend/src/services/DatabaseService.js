@@ -125,6 +125,7 @@ class DatabaseService {
                 grupo_id VARCHAR(255) UNIQUE NOT NULL,
                 nome VARCHAR(255),
                 is_muted BOOLEAN DEFAULT FALSE,
+                last_seen_by_bot_id INTEGER,
                 atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -161,6 +162,9 @@ class DatabaseService {
 
                 IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='tipos_evento' AND column_name='template_resposta') THEN
                     ALTER TABLE tipos_evento ADD COLUMN template_resposta TEXT;
+                END IF;
+                IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='grupos_config' AND column_name='last_seen_by_bot_id') THEN
+                    ALTER TABLE grupos_config ADD COLUMN last_seen_by_bot_id INTEGER;
                 END IF;
             END $$;
         `);
