@@ -20,19 +20,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 // ========================================================
 // 1. Dicionário de Bodas & Configurações de Banco
 // ========================================================
-const listaBodas = {
-    1: { nome: "Papel", significado: "Simboliza a fragilidade e a flexibilidade do início da relação." },
-    2: { nome: "Algodão", significado: "Representa o conforto e a suavidade de dois anos de convivência." },
-    3: { nome: "Couro", significado: "Simboliza a resistência e a durabilidade que o casal está a construir." },
-    4: { nome: "Flores e Frutas", significado: "Indica a vitalidade e a doçura da união que está a florescer." },
-    5: { nome: "Madeira", significado: "Representa raízes fortes e um crescimento sólido." },
-    10: { nome: "Estanho ou Zinco", significado: "Simboliza a maleabilidade necessária para manter a união por uma década." },
-    15: { nome: "Cristal", significado: "Representa a transparência, confiança e clareza da relação." },
-    20: { nome: "Porcelana", significado: "Simboliza a beleza e o cuidado necessário para manter a união preciosa." },
-    25: { nome: "Prata", significado: "Um marco de brilho e resistência após um quarto de século." },
-    50: { nome: "Ouro", significado: "O metal mais precioso para celebrar uma vida inteira de partilha." },
-    // Simplified for brevity, assume the full list is available or abbreviated for the engine
-};
+const listaBodas = require('./bodas');
 
 const pool = new Pool({
     host: process.env.DB_HOST || 'database',   
@@ -163,19 +151,31 @@ class BotManager {
                 return await sock.sendMessage(msg.key.remoteJid, { text: '🏓 PONG - MULTI-BOT ENGAGE!' }, { quoted: msg });
             }
 
-            // Lógica de Auto-Reply simplificada para a nova arquitetura
+            // Lógica de Auto-Reply e Interações Diretas
             const myId = sock.user.id.split(':')[0];
+            const myLid = sock.user.lid?.split(':')[0];
             const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
-            const isReplyToBot = contextInfo?.participant?.includes(myId);
-            const isMentioningBot = contextInfo?.mentionedJid?.some(jid => jid.includes(myId)) || textMessage.includes(myId);
+            const repliedJid = contextInfo?.participant || '';
+            const mentionedJids = contextInfo?.mentionedJid || [];
 
-            if ((isReplyToBot || isMentioningBot)) {
+            const isReplyToBot = repliedJid.includes(myId) || (myLid && repliedJid.includes(myLid));
+            const isMentioningBot = mentionedJids.some(jid => jid.includes(myId) || (myLid && jid.includes(myLid))) || 
+                                    textMessage.includes(myId);
+            
+            const isGroup = msg.key.remoteJid.endsWith('@g.us');
+            const isDirectInteraction = !isGroup || isReplyToBot || isMentioningBot;
+
+            if (isDirectInteraction) {
                 const remoteJid = msg.key.remoteJid;
                 const now = Date.now();
                 if (now - (lastAutoReply.get(remoteJid) || 0) < 10000) return;
 
                 const textLower = textMessage.toLowerCase();
-                const triggers = ['paraben', 'felicid', 'feliz', 'obrigad', 'obg', 'thanks', 'grato', 'amem', 'amém', 'viva'];
+                // Anti-Loop para si próprio
+                const selfTriggers = ['lnsotech', 'agradece', 'enviado via', 'assinalar'];
+                if (selfTriggers.some(t => textLower.includes(t))) return;
+                
+                const triggers = ['paraben', 'felicid', 'feliz', 'obrigad', 'obg', 'thanks', 'grato', 'amem', 'amém', 'viva', 'top', 'show', 'valeu', 'vlw'];
                 
                 // Buscar Assinatura e Fallback
                 const configRes = await pool.query("SELECT chave, valor FROM configuracoes WHERE chave IN ('resposta_padrao_bot', 'assinatura_bot')");
@@ -185,24 +185,37 @@ class BotManager {
                 const fallback = configs['resposta_padrao_bot'] || '🤖 Obrigado pelo contacto!';
 
                 let resposta = fallback;
+                let encontrouTipo = false;
 
                 if (triggers.some(t => textLower.includes(t))) {
-                    // Tenta achar o tipo de evento pela última mensagem enviada a este grupo
-                    const lastLog = await pool.query("SELECT e.tipo_evento FROM logs_envio l JOIN eventos e ON l.evento_id = e.id WHERE l.grupo_id = $1 ORDER BY l.criado_em DESC LIMIT 1", [remoteJid]);
+                    console.log(`🎯 [Bot ${botId}] Trigger detectada em ${remoteJid}: "${textMessage.substring(0, 20)}..."`);
+                    
+                    // Busca preferencial: último lembrete enviado. 
+                    // Se for grupo, busca filtrado pelo grupo. Se for privado, busca o último global.
+                    const queryLog = isGroup 
+                        ? `SELECT e.tipo_evento FROM logs_envio l JOIN eventos e ON l.evento_id = e.id WHERE l.grupo_id = $1 AND l.tipo_log = 'envio_sucesso' ORDER BY l.criado_em DESC LIMIT 1`
+                        : `SELECT e.tipo_evento FROM logs_envio l JOIN eventos e ON l.evento_id = e.id WHERE l.tipo_log = 'envio_sucesso' ORDER BY l.criado_em DESC LIMIT 1`;
+                    
+                    const params = isGroup ? [remoteJid] : [];
+                    const lastLog = await pool.query(queryLog, params);
                     const tipoEvento = lastLog.rows[0]?.tipo_evento;
 
                     if (tipoEvento) {
+                        console.log(`🔎 [Bot ${botId}] Associando resposta ao tipo: ${tipoEvento}`);
                         const tipoObj = await pool.query("SELECT template_resposta FROM tipos_evento WHERE LOWER(nome) = LOWER($1)", [tipoEvento]);
                         if (tipoObj.rows[0]?.template_resposta) {
                             resposta = tipoObj.rows[0].template_resposta;
+                            encontrouTipo = true;
                         }
+                    } else {
+                        console.log(`⚠️ [Bot ${botId}] Nenhum log de envio recente encontrado para associar tipo.`);
                     }
                 }
 
                 const finalMessage = `${resposta}\n\n${assinatura}`.trim();
                 await sock.sendMessage(remoteJid, { text: finalMessage }, { quoted: msg });
                 lastAutoReply.set(remoteJid, now);
-                await registarLog(null, remoteJid, 'auto_resposta', `Bot ${botId} respondeu: ${textMessage.substring(0,20)}`, 'sucesso');
+                await registarLog(null, remoteJid, 'auto_resposta', `Bot ${botId} respondeu (${encontrouTipo ? 'Tipo' : 'Fallback'}): ${textMessage.substring(0,20)}`, 'sucesso');
             }
         });
     }
@@ -275,18 +288,43 @@ class BotManager {
         for (const evento of res.rows) {
             try {
                 const template = templates[evento.tipo_evento.toLowerCase()] || 'Hoje celebramos {nomes}!';
-                const anos = new Date().getFullYear() - evento.ano_origem;
+                const anos = new Date().getFullYear() - (evento.ano_origem || new Date().getFullYear());
                 let msgFinal = template
                     .replace(/{nomes}/g, evento.nomes_principais)
                     .replace(/{anos}/g, anos.toString())
                     .replace(/{tipo}/g, evento.tipo_evento);
+
+                if (evento.tipo_evento.toLowerCase() === 'casamento' && anos > 0) {
+                    const bodaObj = listaBodas[anos] || { nome: "União e Amor", significado: "Um momento especial para renovar os vossos votos." };
+                    msgFinal = msgFinal
+                        .replace(/{bodas}/g, bodaObj.nome)
+                        .replace(/{significado}/g, bodaObj.significado);
+                }
                 
                 msgFinal = `${msgFinal}\n\n${assinatura}`.trim();
 
-                await sock.sendMessage(evento.grupo_id, { text: msgFinal });
+                if (evento.foto_url && typeof evento.foto_url === 'string') {
+                    // Limpar URL para pegar apenas o nome do arquivo, removendo /uploads/ e possíveis prefixos
+                    const fileName = path.basename(evento.foto_url);
+                    const fotoPath = path.resolve(__dirname, '../../uploads', fileName);
+                    
+                    if (fs.existsSync(fotoPath)) {
+                        console.log(`📸 [Bot: ${config.nome}] Enviando imagem: ${fileName}`);
+                        await sock.sendMessage(evento.grupo_id, { 
+                            image: { url: fotoPath }, 
+                            caption: msgFinal 
+                        });
+                    } else {
+                        console.warn(`⚠️ [Bot: ${config.nome}] Foto não encontrada no caminho: ${fotoPath}. Enviando apenas texto.`);
+                        await sock.sendMessage(evento.grupo_id, { text: msgFinal });
+                    }
+                } else {
+                    await sock.sendMessage(evento.grupo_id, { text: msgFinal });
+                }
+
                 await registarLog(evento.id, evento.grupo_id, 'envio_sucesso', `Lembrete enviado: ${evento.nomes_principais}`, 'sucesso');
                 enviados++;
-                await sleep(2000);
+                await sleep(4000); // Delay maior para evitar detecção de spam com imagens
             } catch (err) {
                 console.error(`Erro envio bot ${config.nome}:`, err);
                 await registarLog(evento.id, evento.grupo_id, 'envio_erro', err.message, 'erro');

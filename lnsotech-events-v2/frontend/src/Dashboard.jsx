@@ -292,6 +292,9 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               const resAuditoria = await fetch(`${apiBase}/api/auth/auditoria`, { headers });
               if (resAuditoria.ok) setLogsAuditoria(await resAuditoria.json());
               
+              const resLogs = await fetch(`${apiBase}/api/eventos/logs`, { headers });
+              if (resLogs.ok) setLogs(await resLogs.json());
+              
               const resBots = await fetch(`${apiBase}/api/eventos/bots`, { headers });
               if (resBots.ok) setBots(await resBots.json());
               

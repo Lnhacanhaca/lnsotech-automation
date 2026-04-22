@@ -145,6 +145,18 @@ class DatabaseService {
             BEGIN
                 IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='logs_envio' AND column_name='data_hora') THEN
                     ALTER TABLE logs_envio RENAME COLUMN data_hora TO criado_em;
+                ELSIF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='logs_envio' AND column_name='data_envio') THEN
+                    ALTER TABLE logs_envio RENAME COLUMN data_envio TO criado_em;
+                END IF;
+
+                IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='logs_envio' AND column_name='grupo_id') THEN
+                    ALTER TABLE logs_envio ADD COLUMN grupo_id TEXT;
+                END IF;
+                IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='logs_envio' AND column_name='tipo_log') THEN
+                    ALTER TABLE logs_envio ADD COLUMN tipo_log VARCHAR(50);
+                END IF;
+                IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='logs_envio' AND column_name='mensagem') THEN
+                    ALTER TABLE logs_envio ADD COLUMN mensagem TEXT;
                 END IF;
 
                 IF NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='tipos_evento' AND column_name='template_resposta') THEN
@@ -181,13 +193,20 @@ class DatabaseService {
         }
         
         // Garantir que todos os tipos_evento tenham um template inicial na tabela de envio
+        const templatesExclusivos = {
+            'casamento': 'Bom dia, {nomes}! ✨ Hoje o dia amanheceu com um brilho especial porque celebramos **{anos} anos** da vossa linda união. Que as vossas Bodas de {bodas} tragam ainda mais cumplicidade. 💍\n\n✨ *Sabiam que o significado desta boda é:* {significado}?\nParabéns por cada capítulo desta história que continuam a escrever juntos! ❤️',
+            'aniversario': 'Parabéns, {nomes}! 🎉 Hoje o dia é todo teu! Que este novo ciclo que começa agora seja repleto de sorrisos, saúde e daqueles momentos inesquecíveis que aquecem o coração. 🎂 Aproveita cada segundo do teu dia!',
+            'batizado': 'Um bom dia abençoado para toda a família! ✨ Celebramos hoje o batismo de {nomes}. Que este momento de luz traga muita proteção e guie sempre o caminho desta criança com muito amor e sabedoria. 🕊️'
+        };
+
         const { rows: todosTipos } = await db.query("SELECT nome FROM tipos_evento");
         for (const t of todosTipos) {
+            const mensagemDefeito = templatesExclusivos[t.nome.toLowerCase()] || `Lembrete LNSOTECH: Hoje celebramos {nomes} (${t.nome})! 🎉`;
             await db.query(`
                 INSERT INTO templates_mensagem (tipo_evento, mensagem) 
                 VALUES ($1, $2) 
                 ON CONFLICT (tipo_evento) DO NOTHING
-            `, [t.nome, `Lembrete LNSOTECH: Hoje celebramos {nomes} (${t.nome})! 🎉`]);
+            `, [t.nome, mensagemDefeito]);
         }
         
         console.log('✅ [DB] Tabelas e configurações verificadas.');
