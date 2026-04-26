@@ -70,7 +70,7 @@ class EventoRepository {
                 WHERE e.grupo_id IS NOT NULL 
                 AND (g.is_muted IS FALSE OR g.is_muted IS NULL)
             `,
-            lembretesEnviados: "SELECT COUNT(*) FROM logs_envio WHERE tipo_log = 'lembrete_enviado'",
+            lembretesEnviados: "SELECT COUNT(*) FROM logs_envio WHERE tipo_log IN ('lembrete_enviado', 'envio_sucesso')",
             falhasHoje: "SELECT COUNT(*) FROM logs_envio WHERE status = 'falha'"
         };
 

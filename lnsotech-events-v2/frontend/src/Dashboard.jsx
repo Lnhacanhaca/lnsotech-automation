@@ -945,7 +945,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           <div className="stat-header">Grupos Activos<div className="stat-icon-wrapper bg-green-light">💍</div></div>
           <div className="stat-value">{Object.keys(grupos).length > 0 ? grupos.filter(g => !g.isMuted).length : stats.gruposAtivos}</div>
         </div>
-        <div className="stat-card" style={{position:'relative', zIndex: tutorialStep === 1 ? 1001 : 1}}>
+        <div className="stat-card" onClick={() => { setActiveTab('logs'); setLogFilter('lembrete_enviado'); }} style={{cursor:'pointer', position:'relative', zIndex: tutorialStep === 1 ? 1001 : 1}}>
             <div className="stat-header">Lembretes Enviados<div className="stat-icon-wrapper bg-yellow-light">🔔</div></div><div className="stat-value">{stats.lembretesEnviados}</div>
         </div>
         <div className="stat-card" onClick={() => { setActiveTab('logs'); setLogFilter('falha'); }} style={{cursor:'pointer', position:'relative', zIndex: tutorialStep === 1 ? 1001 : 1}}>
@@ -1716,6 +1716,7 @@ const renderMultiBot = () => {
   const renderLogs = () => {
     const filteredLogs = logFilter === 'todos' ? logs : 
                          logFilter === 'falha' ? logs.filter(l => l.status === 'falha') :
+                         logFilter === 'lembrete_enviado' ? logs.filter(l => l.tipo_log === 'lembrete_enviado' || l.tipo_log === 'envio_sucesso') :
                          logs.filter(l => l.tipo_log === logFilter);
     return (
       <div className="panel-card">
@@ -1751,8 +1752,8 @@ const renderMultiBot = () => {
                   <td>
                     <span style={{
                       fontSize:'0.75rem', padding:'0.2rem 0.5rem', borderRadius:'6px', fontWeight:600,
-                      background: l.tipo_log === 'auto_resposta' ? '#e0e7ff' : l.tipo_log === 'lembrete_enviado' ? '#dcfce7' : l.tipo_log === 'config_grupo' ? '#fef9c3' : '#f1f5f9',
-                      color: l.tipo_log === 'auto_resposta' ? '#4f46e5' : l.tipo_log === 'lembrete_enviado' ? '#16a34a' : l.tipo_log === 'config_grupo' ? '#854d0e' : '#475569'
+                      background: l.tipo_log === 'auto_resposta' ? '#e0e7ff' : (l.tipo_log === 'lembrete_enviado' || l.tipo_log === 'envio_sucesso') ? '#dcfce7' : l.tipo_log === 'config_grupo' ? '#fef9c3' : '#f1f5f9',
+                      color: l.tipo_log === 'auto_resposta' ? '#4f46e5' : (l.tipo_log === 'lembrete_enviado' || l.tipo_log === 'envio_sucesso') ? '#16a34a' : l.tipo_log === 'config_grupo' ? '#854d0e' : '#475569'
                     }}>
                       {l.tipo_log?.replace('_', ' ').toUpperCase()}
                     </span>
