@@ -1041,13 +1041,14 @@ const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false
               onSubmit={handleCreateEvento}
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                 gap: '1rem',
                 alignItems: 'flex-end',
                 background: 'var(--bg)',
                 padding: '1.2rem',
                 borderRadius: '12px',
-                border: '1px solid var(--border)'
+                border: '1px solid var(--border)',
+                width: '100%'
               }}
             >
               <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>

@@ -335,6 +335,9 @@ body {
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .panel-title { font-weight: 700; font-size: 1rem; color: var(--primary); margin-bottom: 1rem; }
