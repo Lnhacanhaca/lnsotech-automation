@@ -364,6 +364,9 @@ const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false
           if (isAdmin) {
               const resFeed = await fetch(`${apiBase}/api/eventos/feedbacks`, { headers });
               if (resFeed.ok) setFeedbacks(await resFeed.json());
+
+              const resBack = await fetch(`${apiBase}/api/auth/backups`, { headers });
+              if (resBack.ok) setBackups(await resBack.json());
           }
       } catch (e) { console.error(e); }
   };
