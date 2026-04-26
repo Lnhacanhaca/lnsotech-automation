@@ -16,6 +16,9 @@ Este documento detalha o estado atual do desenvolvimento e as metas futuras para
 | **Smart PWA** | Web App instalável com Service Worker e Sync Offline. | Acessibilidade Mobile |
 | **Audit Log System** | Registo imutável de todas as ações feitas pelos utilizadores. | Compliance e Gestão |
 | **Multi-Bot WhatsApp** | Suporte para múltiplos dispositivos ligados simultaneamente. | Escalabilidade |
+| **Feedback Emoji System** | Avaliações interativas com métricas de satisfação (CSAT). | Qualidade e UX |
+| **Audit Detail Explorer** | Visualização técnica detalhada de logs e payloads do bot. | Depuração e Transparência |
+| **Níveis de Acesso Dinâmico** | Restrições granulares para Editores e Leitores em toda a App. | Segurança de Gestão |
 
 ---
 
@@ -61,5 +64,5 @@ Este documento detalha o estado atual do desenvolvimento e as metas futuras para
 
 ---
 
-> **Última atualização:** 22 de Abril de 2026
-> **Estado Geral do Projeto:** 75% Concluído (Fase de Especialização)
+> **Última atualização:** 26 de Abril de 2026
+> **Estado Geral do Projeto:** 80% Concluído (Fase de Especialização)

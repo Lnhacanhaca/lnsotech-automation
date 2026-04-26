@@ -165,13 +165,13 @@ class BotManager {
         sock.ev.on('messages.upsert', async (m) => {
             if (!m.messages || m.messages.length === 0) return;
             const msg = m.messages[0];
-            const msgId = msg.key.id;
-
-            if (processedMessages.has(msgId) || msg.key.fromMe || msg.key.remoteJid === 'status@broadcast') return;
+            const isStatus = msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid?.includes('@broadcast');
+            if (m.type !== 'notify' || processedMessages.has(msgId) || msg.key.fromMe || isStatus) return;
+            
             processedMessages.add(msgId);
             if (processedMessages.size > 200) processedMessages.delete(processedMessages.values().next().value);
 
-            const textMessage = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+            const textMessage = msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.message?.buttonsResponseMessage?.selectedButtonId || msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId;
             if (!textMessage) return;
 
             if (textMessage === '!ping') {
