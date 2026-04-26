@@ -44,6 +44,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./lnsotech-events-v2/frontend/public/502.html:/usr/share/nginx/html/502.html:ro
       - ./uploads:/usr/share/nginx/html/uploads:ro
     ports:
       - "3001:80"
