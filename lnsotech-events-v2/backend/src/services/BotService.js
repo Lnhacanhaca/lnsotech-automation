@@ -56,6 +56,12 @@ class BotService {
     }
 
     async listarGrupos(botId) {
+        if (!botId || isNaN(Number(botId))) {
+            // Retorna todos os grupos de todos os bots cacheados na base de dados
+            const { rows } = await require('../config/database').query('SELECT grupo_id as id, nome, is_muted FROM grupos_config ORDER BY nome ASC');
+            return rows;
+        }
+
         const instance = manager.instances.get(Number(botId));
         if (!instance || instance.state.status !== 'conectado') {
             // Se o bot estiver offline, retornamos os grupos cacheados na base de dados

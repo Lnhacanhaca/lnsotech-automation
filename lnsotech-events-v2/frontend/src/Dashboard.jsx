@@ -43,7 +43,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   // 3. Estados de UI
   const [activeTab, setActiveTab] = useState(rawUser?.nivel_acesso === 'leitor' ? 'calendario' : 'dashboard'); 
-  const [configSubTab, setConfigSubTab] = useState('geral');
+  const [configSubTab, setConfigSubTab] = useState(rawUser?.nivel_acesso === 'admin' ? 'geral' : (rawUser?.nivel_acesso === 'editor' ? 'personalizacao' : 'seguranca'));
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -61,6 +61,13 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
     Swal.fire({ title: 'Sincronizado!', text: `${count} registos offline foram enviados para o servidor.`, icon: 'success', timer: 10000, timerProgressBar: true, confirmButtonColor: '#10b981' });
     refreshData();
   });
+
+  // Carregamento de Grupos em segundo plano para Editor/Admin (necessário para dropdowns)
+  useEffect(() => {
+    if (token && (isAdmin || isEditor) && grupos.length === 0 && !gruposLoading) {
+      refreshGrupos();
+    }
+  }, [token, isAdmin, isEditor, grupos.length, gruposLoading, refreshGrupos]);
 
   // Estados restantes (Configurações e Formulários)
   const [horaLembrete, setHoraLembrete] = useState('07:00');
@@ -941,7 +948,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         <div className="stat-card">
             <div className="stat-header">Eventos Totais<div className="stat-icon-wrapper bg-green-light">📈</div></div><div className="stat-value">{stats.totalEventos}</div>
         </div>
-        <div className="stat-card" onClick={handleGroupsCardClick} style={{cursor:'pointer', position:'relative', zIndex: tutorialStep === 1 ? 1001 : 1}}>
+        <div className="stat-card" onClick={isAdmin ? handleGroupsCardClick : undefined} style={{cursor: isAdmin ? 'pointer' : 'default', position:'relative', zIndex: tutorialStep === 1 ? 1001 : 1}}>
           <div className="stat-header">Grupos Activos<div className="stat-icon-wrapper bg-green-light">💍</div></div>
           <div className="stat-value">{Object.keys(grupos).length > 0 ? grupos.filter(g => !g.isMuted).length : stats.gruposAtivos}</div>
         </div>
@@ -1836,14 +1843,16 @@ const renderMultiBot = () => {
                     {grupos.find(g=>g.id===l.grupo_id)?.nome || (l.grupo_id ? l.grupo_id.substring(0,18)+'...' : 'Sistema')}
                   </td>
                   <td>
-                    <button 
-                        className="btn-action" 
-                        onClick={() => handleDeleteLog(l.id)}
-                        style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', fontSize:'1.1rem'}}
-                        title="Apagar este registo"
-                    >
-                      🗑️
-                    </button>
+                    {isAdmin && (
+                      <button 
+                          className="btn-action" 
+                          onClick={() => handleDeleteLog(l.id)}
+                          style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', fontSize:'1.1rem'}}
+                          title="Apagar este registo"
+                      >
+                        🗑️
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -2172,10 +2181,10 @@ const renderMultiBot = () => {
       <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
         {/* SUB-NAVEGAÇÃO INTERNA */}
         <div style={{display:'flex', borderBottom:'1px solid var(--border)', background:'var(--surface)', borderRadius:'12px', padding:'0 1rem', overflowX:'auto', gap:'1rem'}}>
-            <div style={subTabStyle(configSubTab==='geral')} onClick={()=>setConfigSubTab('geral')}>⚙️ Geral</div>
-            <div style={subTabStyle(configSubTab==='automacao')} onClick={()=>setConfigSubTab('automacao')}>🤖 Automação</div>
-            <div style={subTabStyle(configSubTab==='personalizacao')} onClick={()=>setConfigSubTab('personalizacao')}>🎨 Personalização</div>
-            {canEdit && <div style={subTabStyle(configSubTab==='seguranca')} onClick={()=>setConfigSubTab('seguranca')}>🛡️ Segurança & Acesso</div>}
+            {isAdmin && <div style={subTabStyle(configSubTab==='geral')} onClick={()=>setConfigSubTab('geral')}>⚙️ Geral</div>}
+            {isAdmin && <div style={subTabStyle(configSubTab==='automacao')} onClick={()=>setConfigSubTab('automacao')}>🤖 Automação</div>}
+            {canEdit && <div style={subTabStyle(configSubTab==='personalizacao')} onClick={()=>setConfigSubTab('personalizacao')}>🎨 Personalização</div>}
+            <div style={subTabStyle(configSubTab==='seguranca')} onClick={()=>setConfigSubTab('seguranca')}>🛡️ Segurança & Acesso</div>
             {isAdmin && <div style={subTabStyle(configSubTab==='auditoria')} onClick={()=>setConfigSubTab('auditoria')}>🕵️ Auditoria (Logs)</div>}
         </div>
 
@@ -2400,7 +2409,7 @@ const renderMultiBot = () => {
                 </div>
             )}
 
-            {configSubTab === 'seguranca' && canEdit && (
+            {configSubTab === 'seguranca' && (
                 <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', animation: 'fadeIn 0.3s'}}>
                     {/* Painel de Ativação 2FA */}
                     <div className="panel-card" style={{borderLeft:'4px solid var(--primary)', borderRadius:'12px', background:'#f8fafc'}}>
@@ -2770,8 +2779,8 @@ const renderMultiBot = () => {
           {canEdit && <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>changeTab('eventos')}><span>👥</span><span>Eventos</span></div>}
           <div className={`nav-item ${activeTab==='calendario'?'active':''}`} onClick={()=>changeTab('calendario')}><span>📅</span><span>Calendário</span></div>
           {isAdmin && <div className={`nav-item ${activeTab==='analytics'?'active':''}`} onClick={()=>changeTab('analytics')}><span>📊</span><span>Analytics</span></div>}
-          {canEdit && <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>changeTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>}
-          {isAdmin && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>changeTab('logs')}><span>📖</span><span>Histórico</span></div>}
+          {isAdmin && <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>changeTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>}
+          {canEdit && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>changeTab('logs')}><span>📖</span><span>Histórico</span></div>}
           {(isAdmin || isEditor) && <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>changeTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>}
         </nav>
         <div className="sidebar-footer" style={{padding:'1rem', borderTop:'1px solid #1e293b', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
@@ -2824,7 +2833,7 @@ const renderMultiBot = () => {
           {activeTab === 'analytics' && renderAnalytics()}
           {canEdit && activeTab === 'grupos' && 
           renderMultiBot()}
-          {isAdmin && activeTab === 'logs' && renderLogs()}
+          {canEdit && activeTab === 'logs' && renderLogs()}
           {(isAdmin || isEditor) && activeTab === 'configuracoes' && renderConfig()}
         </div>
       </main>
