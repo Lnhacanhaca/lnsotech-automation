@@ -37,6 +37,8 @@ class BotService {
 
     async deleteBot(id) {
         await manager.stopBot(Number(id));
+        // Limpar grupos cacheados que pertenciam a este bot
+        await require('../config/database').query('DELETE FROM grupos_config WHERE last_seen_by_bot_id = $1', [Number(id)]);
         await BotRepository.delete(Number(id));
     }
 
@@ -57,8 +59,13 @@ class BotService {
 
     async listarGrupos(botId) {
         if (!botId || isNaN(Number(botId))) {
-            // Retorna todos os grupos de todos os bots cacheados na base de dados
-            const { rows } = await require('../config/database').query('SELECT grupo_id as id, nome, is_muted FROM grupos_config ORDER BY nome ASC');
+            // Retorna apenas grupos vinculados a bots que ainda existem
+            const { rows } = await require('../config/database').query(`
+                SELECT g.grupo_id as id, g.nome, g.is_muted 
+                FROM grupos_config g
+                JOIN whatsapp_bots b ON g.last_seen_by_bot_id = b.id
+                ORDER BY g.nome ASC
+            `);
             return rows;
         }
 
