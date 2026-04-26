@@ -1112,19 +1112,21 @@ const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false
               </div>
 
               <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
-                <label style={{fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)'}}>PRIORIDADE / FREQ.</label>
-                <div style={{display:'flex', gap:'0.5rem'}}>
-                  <select className="inline-input" style={{flex:1}} value={formPrioridade} onChange={e=>setFormPrioridade(e.target.value)}>
-                    <option value="normal">⚪ Normal</option>
-                    <option value="urgente">🔴 Urgente</option>
-                  </select>
-                  <select className="inline-input" style={{flex:1}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
-                    <option value="anual">📅 Anual</option>
-                    <option value="mensal">🔄 Mensal</option>
-                    <option value="semanal">📆 Semanal</option>
-                    <option value="diario">⏰ Diário</option>
-                  </select>
-                </div>
+                <label style={{fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)'}}>PRIORIDADE</label>
+                <select className="inline-input" style={{width:'100%'}} value={formPrioridade} onChange={e=>setFormPrioridade(e.target.value)}>
+                  <option value="normal">⚪ Normal</option>
+                  <option value="urgente">🔴 Urgente</option>
+                </select>
+              </div>
+
+              <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                <label style={{fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)'}}>FREQUÊNCIA</label>
+                <select className="inline-input" style={{width:'100%'}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
+                  <option value="anual">📅 Anual</option>
+                  <option value="mensal">🔄 Mensal</option>
+                  <option value="semanal">📆 Semanal</option>
+                  <option value="diario">⏰ Diário</option>
+                </select>
               </div>
 
               <button type="submit" className="btn-submit" disabled={isSubmitting} style={{height:'42px', width:'100%'}}>
@@ -1193,8 +1195,8 @@ const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false
 
     return (
     <div className="panel-card" style={{gap:'1rem'}}>
-      <div className={`eventos-toolbar ${tutorialStep === 7 ? 'tutorial-highlight' : ''}`} id="step-export" style={{flexWrap:'wrap', gap:'1rem', display:'flex', alignItems:'center'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'1rem', flex:2, minWidth:'300px'}}>
+      <div className={`eventos-toolbar ${tutorialStep === 7 ? 'tutorial-highlight' : ''}`} id="step-export" style={{flexWrap:'wrap', gap:'1rem', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+        <div style={{display:'flex', alignItems:'center', gap:'1rem', flex:'1 1 auto', flexWrap:'wrap'}}>
             <div className="panel-title" style={{margin:0, whiteSpace:'nowrap'}}>📅 Listagem de Eventos</div>
             
             {/* NOVO: Busca exclusiva na aba Eventos */}
@@ -1513,7 +1515,7 @@ const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false
     return (
         <div style={{display:'flex', flexDirection:'column', gap:'2rem', animation:'fadeIn 0.5s', paddingBottom:'3rem'}}>
             {/* Header com Botão Moderno */}
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--surface)', padding:'1.5rem', borderRadius:'16px', border:'1px solid var(--border)', boxShadow:'0 4px 6px -1px rgb(0 0 0 / 0.05)'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--surface)', padding:'1.5rem', borderRadius:'16px', border:'1px solid var(--border)', boxShadow:'0 4px 6px -1px rgb(0 0 0 / 0.05)', flexWrap:'wrap', gap:'1rem'}}>
                 <div>
                     <h2 style={{margin:0, fontSize:'1.5rem', fontWeight:800, color:'var(--text)'}}>📊 Performance & Insights</h2>
                     <p className="text-muted" style={{fontSize:'0.85rem', margin:0}}>Análise detalhada de tráfego, eficiência e projecções futuras.</p>
@@ -2776,12 +2778,12 @@ const renderMultiBot = () => {
                             </div>
 
                             <div className="panel-card">
-                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                                    <div className="panel-title">🗄️ Base de Dados & Backups</div>
-                                    <div style={{display:'flex', gap:'0.5rem'}}>
+                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'1rem'}}>
+                                    <div className="panel-title" style={{margin:0}}>🗄️ Base de Dados & Backups</div>
+                                    <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap'}}>
                                         <input type="file" id="upload-backup" style={{display:'none'}} onChange={e => handleUploadRestore(e.target.files[0])} />
-                                        <button onClick={() => document.getElementById('upload-backup').click()} className="btn-submit" style={{background:'#f59e0b', fontSize:'0.8rem'}}>📤 Upload e Restaurar</button>
-                                        <button onClick={async () => { Swal.fire({ title: '📦 Gerando Backup...', allowOutsideClick: false, didOpen: () => Swal.showLoading() }); const r = await fetch(`${apiBase}/api/auth/backups/gerar`, { method: 'POST', headers }); if (r.ok) { Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Backup!', showConfirmButton: false, timer: 3000, background: '#10b981', color: '#fff' }); fetchData(); } }} className="btn-submit" style={{background:'#6366f1', fontSize:'0.8rem'}}>➕ Gerar Backup</button>
+                                        <button onClick={() => document.getElementById('upload-backup').click()} className="btn-submit" style={{background:'#f59e0b', fontSize:'0.75rem', padding:'0.5rem 0.8rem', width:'auto'}}>📤 Restaurar</button>
+                                        <button onClick={async () => { Swal.fire({ title: '📦 Gerando Backup...', allowOutsideClick: false, didOpen: () => Swal.showLoading() }); const r = await fetch(`${apiBase}/api/auth/backups/gerar`, { method: 'POST', headers }); if (r.ok) { Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '✅ Backup!', showConfirmButton: false, timer: 3000, background: '#10b981', color: '#fff' }); fetchData(); } }} className="btn-submit" style={{background:'#6366f1', fontSize:'0.75rem', padding:'0.5rem 0.8rem', width:'auto'}}>➕ Gerar Backup</button>
                                     </div>
                                 </div>
                                 <div className="table-responsive" style={{marginTop:'1.5rem'}}>
