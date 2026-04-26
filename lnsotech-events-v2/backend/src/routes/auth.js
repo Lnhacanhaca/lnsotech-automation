@@ -27,6 +27,9 @@ router.post('/login/2fa/verify', AuthController.verify2FA);
 router.get('/me', verificarToken, AuthController.me);
 router.get('/2fa/setup', verificarToken, AuthController.setup2FA);
 router.post('/2fa/enable', verificarToken, AuthController.enable2FA);
+router.get('/usuarios/:id/2fa/setup', verificarToken, AuthController.adminSetup2FA);
+router.post('/usuarios/:id/2fa/enable', verificarToken, AuthController.adminEnable2FA);
+router.post('/usuarios/:id/2fa/disable', verificarToken, AuthController.adminDisable2FA);
 
 // ========== GESTÃO DE USUÁRIOS & AUDITORIA (Admin) ========== //
 router.get('/auditoria', AuthController.getLogsAuditoria);

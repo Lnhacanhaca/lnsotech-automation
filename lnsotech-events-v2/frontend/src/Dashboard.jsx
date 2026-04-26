@@ -1255,6 +1255,72 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   );
 };
 
+  const handleAdminSetup2FA = async (targetUser) => {
+    try {
+        const res = await fetch(`${apiBase}/api/auth/usuarios/${targetUser.id}/2fa/setup`, { headers });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.erro || 'Falha ao iniciar configuração 2FA');
+
+        Swal.fire({
+            title: `🛡️ Configurar 2FA: ${targetUser.nome}`,
+            html: `
+                <div style="text-align:center">
+                    <p style="font-size:0.85rem">Peça ao utilizador para digitalizar este código no Authenticator:</p>
+                    <img src="${data.qrCode}" style="width:200px; height:200px; margin:1rem 0; border:1px solid #eee; padding:5px" />
+                    <p style="font-size:0.75rem; color:#64748b">Segredo: <b>${data.secret}</b></p>
+                    <hr />
+                    <p style="font-size:0.85rem; color:#ef4444"><b>Atenção Super Admin:</b> Confirme apenas se o utilizador já configurou o código no dispositivo dele.</p>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '✅ Confirmar Ativação',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#10b981',
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const enableRes = await fetch(`${apiBase}/api/auth/usuarios/${targetUser.id}/2fa/enable`, {
+                    method: 'POST',
+                    headers: jsonHeaders,
+                    body: JSON.stringify({ secret: data.secret })
+                });
+                if (enableRes.ok) {
+                    Swal.fire('Ativado!', `2FA ativado com sucesso para ${targetUser.nome}`, 'success');
+                    fetchData();
+                } else {
+                    const errData = await enableRes.json();
+                    Swal.fire('Erro', errData.erro || 'Falha ao ativar', 'error');
+                }
+            }
+        });
+    } catch (err) {
+        Swal.fire('Erro', err.message, 'error');
+    }
+  };
+
+  const handleAdminDisable2FA = async (targetUser) => {
+    const result = await Swal.fire({
+        title: '🔓 Desativar 2FA?',
+        text: `Tem certeza que deseja remover a proteção 2FA de ${targetUser.nome}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Sim, Desativar'
+    });
+
+    if (result.isConfirmed) {
+        const res = await fetch(`${apiBase}/api/auth/usuarios/${targetUser.id}/2fa/disable`, {
+            method: 'POST',
+            headers
+        });
+        if (res.ok) {
+            Swal.fire('Desativado', 'A proteção 2FA foi removida.', 'success');
+            fetchData();
+        } else {
+            Swal.fire('Erro', 'Falha ao desativar.', 'error');
+        }
+    }
+  };
+
   const handleSetup2FA = async () => {
     try {
         const res = await fetch(`${apiBase}/api/auth/2fa/setup`, { headers });
@@ -2374,7 +2440,7 @@ const renderMultiBot = () => {
                                 <div className="panel-title">👥 Gestão de Utilizadores</div>
                                 <div className="table-responsive">
                                     <table className="table-minimal">
-                                        <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
+                                        <thead><tr><th>Nome</th><th>Email</th><th>Nível</th><th>Segurança</th><th style={{textAlign:'right'}}>Acções</th></tr></thead>
                                         <tbody>
                                             {usuarios.map(u => (
                                                 <tr key={u.id}>
@@ -2416,6 +2482,11 @@ const renderMultiBot = () => {
                                                             <span className="badge-tipo" style={{background:'#f1f5f9', color:'#475569'}}>{u.nivel_acesso.toUpperCase()}</span>
                                                         )}
                                                     </td>
+                                                    <td>
+                                                        <span style={{fontSize:'0.75rem', color: u.two_factor_enabled ? '#10b981' : '#94a3b8', fontWeight: 600, display:'flex', alignItems:'center', gap:'4px'}}>
+                                                            {u.two_factor_enabled ? '🔐 Ativo' : '🔓 Inativo'}
+                                                        </span>
+                                                    </td>
                                                     <td style={{textAlign:'right'}}>
                                                         {editingUserId === u.id ? (
                                                             <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
@@ -2424,6 +2495,15 @@ const renderMultiBot = () => {
                                                             </div>
                                                         ) : (
                                                             <div style={{display:'flex', gap:'0.4rem', justifyContent:'flex-end'}}>
+                                                                {user.id === 1 && u.id !== user.id && (
+                                                                    <>
+                                                                        {!u.two_factor_enabled ? (
+                                                                            <button onClick={() => handleAdminSetup2FA(u)} className="btn-action" style={{color:'#10b981'}} title="Configurar 2FA para este utilizador">🛡️ 2FA</button>
+                                                                        ) : (
+                                                                            <button onClick={() => handleAdminDisable2FA(u)} className="btn-action" style={{color:'#ef4444'}} title="Desativar 2FA para este utilizador">🔓 2FA</button>
+                                                                        )}
+                                                                    </>
+                                                                )}
                                                                 <button onClick={() => startEditUser(u)} className="btn-action" style={{color:'#3b82f6'}}>Editar</button>
                                                                 {u.id !== 1 && u.id !== user.id && (
                                                                     <button onClick={() => handleDeleteUsuario(u.id)} className="btn-action" style={{color:'#ef4444'}}>Eliminar</button>

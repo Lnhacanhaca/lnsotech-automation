@@ -152,6 +152,50 @@ class AuthController {
             res.status(500).json({ erro: err.message });
         }
     }
+    // Admin 2FA Management
+    async adminSetup2FA(req, res) {
+        try {
+            if (req.usuarioLogado.id !== 1) return res.status(403).json({ erro: 'Apenas o Super Admin pode gerir 2FA de terceiros' });
+            
+            const { id } = req.params;
+            const user = await UserRepository.findById(id);
+            if (!user) return res.status(404).json({ erro: 'Utilizador não encontrado' });
+
+            const { secret, otpauth } = TwoFactorService.generateSecret(user.email);
+            const qrCode = await TwoFactorService.generateQRCode(otpauth);
+            
+            res.json({ secret, qrCode });
+        } catch (err) {
+            res.status(500).json({ erro: 'Erro ao configurar 2FA: ' + err.message });
+        }
+    }
+
+    async adminEnable2FA(req, res) {
+        try {
+            if (req.usuarioLogado.id !== 1) return res.status(403).json({ erro: 'Ação não permitida' });
+            const { id } = req.params;
+            const { secret } = req.body;
+            
+            await UserRepository.update2FA(id, secret, true);
+            await AuditService.log(req.usuarioLogado.id, req.usuarioLogado.nome, 'ATIVAR_2FA_ADMIN', 'Segurança', `Ativou 2FA para o utilizador ID: ${id}`);
+            res.json({ sucesso: true });
+        } catch (err) {
+            res.status(500).json({ erro: 'Erro ao ativar 2FA' });
+        }
+    }
+
+    async adminDisable2FA(req, res) {
+        try {
+            if (req.usuarioLogado.id !== 1) return res.status(403).json({ erro: 'Ação não permitida' });
+            const { id } = req.params;
+            
+            await UserRepository.update2FA(id, null, false);
+            await AuditService.log(req.usuarioLogado.id, req.usuarioLogado.nome, 'DESATIVAR_2FA_ADMIN', 'Segurança', `Desativou 2FA para o utilizador ID: ${id}`);
+            res.json({ sucesso: true });
+        } catch (err) {
+            res.status(500).json({ erro: 'Erro ao desativar 2FA' });
+        }
+    }
 }
 
 module.exports = new AuthController();

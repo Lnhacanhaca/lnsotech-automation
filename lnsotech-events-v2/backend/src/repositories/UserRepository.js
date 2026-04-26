@@ -12,7 +12,7 @@ class UserRepository {
     }
 
     async findAll() {
-        const { rows } = await db.query('SELECT id, nome, email, nivel_acesso, grupos_permitidos, tipos_permitidos FROM usuarios ORDER BY id ASC');
+        const { rows } = await db.query('SELECT id, nome, email, nivel_acesso, grupos_permitidos, tipos_permitidos, two_factor_enabled FROM usuarios ORDER BY id ASC');
         return rows;
     }
 
