@@ -174,12 +174,18 @@ class AuthController {
         try {
             if (req.usuarioLogado.id !== 1) return res.status(403).json({ erro: 'Ação não permitida' });
             const { id } = req.params;
-            const { secret } = req.body;
+            const { secret, token } = req.body;
             
+            if (!secret || !token) return res.status(400).json({ erro: 'Segredo e Token são obrigatórios' });
+
+            const valid = TwoFactorService.verifyToken(token, secret);
+            if (!valid) return res.status(400).json({ erro: 'Código de verificação 2FA inválido ou expirado' });
+
             await UserRepository.update2FA(id, secret, true);
             await AuditService.log(req.usuarioLogado.id, req.usuarioLogado.nome, 'ATIVAR_2FA_ADMIN', 'Segurança', `Ativou 2FA para o utilizador ID: ${id}`);
             res.json({ sucesso: true });
         } catch (err) {
+            console.error('[ADMIN_2FA_ENABLE_ERROR]', err);
             res.status(500).json({ erro: 'Erro ao ativar 2FA' });
         }
     }

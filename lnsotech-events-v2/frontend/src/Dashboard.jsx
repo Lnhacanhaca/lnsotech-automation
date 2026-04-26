@@ -1325,26 +1325,33 @@ const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false
                     <img src="${data.qrCode}" style="width:200px; height:200px; margin:1rem 0; border:1px solid #eee; padding:5px" />
                     <p style="font-size:0.75rem; color:#64748b">Segredo: <b>${data.secret}</b></p>
                     <hr />
-                    <p style="font-size:0.85rem; color:#ef4444"><b>Atenção Super Admin:</b> Confirme apenas se o utilizador já configurou o código no dispositivo dele.</p>
+                    <p style="font-size:0.85rem; font-weight:600">Insira o código de 6 dígitos do utilizador para validar:</p>
+                    <input id="admin-2fa-token" class="swal2-input" placeholder="000000" style="text-align:center; font-size:1.4rem" maxlength="6">
                 </div>
             `,
             showCancelButton: true,
-            confirmButtonText: '✅ Confirmar Ativação',
+            confirmButtonText: '✅ Validar e Ativar',
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#10b981',
+            preConfirm: () => {
+                const token = document.getElementById('admin-2fa-token').value;
+                if (!token || token.length < 6) return Swal.showValidationMessage('Insira o código de 6 dígitos!');
+                return { token, secret: data.secret };
+            }
         }).then(async (result) => {
             if (result.isConfirmed) {
+                Swal.showLoading();
                 const enableRes = await fetch(`${apiBase}/api/auth/usuarios/${targetUser.id}/2fa/enable`, {
                     method: 'POST',
                     headers: jsonHeaders,
-                    body: JSON.stringify({ secret: data.secret })
+                    body: JSON.stringify(result.value)
                 });
+                const resData = await enableRes.json();
                 if (enableRes.ok) {
                     Swal.fire('Ativado!', `2FA ativado com sucesso para ${targetUser.nome}`, 'success');
                     fetchData();
                 } else {
-                    const errData = await enableRes.json();
-                    Swal.fire('Erro', errData.erro || 'Falha ao ativar', 'error');
+                    Swal.fire('Erro', resData.erro || 'Falha ao ativar. Verifique o código.', 'error');
                 }
             }
         });
@@ -1354,9 +1361,10 @@ const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false
   };
 
   const handleAdminDisable2FA = async (targetUser) => {
+    const isSelf = targetUser.id === user.id;
     const result = await Swal.fire({
-        title: '🔓 Desativar 2FA?',
-        text: `Tem certeza que deseja remover a proteção 2FA de ${targetUser.nome}?`,
+        title: isSelf ? '🔓 Desativar Meu 2FA?' : '🔓 Desativar 2FA?',
+        text: isSelf ? 'Tem certeza que deseja remover a sua própria proteção 2FA?' : `Tem certeza que deseja remover a proteção 2FA de ${targetUser.nome}?`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
@@ -1370,7 +1378,16 @@ const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false
         });
         if (res.ok) {
             Swal.fire('Desativado', 'A proteção 2FA foi removida.', 'success');
-            fetchData();
+            if (isSelf) {
+                const refreshProfile = await fetch(`${apiBase}/api/auth/me`, { headers });
+                if (refreshProfile.ok) {
+                    const newUserData = await refreshProfile.json();
+                    localStorage.setItem('@lnsotech:user', JSON.stringify(newUserData));
+                    window.location.reload();
+                }
+            } else {
+                fetchData();
+            }
         } else {
             Swal.fire('Erro', 'Falha ao desativar.', 'error');
         }
@@ -2494,10 +2511,10 @@ const renderMultiBot = () => {
                                 </button>
                             ) : (
                                 <div style={{display:'flex', flexDirection:'column', gap:'0.5rem'}}>
-                                    <button onClick={() => Swal.fire('Informação', 'Para desativar ou redefinir o seu 2FA, por questões de segurança, entre em contacto com o Administrador do sistema.', 'info')} className="btn-action" style={{opacity:0.8, background:'#e2e8f0'}}>
-                                        ⚙️ Gerir Proteção
+                                    <button onClick={() => handleAdminDisable2FA(user)} className="btn-submit" style={{background:'#fee2e2', color:'#ef4444', border:'1px solid #fecaca'}}>
+                                        🔓 Desativar Meu 2FA
                                     </button>
-                                    <span style={{fontSize:'0.7rem', color:'#10b981', textAlign:'center'}}>✔ Conta Segura</span>
+                                    <span style={{fontSize:'0.7rem', color:'#10b981', textAlign:'center'}}>✔ Sua conta está protegida</span>
                                 </div>
                             )}
                         </div>
