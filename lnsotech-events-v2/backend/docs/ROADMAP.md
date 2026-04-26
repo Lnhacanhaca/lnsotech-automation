@@ -17,8 +17,10 @@ Este documento detalha o estado atual do desenvolvimento e as metas futuras para
 | **Audit Log System** | Registo imutável de todas as ações feitas pelos utilizadores. | Compliance e Gestão |
 | **Multi-Bot WhatsApp** | Suporte para múltiplos dispositivos ligados simultaneamente. | Escalabilidade |
 | **Feedback Emoji System** | Avaliações interativas com métricas de satisfação (CSAT). | Qualidade e UX |
-| **Audit Detail Explorer** | Visualização técnica detalhada de logs e payloads do bot. | Depuração e Transparência |
-| **Níveis de Acesso Dinâmico** | Restrições granulares para Editores e Leitores em toda a App. | Segurança de Gestão |
+| **2FA Security (v2)** | Autodesativação pelo Admin e validação rigorosa de tokens. | Segurança & Autonomia |
+| **Smart Analytics** | Dashboard de performance com KPIs reais e actualização inteligente. | BI & Estratégia |
+| **UI/UX Premium** | Layout 100% responsivo, correção de transbordos e alinhamento mobile. | Experiência de Utilizador |
+| **Popup Stability** | Estabilização de janelas flutuantes e correção de flickering. | Qualidade de Código |
 
 ---
 
@@ -65,4 +67,4 @@ Este documento detalha o estado atual do desenvolvimento e as metas futuras para
 ---
 
 > **Última atualização:** 26 de Abril de 2026
-> **Estado Geral do Projeto:** 80% Concluído (Fase de Especialização)
+> **Estado Geral do Projeto:** 85% Concluído (Fase de Especialização)

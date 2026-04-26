@@ -3041,7 +3041,7 @@ const renderMultiBot = () => {
                     <p className="text-muted" style={{fontSize:'0.85rem'}}>Selecione a opção que melhor descreve a sua experiência.</p>
                 </div>
 
-                <div style={{display:'flex', justifyContent:'space-between', gap:'0.5rem', padding:'0.5rem 0'}}>
+                <div style={{display:'flex', justifyContent:'center', gap:'0.4rem', padding:'0.5rem 0', flexWrap:'wrap'}}>
                     {emojis.map(item => (
                         <button 
                             key={item.nota}
