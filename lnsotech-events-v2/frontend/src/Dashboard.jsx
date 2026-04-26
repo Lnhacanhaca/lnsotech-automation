@@ -1033,77 +1033,104 @@ const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false
         </div>
       </div>
 
-      <div className="middle-grid">
-        <div className={`panel-card ${tutorialStep === 4 ? 'tutorial-highlight' : ''}`} style={{gap:'1rem'}} id="step-new-event">
-          <div className="panel-title">Novo Registo Expresso</div>
+      <div style={{ width: '100%', marginBottom: '1.5rem' }}>
+        <div className={`panel-card ${tutorialStep === 4 ? 'tutorial-highlight' : ''}`} style={{gap:'1.5rem'}} id="step-new-event">
+          <div className="panel-title" style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>✍️ Novo Registo Expresso</div>
           {canEdit ? (
-            <form className="inline-form" onSubmit={handleCreateEvento}>
-              {/* 1. Primeiro Escolhe o Tipo */}
-              <select className="inline-input" style={{flex:'0.3'}} value={formTipo} onChange={async (e)=>{
-                if (e.target.value === '__novo__') {
-                    const { value: n } = await Swal.fire({ title: 'Novo Tipo de Evento', input: 'text', inputLabel: 'Nome do tipo:', inputPlaceholder: 'Ex: Inauguração', showCancelButton: true, confirmButtonText: 'Criar', cancelButtonText: 'Cancelar' });
-                    if (n) {
-                        const { value: c } = await Swal.fire({ title: 'Cor do Tipo', input: 'text', inputLabel: 'Cor (Ex: #ff0000):', inputValue: '#3b82f6', showCancelButton: true });
-                        fetch(`${apiBase}/api/eventos/tipos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: n, cor: c || '#3b82f6' }) })
-                        .then(res => { if(res.ok) { fetchData(); refreshData(); setFormTipo(n.toLowerCase()); toast.success('Tipo criado!'); } });
-                    }
-                } else setFormTipo(e.target.value);
-              }}>
-                <option value="">-- Seleccione o Tipo --</option>
-                {isAdmin && (
-                  <>
-                    <option value="casamento">💍 Casamento</option>
-                    <option value="aniversario">🎂 Aniversário</option>
-                    <option value="batizado">🕊️ Batizado</option>
-                  </>
-                )}
-                {tiposEvento
-                  .filter(t => isAdmin || (user.tipos_permitidos?.length === 0 || user.tipos_permitidos.includes(t.nome)))
-                  .filter(t => isAdmin || !['casamento','aniversario','batizado'].includes(t.nome))
-                  .map(t => (
-                    <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>
-                ))}
-                {isAdmin && <option value="__novo__">➕ Criar Novo Tipo...</option>}
-              </select>
+            <form 
+              onSubmit={handleCreateEvento}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '1rem',
+                alignItems: 'flex-end',
+                background: 'var(--bg)',
+                padding: '1.2rem',
+                borderRadius: '12px',
+                border: '1px solid var(--border)'
+              }}
+            >
+              <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                <label style={{fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)'}}>TIPO DE EVENTO</label>
+                <select className="inline-input" style={{width:'100%'}} value={formTipo} onChange={async (e)=>{
+                  if (e.target.value === '__novo__') {
+                      const { value: n } = await Swal.fire({ title: 'Novo Tipo de Evento', input: 'text', inputLabel: 'Nome do tipo:', inputPlaceholder: 'Ex: Inauguração', showCancelButton: true, confirmButtonText: 'Criar', cancelButtonText: 'Cancelar' });
+                      if (n) {
+                          const { value: c } = await Swal.fire({ title: 'Cor do Tipo', input: 'text', inputLabel: 'Cor (Ex: #ff0000):', inputValue: '#3b82f6', showCancelButton: true });
+                          fetch(`${apiBase}/api/eventos/tipos`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ nome: n, cor: c || '#3b82f6' }) })
+                          .then(res => { if(res.ok) { fetchData(); refreshData(); setFormTipo(n.toLowerCase()); toast.success('Tipo criado!'); } });
+                      }
+                  } else setFormTipo(e.target.value);
+                }}>
+                  <option value="">-- Seleccione --</option>
+                  {isAdmin && (
+                    <>
+                      <option value="casamento">💍 Casamento</option>
+                      <option value="aniversario">🎂 Aniversário</option>
+                      <option value="batizado">🕊️ Batizado</option>
+                    </>
+                  )}
+                  {tiposEvento
+                    .filter(t => isAdmin || (user.tipos_permitidos?.length === 0 || user.tipos_permitidos.includes(t.nome)))
+                    .filter(t => isAdmin || !['casamento','aniversario','batizado'].includes(t.nome))
+                    .map(t => (
+                      <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>
+                  ))}
+                  {isAdmin && <option value="__novo__">➕ Criar Novo...</option>}
+                </select>
+              </div>
 
-              {/* 2. O Nome adapta-se ao Tipo */}
-              <input 
-                type="text" 
-                className="inline-input" 
-                placeholder={
-                  formTipo === 'casamento' ? "Nomes do Casal (Ex: João & Maria)" :
-                  formTipo === 'aniversario' ? "Nome do Aniversariante" :
-                  formTipo === 'batizado' ? "Nome da Criança" :
-                  formTipo ? `Nome para ${formTipo}` : "Selecione o tipo primeiro..."
-                }
-                value={formNomes} 
-                onChange={e=>setFormNomes(e.target.value)} 
-                required 
-              />
+              <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                <label style={{fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)'}}>NOME / DESCRIÇÃO</label>
+                <input 
+                  type="text" 
+                  className="inline-input" 
+                  style={{width:'100%'}}
+                  placeholder={
+                    formTipo === 'casamento' ? "João & Maria" :
+                    formTipo === 'aniversario' ? "Nome do Aniversariante" :
+                    formTipo ? `Descrição para ${formTipo}` : "Nome do Evento"
+                  }
+                  value={formNomes} 
+                  onChange={e=>setFormNomes(e.target.value)} 
+                  required 
+                />
+              </div>
 
-              <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
+              <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                <label style={{fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)'}}>DATA DO EVENTO</label>
+                <input type="date" className="inline-input" style={{width:'100%'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
+              </div>
 
-              <GrupoSelect value={formGrupo} onChange={async (e) => {
-                if (e.target.value === '__manual__') { const { value: id } = await Swal.fire({ title: 'ID do Grupo', input: 'text', inputLabel: 'Cole o ID do grupo WhatsApp:', showCancelButton: true }); if (id) setFormGrupo(id); }
-                else setFormGrupo(e.target.value);
-              }} grupos={grupos} filterByPermissions={!isAdmin} allowedGroups={user.grupos_permitidos} showManualOption={isAdmin} />
+              <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                <label style={{fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)'}}>GRUPO WHATSAPP</label>
+                <GrupoSelect value={formGrupo} onChange={async (e) => {
+                  if (e.target.value === '__manual__') { const { value: id } = await Swal.fire({ title: 'ID do Grupo', input: 'text', inputLabel: 'Cole o ID do grupo WhatsApp:', showCancelButton: true }); if (id) setFormGrupo(id); }
+                  else setFormGrupo(e.target.value);
+                }} grupos={grupos} filterByPermissions={!isAdmin} allowedGroups={user.grupos_permitidos} showManualOption={isAdmin} />
+              </div>
 
-              <select className="inline-input" style={{flex:'0.2'}} value={formPrioridade} onChange={e=>setFormPrioridade(e.target.value)}>
-                <option value="normal">⚪ Normal</option>
-                <option value="urgente">🔴 Urgente</option>
-              </select>
+              <div style={{display:'flex', flexDirection:'column', gap:'0.4rem'}}>
+                <label style={{fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)'}}>PRIORIDADE / FREQ.</label>
+                <div style={{display:'flex', gap:'0.5rem'}}>
+                  <select className="inline-input" style={{flex:1}} value={formPrioridade} onChange={e=>setFormPrioridade(e.target.value)}>
+                    <option value="normal">⚪ Normal</option>
+                    <option value="urgente">🔴 Urgente</option>
+                  </select>
+                  <select className="inline-input" style={{flex:1}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
+                    <option value="anual">📅 Anual</option>
+                    <option value="mensal">🔄 Mensal</option>
+                    <option value="semanal">📆 Semanal</option>
+                    <option value="diario">⏰ Diário</option>
+                  </select>
+                </div>
+              </div>
 
-              <select className="inline-input" style={{flex:'0.25'}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
-                <option value="anual">📅 Anual</option>
-                <option value="mensal">🔄 Mensal</option>
-                <option value="semanal">📆 Semanal</option>
-                <option value="diario">⏰ Diário</option>
-              </select>
-              <button type="submit" className="btn-submit" disabled={isSubmitting}>
-              {isSubmitting ? '🔄 A Guardar...' : '+ Guardar'}
-          </button>
+              <button type="submit" className="btn-submit" disabled={isSubmitting} style={{height:'42px', width:'100%'}}>
+                {isSubmitting ? '🔄 A Guardar...' : '🚀 Registar Evento'}
+              </button>
             </form>
-          ) : <div className="text-muted">Apenas admins/editores podem registar.</div>}
+          ) : <div className="text-muted">Apenas administradores podem criar novos registos.</div>}
           <div className="panel-title" style={{marginTop:'1.5rem'}}>Últimos Registos</div>
           <div className="table-responsive">
             <table className="table-minimal">
