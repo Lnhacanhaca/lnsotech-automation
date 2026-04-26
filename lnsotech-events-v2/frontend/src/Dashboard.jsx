@@ -15,21 +15,24 @@ import { useOfflineSync } from './hooks/useOfflineSync';
 import { useTheme } from './hooks/useTheme';
 import { useGrupos } from './hooks/useGrupos';
 
-export default function Dashboard({ token, user: rawUser, onLogout }) {
-  // 1. Hook de Autenticação e Permissões
-  const { user, isAdmin, isEditor, canEdit, headers, jsonHeaders } = useAuth(rawUser, token, onLogout);
+const Overlay = ({ children, onClose, title }) => {
+    useEffect(() => {
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = 'unset'; };
+    }, []);
 
-const Overlay = ({ children, onClose, title }) => (
-    <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(4px)'}}>
-        <div className="panel-card" style={{maxWidth:'600px', width:'100%', boxShadow:'0 25px 50px -12px rgb(0 0 0 / 0.25)', animation:'slideUp 0.3s ease-out'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem', borderBottom:'1px solid #e2e8f0', paddingBottom:'1rem'}}>
-                <div className="panel-title" style={{margin:0, fontSize:'1.25rem'}}>{title}</div>
-                <button onClick={onClose} style={{background:'none', border:'none', fontSize:'1.5rem', cursor:'pointer', color:'#64748b'}}>×</button>
+    return (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(4px)'}}>
+            <div className="panel-card" style={{maxWidth:'600px', width:'100%', boxShadow:'0 25px 50px -12px rgb(0 0 0 / 0.25)', animation:'slideUp 0.3s ease-out'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem', borderBottom:'1px solid #e2e8f0', paddingBottom:'1rem'}}>
+                    <div className="panel-title" style={{margin:0, fontSize:'1.25rem'}}>{title}</div>
+                    <button onClick={onClose} style={{background:'none', border:'none', fontSize:'1.5rem', cursor:'pointer', color:'#64748b'}}>×</button>
+                </div>
+                {children}
             </div>
-            {children}
         </div>
-    </div>
-);
+    );
+};
 
 const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false, allowedGroups = [], showManualOption = true }) => {
     const filtered = filterByPermissions && allowedGroups && allowedGroups.length > 0
@@ -46,6 +49,10 @@ const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false
         </select>
     );
 };
+
+export default function Dashboard({ token, user: rawUser, onLogout }) {
+  // 1. Hook de Autenticação e Permissões
+  const { user, isAdmin, isEditor, canEdit, headers, jsonHeaders } = useAuth(rawUser, token, onLogout);
 
   // 2. Hook de Tema
   const { theme, toggleTheme } = useTheme();
