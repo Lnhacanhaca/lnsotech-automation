@@ -108,7 +108,6 @@ class BotManager {
                     if (retries <= 5) {
                         console.log(`🔄 [Bot: ${botConfig.nome}] Reconectando (Tentativa ${retries}/5)...`);
                         this.retryCounts.set(id, retries);
-                        await NotificationService.notifyHealthIssue(botConfig.nome, `Conexão instável. A tentar reconectar (${retries}/5)...`);
                         setTimeout(() => this.startBot(botConfig), 5000 * retries);
                     } else {
                         console.error(`❌ [Bot: ${botConfig.nome}] Limite de reconexões atingido.`);
