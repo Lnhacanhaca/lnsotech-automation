@@ -117,8 +117,30 @@ export default function Login({ onLogin }) {
           </button>
           
           {require2FA && (
-            <button type="button" className="btn-action" onClick={() => setRequire2FA(false)} style={{width:'100%', marginTop:'1rem', fontSize:'0.8rem'}}>
-              Voltar ao Login
+            <button 
+              type="button" 
+              className="btn-secondary" 
+              onClick={() => setRequire2FA(false)} 
+              style={{
+                width:'100%', 
+                marginTop:'1.2rem', 
+                fontSize:'0.85rem', 
+                background:'transparent', 
+                border:'1px solid var(--border)',
+                color:'var(--text-secondary)',
+                fontWeight: 600,
+                padding: '0.7rem',
+                borderRadius: '10px',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+              onMouseOver={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+              onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+            >
+              ← Voltar ao Login
             </button>
           )}
         </form>

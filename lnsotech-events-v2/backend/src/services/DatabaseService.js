@@ -161,6 +161,15 @@ class DatabaseService {
                 status VARCHAR(20),
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            CREATE TABLE IF NOT EXISTS feedbacks (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                nota INTEGER CHECK (nota >= 1 AND nota <= 5),
+                comentario TEXT,
+                modulo VARCHAR(50),
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         `);
 
         // Garantir renomeação e criação de colunas em tabelas antigas

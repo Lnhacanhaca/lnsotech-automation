@@ -212,6 +212,38 @@ class SystemRepository {
 
         return Object.entries(aggregated).map(([date, count]) => ({ date, count })).sort((a,b) => a.date.localeCompare(b.date));
     }
+
+    // Feedback
+    async createFeedback(usuario_id, nota, comentario, modulo) {
+        await db.query(
+            'INSERT INTO feedbacks (usuario_id, nota, comentario, modulo) VALUES ($1, $2, $3, $4)',
+            [usuario_id, nota, comentario, modulo]
+        );
+    }
+
+    async findAllFeedbacks() {
+        const { rows } = await db.query(`
+            SELECT f.*, u.nome as usuario_nome 
+            FROM feedbacks f 
+            JOIN usuarios u ON f.usuario_id = u.id 
+            ORDER BY f.criado_em DESC
+        `);
+        return rows;
+    }
+
+    // Inicialização de tabelas extras (se necessário)
+    async initSystem() {
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS feedbacks (
+                id SERIAL PRIMARY KEY,
+                usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+                nota INTEGER CHECK (nota >= 1 AND nota <= 5),
+                comentario TEXT,
+                modulo VARCHAR(50),
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+    }
 }
 
 module.exports = new SystemRepository();

@@ -59,4 +59,8 @@ router.get('/grupos', BotController.listGroups);
 router.post('/teste-conexao', BotController.testConnection);
 router.post('/testar-lembretes', BotController.triggerRemindersNow);
 
+// ========== FEEDBACKS ========== //
+router.get('/feedbacks', SystemController.listFeedbacks);
+router.post('/feedbacks', SystemController.submitFeedback);
+
 module.exports = router;

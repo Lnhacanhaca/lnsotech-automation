@@ -19,6 +19,34 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   // 1. Hook de Autenticação e Permissões
   const { user, isAdmin, isEditor, canEdit, headers, jsonHeaders } = useAuth(rawUser, token, onLogout);
 
+const Overlay = ({ children, onClose, title }) => (
+    <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(4px)'}}>
+        <div className="panel-card" style={{maxWidth:'600px', width:'100%', boxShadow:'0 25px 50px -12px rgb(0 0 0 / 0.25)', animation:'slideUp 0.3s ease-out'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem', borderBottom:'1px solid #e2e8f0', paddingBottom:'1rem'}}>
+                <div className="panel-title" style={{margin:0, fontSize:'1.25rem'}}>{title}</div>
+                <button onClick={onClose} style={{background:'none', border:'none', fontSize:'1.5rem', cursor:'pointer', color:'#64748b'}}>×</button>
+            </div>
+            {children}
+        </div>
+    </div>
+);
+
+const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false, allowedGroups = [], showManualOption = true }) => {
+    const filtered = filterByPermissions && allowedGroups && allowedGroups.length > 0
+        ? grupos.filter(g => allowedGroups.includes(g.id))
+        : grupos;
+
+    return (
+        <select className="inline-input" style={{flex:'1'}} value={value} onChange={onChange} required>
+            <option value="">-- Seleccione o Grupo --</option>
+            {filtered.map(g => (
+                <option key={g.id} value={g.id}>{g.nome}</option>
+            ))}
+            {showManualOption && <option value="__manual__">➕ Inserir ID Manual...</option>}
+        </select>
+    );
+};
+
   // 2. Hook de Tema
   const { theme, toggleTheme } = useTheme();
 
@@ -44,6 +72,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   // 3. Estados de UI
   const [activeTab, setActiveTab] = useState(rawUser?.nivel_acesso === 'leitor' ? 'calendario' : 'dashboard'); 
   const [configSubTab, setConfigSubTab] = useState(rawUser?.nivel_acesso === 'admin' ? 'geral' : (rawUser?.nivel_acesso === 'editor' ? 'personalizacao' : 'seguranca'));
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [isFeedbackSubmitting, setIsFeedbackSubmitting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -324,8 +358,12 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               const resAnalytics = await fetch(`${apiBase}/api/eventos/analytics`, { headers });
               if (resAnalytics.ok) setAnalyticsData(await resAnalytics.json());
 
-              fetchConfigs();
               refreshMuted();
+          }
+
+          if (isAdmin) {
+              const resFeed = await fetch(`${apiBase}/api/eventos/feedbacks`, { headers });
+              if (resFeed.ok) setFeedbacks(await resFeed.json());
           }
       } catch (e) { console.error(e); }
   };
@@ -343,7 +381,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
         }, 5000);
     }
     return () => { if (interval) clearInterval(interval); };
-  }, [activeTab, isAdmin, isEditor]);
+  }, [activeTab, configSubTab, isAdmin, isEditor]);
 
   // =================== HANDLERS =================== //
   const handleReconectarWA = async () => {
@@ -905,16 +943,6 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
 
   const percBodas = stats.totalEventos > 0 ? Math.round((stats.totalBodas / stats.totalEventos) * 100) : 0;
 
-  // Helper: dropdown de grupos
-  const GrupoSelect = ({ value, onChange, style }) => (
-    <select className="inline-input" style={style || {flex:'0.35'}} value={value} onChange={onChange}>
-      <option value="">-- Seleccionar Grupo --</option>
-      {grupos.map(g => <option key={g.id} value={g.id}>{g.nome} ({g.participantes} membros)</option>)}
-      <option value="__manual__">Inserir ID manualmente...</option>
-    </select>
-  );
-
-  /* ========== RENDER: DASHBOARD ========== */
   /* ========== RENDER: DASHBOARD ========== */
   const renderDashboard = () => {
     const handleGroupsCardClick = () => {
@@ -1860,17 +1888,27 @@ const renderMultiBot = () => {
                   <td className="text-small" style={{fontFamily:'monospace', color:'#64748b'}} title={l.grupo_id}>
                     {grupos.find(g=>g.id===l.grupo_id)?.nome || (l.grupo_id ? l.grupo_id.substring(0,18)+'...' : 'Sistema')}
                   </td>
-                  <td>
-                    {isAdmin && (
-                      <button 
-                          className="btn-action" 
-                          onClick={() => handleDeleteLog(l.id)}
-                          style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', fontSize:'1.1rem'}}
-                          title="Apagar este registo"
-                      >
-                        🗑️
-                      </button>
-                    )}
+                   <td>
+                    <div style={{display:'flex', gap:'0.4rem'}}>
+                        <button 
+                            className="btn-action" 
+                            onClick={() => setSelectedLog(l)}
+                            style={{background:'#f1f5f9', border:'none', padding:'4px 8px', borderRadius:'6px', cursor:'pointer', fontSize:'0.8rem'}}
+                            title="Ver detalhes técnicos"
+                        >
+                            👁️ Detalhes
+                        </button>
+                        {isAdmin && (
+                        <button 
+                            className="btn-action" 
+                            onClick={() => handleDeleteLog(l.id)}
+                            style={{background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', fontSize:'1.1rem'}}
+                            title="Apagar este registo"
+                        >
+                            🗑️
+                        </button>
+                        )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -2204,6 +2242,7 @@ const renderMultiBot = () => {
             {canEdit && <div style={subTabStyle(configSubTab==='personalizacao')} onClick={()=>setConfigSubTab('personalizacao')}>🎨 Personalização</div>}
             <div style={subTabStyle(configSubTab==='seguranca')} onClick={()=>setConfigSubTab('seguranca')}>🛡️ Segurança & Acesso</div>
             {isAdmin && <div style={subTabStyle(configSubTab==='auditoria')} onClick={()=>setConfigSubTab('auditoria')}>🕵️ Auditoria (Logs)</div>}
+            {isAdmin && <div style={subTabStyle(configSubTab==='avaliacoes')} onClick={()=>setConfigSubTab('avaliacoes')}>💬 Avaliações</div>}
         </div>
 
         <div className="tab-content" key={configSubTab}>
@@ -2642,6 +2681,12 @@ const renderMultiBot = () => {
                     </div>
                 </div>
             )}
+
+            {configSubTab === 'avaliacoes' && isAdmin && (
+                <div style={{animation: 'fadeIn 0.3s'}}>
+                    {renderFeedbackList()}
+                </div>
+            )}
         </div>
       </div>
     );
@@ -2779,6 +2824,174 @@ const renderMultiBot = () => {
     );
   };
 
+  /* ========== RENDER: FEEDBACK & AVALIAÇÃO (EMOJI MODEL - ULTRA STABLE) ========== */
+  const renderFeedbackModal = () => {
+    const emojis = [
+        { nota: 1, icon: '😠', label: 'Péssimo' },
+        { nota: 2, icon: '🙁', label: 'Mau' },
+        { nota: 3, icon: '😐', label: 'Médio' },
+        { nota: 4, icon: '🙂', label: 'Bom' },
+        { nota: 5, icon: '😍', label: 'Excelente' }
+    ];
+
+    const handleSend = async () => {
+        if (feedbackRating === 0) return Swal.fire('Atenção', 'Por favor, selecione uma das opções acima.', 'warning');
+        setIsFeedbackSubmitting(true);
+        try {
+            const res = await fetch(`${apiBase}/api/eventos/feedbacks`, {
+                method: 'POST',
+                headers: jsonHeaders,
+                body: JSON.stringify({ nota: feedbackRating, comentario: feedbackComment, modulo: activeTab })
+            });
+            if (res.ok) {
+                Swal.fire({
+                    title: 'Obrigado!',
+                    text: 'A sua opinião é fundamental para nós.',
+                    icon: 'success',
+                    showConfirmButton: false,
+                    timer: 2500,
+                    timerProgressBar: true
+                });
+                setShowFeedbackModal(false);
+                setFeedbackRating(0);
+                setFeedbackComment('');
+                fetchData();
+            }
+        } catch (e) {
+            Swal.fire('Erro', 'Não foi possível enviar o feedback.', 'error');
+        } finally {
+            setIsFeedbackSubmitting(false);
+        }
+    };
+
+    return (
+        <Overlay title="🚀 Ajude-nos a Melhorar" onClose={()=>setShowFeedbackModal(false)}>
+            <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', textAlign:'center', animation: 'slideUp 0.3s ease-out'}}>
+                <div>
+                    <h3 style={{margin:'0 0 0.5rem 0', color:'#1e293b'}}>Como avalia esta funcionalidade?</h3>
+                    <p className="text-muted" style={{fontSize:'0.85rem'}}>Selecione a opção que melhor descreve a sua experiência.</p>
+                </div>
+
+                <div style={{display:'flex', justifyContent:'space-between', gap:'0.5rem', padding:'0.5rem 0'}}>
+                    {emojis.map(item => (
+                        <button 
+                            key={item.nota}
+                            onClick={() => setFeedbackRating(item.nota)}
+                            style={{
+                                flex: 1,
+                                padding: '1rem 0.5rem',
+                                border: feedbackRating === item.nota ? '2px solid var(--primary)' : '2px solid #f1f5f9',
+                                background: feedbackRating === item.nota ? '#eef2ff' : '#fff',
+                                borderRadius: '12px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '0.5rem'
+                            }}
+                        >
+                            <span style={{fontSize:'2.2rem'}}>{item.icon}</span>
+                            <span style={{fontSize:'0.7rem', fontWeight:700, color: feedbackRating === item.nota ? 'var(--primary)' : '#64748b'}}>
+                                {item.label}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+
+                <div style={{textAlign:'left'}}>
+                    <label style={{fontSize:'0.8rem', fontWeight:700, color:'#64748b', display:'block', marginBottom:'0.5rem'}}>O seu comentário (Opcional)</label>
+                    <textarea 
+                        className="inline-input" 
+                        rows={3} 
+                        style={{width:'100%', resize:'none', borderRadius:'12px', border:'2px solid #f1f5f9', background:'#f8fafc', padding:'0.8rem', fontSize:'0.9rem'}}
+                        placeholder="Diga-nos o que gostou ou o que podemos mudar..."
+                        value={feedbackComment}
+                        onChange={e=>setFeedbackComment(e.target.value)}
+                    />
+                </div>
+
+                <div style={{display:'flex', gap:'1rem'}}>
+                    <button 
+                        onClick={handleSend} 
+                        disabled={isFeedbackSubmitting}
+                        className="btn-submit" 
+                        style={{flex:2, background:'var(--primary)', padding:'1rem', fontWeight:700}}
+                    >
+                        {isFeedbackSubmitting ? 'A enviar...' : '💾 Enviar Feedback'}
+                    </button>
+                    <button 
+                        onClick={()=>setShowFeedbackModal(false)} 
+                        className="btn-secondary" 
+                        style={{flex:1, background:'#f8fafc', border:'1px solid #e2e8f0', color:'#94a3b8'}}
+                    >
+                        Pular
+                    </button>
+                </div>
+            </div>
+        </Overlay>
+    );
+  };
+
+  const renderFeedbackList = () => {
+    const avg = feedbacks.length > 0 ? (feedbacks.reduce((a,b)=>a+b.nota,0) / feedbacks.length).toFixed(1) : 0;
+    const getEmoji = (n) => {
+        if (n <= 1) return '😠';
+        if (n <= 2) return '🙁';
+        if (n <= 3) return '😐';
+        if (n <= 4) return '🙂';
+        return '😍';
+    };
+    
+    return (
+        <div style={{display:'flex', flexDirection:'column', gap:'1.5rem', animation:'fadeIn 0.5s'}}>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'1.5rem'}}>
+                <div className="panel-card" style={{display:'flex', alignItems:'center', gap:'1.5rem', borderLeft:'5px solid #6366f1'}}>
+                    <div style={{fontSize:'2.5rem'}}>{getEmoji(Math.round(avg))}</div>
+                    <div>
+                        <div style={{fontSize:'2rem', fontWeight:800, color:'#1e293b'}}>{avg}</div>
+                        <div className="text-muted" style={{fontSize:'0.8rem'}}>Índice de Satisfação</div>
+                    </div>
+                </div>
+                <div className="panel-card" style={{display:'flex', alignItems:'center', gap:'1.5rem', borderLeft:'5px solid #3b82f6'}}>
+                    <div style={{fontSize:'2.5rem'}}>📊</div>
+                    <div>
+                        <div style={{fontSize:'2rem', fontWeight:800, color:'#1e293b'}}>{feedbacks.length}</div>
+                        <div className="text-muted" style={{fontSize:'0.8rem'}}>Total de Respostas</div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="panel-card">
+                <div className="panel-title">📜 Feedbacks Detalhados</div>
+                <div style={{display:'flex', flexDirection:'column', gap:'1rem', marginTop:'1.5rem'}}>
+                    {feedbacks.length === 0 ? <p className="text-muted">Sem avaliações no momento.</p> : feedbacks.map(f => (
+                        <div key={f.id} style={{
+                            background:'#fff', padding:'1.2rem', borderRadius:'15px', 
+                            border:'1px solid #e2e8f0', display:'flex', gap:'1.5rem', 
+                            alignItems:'flex-start'
+                        }}>
+                            <div style={{fontSize:'2rem'}}>{getEmoji(f.nota)}</div>
+                            <div style={{flex:1}}>
+                                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'0.4rem'}}>
+                                    <span style={{fontWeight:700, color:'#1e293b'}}>{f.usuario_nome}</span>
+                                    <span style={{fontSize:'0.75rem', color:'#94a3b8'}}>{new Date(f.criado_em).toLocaleString('pt-PT')}</span>
+                                </div>
+                                <div style={{fontSize:'0.9rem', color:'#475569', lineHeight:'1.5'}}>
+                                    {f.comentario || <span className="text-muted" style={{fontStyle:'italic'}}>Sem comentário.</span>}
+                                </div>
+                                <div style={{marginTop:'0.8rem'}}>
+                                    <span className="badge-tipo" style={{background:'#f1f5f9', color:'#64748b', fontSize:'0.65rem'}}>TAB: {f.modulo?.toUpperCase() || 'GERAL'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+  };
+
   /* ========== LAYOUT ========== */
   return (
     <div className="dashboard-layout">
@@ -2796,10 +3009,12 @@ const renderMultiBot = () => {
           {canEdit && <div className={`nav-item ${activeTab==='dashboard'?'active':''}`} onClick={()=>changeTab('dashboard')}><span>📊</span><span>Dashboard</span></div>}
           {canEdit && <div className={`nav-item ${activeTab==='eventos'?'active':''}`} onClick={()=>changeTab('eventos')}><span>👥</span><span>Eventos</span></div>}
           <div className={`nav-item ${activeTab==='calendario'?'active':''}`} onClick={()=>changeTab('calendario')}><span>📅</span><span>Calendário</span></div>
-          {isAdmin && <div className={`nav-item ${activeTab==='analytics'?'active':''}`} onClick={()=>changeTab('analytics')}><span>📊</span><span>Analytics</span></div>}
+          {isAdmin && <div className={`nav-item ${activeTab==='analytics'?'active':''}`} onClick={()=>changeTab('analytics')}><span>📈</span><span>Analytics</span></div>}
           {isAdmin && <div className={`nav-item ${activeTab==='grupos'?'active':''}`} onClick={()=>changeTab('grupos')}><span>📱</span><span>Grupos WhatsApp</span></div>}
           {canEdit && <div className={`nav-item ${activeTab==='logs'?'active':''}`} onClick={()=>changeTab('logs')}><span>📖</span><span>Histórico</span></div>}
           {(isAdmin || isEditor) && <div className={`nav-item ${activeTab==='configuracoes'?'active':''}`} onClick={()=>changeTab('configuracoes')}><span>⚙️</span><span>Configurações</span></div>}
+          <div className="nav-divider"></div>
+          <div className="nav-item feedback-btn" onClick={()=>setShowFeedbackModal(true)} style={{color:'#f59e0b', fontWeight:700}}><span>⭐</span><span>Dar Feedback</span></div>
         </nav>
         <div className="sidebar-footer" style={{padding:'1rem', borderTop:'1px solid #1e293b', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
           <div style={{display:'flex', alignItems:'center', gap:'0.8rem'}}>
@@ -2855,7 +3070,36 @@ const renderMultiBot = () => {
         </div>
       </main>
 
-      {/* OVERLAY: EDITAR EVENTO */}
+      {showFeedbackModal && renderFeedbackModal()}
+
+      {selectedLog && (
+          <Overlay title="🔍 Detalhes Técnicos do Registo" onClose={()=>setSelectedLog(null)}>
+              <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
+                  <div className="panel-card" style={{background:'#f8fafc', border:'1px solid var(--border)'}}>
+                      <div style={{display:'grid', gridTemplateColumns:'120px 1fr', gap:'0.5rem', fontSize:'0.85rem'}}>
+                          <strong>ID:</strong> <span>{selectedLog.id}</span>
+                          <strong>Timestamp:</strong> <span>{new Date(selectedLog.criado_em).toLocaleString('pt-PT')}</span>
+                          <strong>Natureza:</strong> <span>{selectedLog.tipo_log?.toUpperCase()}</span>
+                          <strong>Status:</strong> <span style={{color: selectedLog.status==='sucesso'?'#10b981':'#ef4444', fontWeight:700}}>{selectedLog.status?.toUpperCase()}</span>
+                          <strong>Grupo:</strong> <span>{grupos.find(g=>g.id===selectedLog.grupo_id)?.nome || selectedLog.grupo_id || 'Sistema'}</span>
+                          <strong>Evento ID:</strong> <span>{selectedLog.evento_id || 'N/A'}</span>
+                      </div>
+                  </div>
+                  <div>
+                      <label style={{display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem'}}>Conteúdo da Mensagem / Log:</label>
+                      <pre style={{
+                          background:'#1e293b', color:'#f8fafc', padding:'1rem', borderRadius:'8px', 
+                          fontSize:'0.8rem', whiteSpace:'pre-wrap', overflowX:'auto', maxHeight:'300px',
+                          fontFamily: 'monospace'
+                      }}>
+                          {selectedLog.mensagem || 'Nenhum detalhe adicional.'}
+                      </pre>
+                  </div>
+                  <button onClick={()=>setSelectedLog(null)} className="btn-submit" style={{background:'#64748b'}}>Fechar</button>
+              </div>
+          </Overlay>
+      )}
+
       {editingEvento && (
         <Overlay title="✏️ Editar Evento" onClose={()=>setEditingEvento(null)}>
             <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
@@ -2900,6 +3144,12 @@ const renderMultiBot = () => {
                     </div>
                 </div>
 
+                <div style={{display:'flex', gap:'1rem'}}>
+                    <div style={{flex:1}}>
+                        <label style={{display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem', color:'#475569'}}>Grupo WhatsApp</label>
+                        <GrupoSelect value={editEventoForm.grupo_id} onChange={e=>setEditEventoForm({...editEventoForm, grupo_id: e.target.value})} grupos={grupos} filterByPermissions={!isAdmin} allowedGroups={user.grupos_permitidos} showManualOption={isAdmin} />
+                    </div>
+                </div>
 
                 <div style={{display:'flex', gap:'0.75rem', marginTop:'1.5rem'}}>
                     <button onClick={handleUpdateEvento} className="btn-submit" style={{flex:1, padding:'0.8rem', background:'var(--primary)'}}>💾 Guardar Alterações</button>
@@ -2909,7 +3159,6 @@ const renderMultiBot = () => {
         </Overlay>
       )}
 
-      {/* OVERLAY: HISTÓRICO */}
       {showHistoryFor && (
         <Overlay title="📜 Histórico de Alterações" onClose={()=>setShowHistoryFor(null)}>
             <div style={{maxHeight:'60vh', overflowY:'auto'}}>
@@ -2937,31 +3186,3 @@ const renderMultiBot = () => {
     </div>
   );
 }
-
-const Overlay = ({ children, onClose, title }) => (
-    <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem', backdropFilter:'blur(4px)'}}>
-        <div className="panel-card" style={{maxWidth:'600px', width:'100%', boxShadow:'0 25px 50px -12px rgb(0 0 0 / 0.25)', animation:'slideUp 0.3s ease-out'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem', borderBottom:'1px solid #e2e8f0', paddingBottom:'1rem'}}>
-                <div className="panel-title" style={{margin:0, fontSize:'1.25rem'}}>{title}</div>
-                <button onClick={onClose} style={{background:'none', border:'none', fontSize:'1.5rem', cursor:'pointer', color:'#64748b'}}>×</button>
-            </div>
-            {children}
-        </div>
-    </div>
-);
-
-const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false, allowedGroups = [], showManualOption = true }) => {
-    const filtered = filterByPermissions && allowedGroups && allowedGroups.length > 0
-        ? grupos.filter(g => allowedGroups.includes(g.id))
-        : grupos;
-
-    return (
-        <select className="inline-input" style={{flex:'1'}} value={value} onChange={onChange} required>
-            <option value="">-- Seleccione o Grupo --</option>
-            {filtered.map(g => (
-                <option key={g.id} value={g.id}>{g.nome}</option>
-            ))}
-            {showManualOption && <option value="__manual__">➕ Inserir ID Manual...</option>}
-        </select>
-    );
-};

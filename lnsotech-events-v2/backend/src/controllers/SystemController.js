@@ -136,6 +136,28 @@ class SystemController {
             res.status(500).json({ erro: error.message });
         }
     }
+
+    // Feedbacks
+    async submitFeedback(req, res) {
+        const { nota, comentario, modulo } = req.body;
+        const usuario_id = req.user?.id || req.usuarioLogado?.id;
+        try {
+            if (!nota) return res.status(400).json({ erro: 'Nota é obrigatória' });
+            await SystemRepository.createFeedback(usuario_id, nota, comentario, modulo);
+            res.json({ sucesso: true, mensagem: 'Obrigado pelo seu feedback!' });
+        } catch (error) {
+            res.status(500).json({ erro: 'Falha ao enviar feedback' });
+        }
+    }
+
+    async listFeedbacks(req, res) {
+        try {
+            const rows = await SystemRepository.findAllFeedbacks();
+            res.json(rows);
+        } catch (error) {
+            res.status(500).json({ erro: 'Falha ao buscar feedbacks' });
+        }
+    }
 }
 
 module.exports = new SystemController();
