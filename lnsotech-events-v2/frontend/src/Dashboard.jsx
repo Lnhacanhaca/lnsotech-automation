@@ -1461,67 +1461,179 @@ const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false
   };
 
   /* ========== RENDER: ANALYTICS & PREVISIONS ========== */
+  const [isRefreshingAnalytics, setIsRefreshingAnalytics] = useState(false);
+  const handleRefreshAnalytics = async () => {
+    setIsRefreshingAnalytics(true);
+    await fetchData();
+    setTimeout(() => setIsRefreshingAnalytics(false), 800);
+    toast.success('Dados de performance actualizados!');
+  };
+
   const renderAnalytics = () => {
-    const COLORS = ['#10b981', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6', '#06b6d4'];
+    const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
     const logs = analyticsData?.stats?.logs || [];
     const botsStats = analyticsData?.stats?.bots || [];
     const predictions = analyticsData?.predictions || [];
 
-    const logChartData = logs.map(l => ({ name: `${l.tipo_log.replace('envio_','')}`, value: parseInt(l.total) }));
+    const logChartData = logs.map(l => ({ name: `${l.tipo_log.replace('envio_','').toUpperCase()}`, value: parseInt(l.total) }));
     const botStatsData = botsStats.map(b => ({ name: b.mensagem?.split('respondeu')[0]?.replace('Bot','')?.trim() || 'Principal', value: parseInt(b.total) }));
 
+    const totalEnvios = logs.reduce((acc, curr) => acc + parseInt(curr.total), 0);
+    const sucessos = logs.find(l => l.tipo_log === 'envio_sucesso')?.total || 0;
+    const taxaSucesso = totalEnvios > 0 ? ((sucessos / totalEnvios) * 100).toFixed(1) : 0;
+
     return (
-        <div style={{display:'flex', flexDirection:'column', gap:'2rem', animation:'fadeIn 0.5s', paddingBottom:'2rem'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                <h2 style={{margin:0}}>📊 Analytics & Previsões</h2>
-                <button onClick={fetchData} className="btn-action" style={{background:'var(--primary)', color:'#fff', padding:'8px 16px', borderRadius:'8px'}}>🔄 Atualizar Dados</button>
+        <div style={{display:'flex', flexDirection:'column', gap:'2rem', animation:'fadeIn 0.5s', paddingBottom:'3rem'}}>
+            {/* Header com Botão Moderno */}
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--surface)', padding:'1.5rem', borderRadius:'16px', border:'1px solid var(--border)', boxShadow:'0 4px 6px -1px rgb(0 0 0 / 0.05)'}}>
+                <div>
+                    <h2 style={{margin:0, fontSize:'1.5rem', fontWeight:800, color:'var(--text)'}}>📊 Performance & Insights</h2>
+                    <p className="text-muted" style={{fontSize:'0.85rem', margin:0}}>Análise detalhada de tráfego, eficiência e projecções futuras.</p>
+                </div>
+                <button 
+                    onClick={handleRefreshAnalytics} 
+                    disabled={isRefreshingAnalytics}
+                    className="btn-submit" 
+                    style={{
+                        width:'auto', 
+                        padding:'0.6rem 1.2rem', 
+                        background: isRefreshingAnalytics ? '#94a3b8' : 'var(--primary)', 
+                        display:'flex', 
+                        alignItems:'center', 
+                        gap:'0.5rem',
+                        transition:'0.3s'
+                    }}
+                >
+                    <span style={{animation: isRefreshingAnalytics ? 'spin 1s linear infinite' : 'none'}}>🔄</span>
+                    {isRefreshingAnalytics ? 'A carregar...' : 'Actualizar Dash'}
+                </button>
             </div>
 
-            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(320px, 1fr))', gap:'1.5rem'}}>
-                <div className="panel-card">
-                    <div className="panel-title">🔥 Eficiência de Envios</div>
-                    <div style={{height:'250px', width:'100%'}}>
-                        <ResponsiveContainer>
-                            <PieChart>
-                                <Pie data={logChartData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                    {logChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                                </Pie>
-                                <Tooltip />
-                                <Legend />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
+            {/* Cartões de KPI Rápidos */}
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:'1.5rem'}}>
+                <div className="panel-card" style={{borderLeft:'4px solid #10b981', padding:'1.2rem'}}>
+                    <div style={{fontSize:'0.75rem', fontWeight:700, color:'#10b981', textTransform:'uppercase', letterSpacing:'0.05em'}}>Sucesso Global</div>
+                    <div style={{fontSize:'1.8rem', fontWeight:800, margin:'0.3rem 0'}}>{sucessos}</div>
+                    <div style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>Mensagens entregues</div>
                 </div>
+                <div className="panel-card" style={{borderLeft:'4px solid #3b82f6', padding:'1.2rem'}}>
+                    <div style={{fontSize:'0.75rem', fontWeight:700, color:'#3b82f6', textTransform:'uppercase', letterSpacing:'0.05em'}}>Eficiência</div>
+                    <div style={{fontSize:'1.8rem', fontWeight:800, margin:'0.3rem 0'}}>{taxaSucesso}%</div>
+                    <div style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>Taxa de entrega real</div>
+                </div>
+                <div className="panel-card" style={{borderLeft:'4px solid #f59e0b', padding:'1.2rem'}}>
+                    <div style={{fontSize:'0.75rem', fontWeight:700, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.05em'}}>Bots Activos</div>
+                    <div style={{fontSize:'1.8rem', fontWeight:800, margin:'0.3rem 0'}}>{bots.filter(b => b.status === 'conectado').length}</div>
+                    <div style={{fontSize:'0.8rem', color:'var(--text-secondary)'}}>/ {bots.length} instâncias configuradas</div>
+                </div>
+            </div>
 
-                <div className="panel-card">
-                    <div className="panel-title">🤖 Volume por Instância</div>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(350px, 1fr))', gap:'1.5rem'}}>
+                {/* Gráfico 1: Eficiência */}
+                <div className="panel-card" style={{padding:'1.5rem'}}>
+                    <div className="panel-title" style={{marginBottom:'1.5rem', display:'flex', alignItems:'center', gap:'0.5rem'}}>🎯 Distribuição de Resultados</div>
                     <div style={{height:'300px', width:'100%'}}>
                         <ResponsiveContainer>
                             <PieChart>
-                                <Pie data={botStatsData} cx="50%" cy="50%" labelLine={false} label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`} outerRadius={80} dataKey="value">
-                                    {botStatsData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />)}
+                                <Pie 
+                                    data={logChartData} 
+                                    innerRadius={70} 
+                                    outerRadius={100} 
+                                    paddingAngle={8} 
+                                    dataKey="value"
+                                    animationBegin={0}
+                                    animationDuration={1500}
+                                >
+                                    {logChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                                 </Pie>
-                                <Tooltip />
+                                <Tooltip 
+                                    contentStyle={{borderRadius:'12px', border:'none', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)'}}
+                                />
+                                <Legend verticalAlign="bottom" height={36}/>
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Gráfico 2: Volume por Bot */}
+                <div className="panel-card" style={{padding:'1.5rem'}}>
+                    <div className="panel-title" style={{marginBottom:'1.5rem', display:'flex', alignItems:'center', gap:'0.5rem'}}>🤖 Carga por Instância</div>
+                    <div style={{height:'300px', width:'100%'}}>
+                        <ResponsiveContainer>
+                            <PieChart>
+                                <Pie 
+                                    data={botStatsData} 
+                                    cx="50%" 
+                                    cy="50%" 
+                                    labelLine={false} 
+                                    label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`} 
+                                    outerRadius={90} 
+                                    dataKey="value"
+                                    animationDuration={1500}
+                                >
+                                    {botStatsData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[(index + 1) % COLORS.length]} />)}
+                                </Pie>
+                                <Tooltip contentStyle={{borderRadius:'12px', border:'none'}} />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
             </div>
 
-            <div className="panel-card">
-                <div className="panel-title">📅 Projetado de Atividade (Próximos 90 Dias)</div>
-                <div style={{height:'350px', width:'100%', marginTop:'1rem'}}>
+            {/* Gráfico 3: Tendência */}
+            <div className="panel-card" style={{padding:'1.5rem'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'2rem'}}>
+                    <div>
+                        <div className="panel-title" style={{display:'flex', alignItems:'center', gap:'0.5rem'}}>📅 Projecção de Atividade</div>
+                        <p className="text-muted" style={{fontSize:'0.8rem'}}>Estimativa de lembretes para os próximos 90 dias com base na sua base de eventos.</p>
+                    </div>
+                    <div style={{background:'var(--primary-light)', color:'var(--primary)', padding:'6px 12px', borderRadius:'8px', fontSize:'0.75rem', fontWeight:700}}>
+                        90 DIAS PREVISTOS
+                    </div>
+                </div>
+                <div style={{height:'350px', width:'100%'}}>
                     <ResponsiveContainer>
                         <LineChart data={predictions}>
+                            <defs>
+                                <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.1}/>
+                                    <stop offset="95%" stopColor="var(--primary)" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="date" fontSize={10} tickFormatter={(str) => str.substring(5)} />
-                            <YAxis fontSize={12} width={30} />
-                            <Tooltip contentStyle={{borderRadius:'10px', border:'none', boxShadow:'0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
-                            <Line type="monotone" dataKey="count" stroke="var(--primary)" strokeWidth={3} dot={{r:3, strokeWidth:2, fill:'#fff'}} activeDot={{r:6}} name="Eventos" />
+                            <XAxis 
+                                dataKey="date" 
+                                fontSize={10} 
+                                axisLine={false}
+                                tickLine={false}
+                                tickFormatter={(str) => {
+                                    const d = new Date(str);
+                                    return d.toLocaleDateString('pt-PT', { day:'2-digit', month:'short' });
+                                }} 
+                            />
+                            <YAxis axisLine={false} tickLine={false} fontSize={12} width={30} />
+                            <Tooltip 
+                                contentStyle={{borderRadius:'12px', border:'none', boxShadow:'0 10px 15px -3px rgba(0,0,0,0.1)', padding:'10px'}}
+                                itemStyle={{fontWeight:700, color:'var(--primary)'}}
+                            />
+                            <Line 
+                                type="monotone" 
+                                dataKey="count" 
+                                stroke="var(--primary)" 
+                                strokeWidth={4} 
+                                dot={{r:4, strokeWidth:2, fill:'#fff', stroke:'var(--primary)'}} 
+                                activeDot={{r:8, strokeWidth:0}} 
+                                name="Eventos Previstos" 
+                                animationDuration={2000}
+                            />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
             </div>
+
+            <style>{`
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            `}</style>
         </div>
     );
   }
