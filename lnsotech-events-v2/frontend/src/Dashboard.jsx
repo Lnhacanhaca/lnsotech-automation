@@ -126,7 +126,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   const today = new Date();
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [calYear, setCalYear] = useState(today.getFullYear());
-  const [calSelectedDay, setCalSelectedDay] = useState(null);
+  const [calSelectedDay, setCalSelectedDay] = useState(today.getDate());
 
   const [selectedBotIdForGrupos, setSelectedBotIdForGrupos] = useState('');
   const [tutorialStep, setTutorialStep] = useState(0);
@@ -1831,8 +1831,18 @@ const renderMultiBot = () => {
     
     const selectedEventos = calSelectedDay ? getEventosForDay(calSelectedDay) : [];
     
-    const prevMonth = () => { if (calMonth === 0) { setCalMonth(11); setCalYear(calYear-1); } else setCalMonth(calMonth-1); setCalSelectedDay(null); };
-    const nextMonth = () => { if (calMonth === 11) { setCalMonth(0); setCalYear(calYear+1); } else setCalMonth(calMonth+1); setCalSelectedDay(null); };
+    const prevMonth = () => { 
+      let nm = calMonth, ny = calYear;
+      if (calMonth === 0) { nm = 11; ny = calYear - 1; } else nm = calMonth - 1; 
+      setCalMonth(nm); setCalYear(ny);
+      setCalSelectedDay((nm === today.getMonth() && ny === today.getFullYear()) ? today.getDate() : null);
+    };
+    const nextMonth = () => { 
+      let nm = calMonth, ny = calYear;
+      if (calMonth === 11) { nm = 0; ny = calYear + 1; } else nm = calMonth + 1; 
+      setCalMonth(nm); setCalYear(ny);
+      setCalSelectedDay((nm === today.getMonth() && ny === today.getFullYear()) ? today.getDate() : null);
+    };
     
     const cells = [];
     for (let i = 0; i < firstWeekDay; i++) cells.push(null);
