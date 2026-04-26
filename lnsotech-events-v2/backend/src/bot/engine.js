@@ -191,7 +191,13 @@ class BotManager {
                                     textMessage.includes(myId);
             
             const isGroup = msg.key.remoteJid.endsWith('@g.us');
-            const isDirectInteraction = !isGroup || isReplyToBot || isMentioningBot;
+            if (!isGroup) return; // Ignorar conversas privadas
+
+            // Verificar se o grupo está cadastrado e não está silenciado
+            const groupRes = await pool.query("SELECT is_muted FROM grupos_config WHERE grupo_id = $1", [msg.key.remoteJid]);
+            if (groupRes.rowCount === 0 || groupRes.rows[0].is_muted) return; 
+
+            const isDirectInteraction = isReplyToBot || isMentioningBot;
 
             if (isDirectInteraction) {
                 const remoteJid = msg.key.remoteJid;
