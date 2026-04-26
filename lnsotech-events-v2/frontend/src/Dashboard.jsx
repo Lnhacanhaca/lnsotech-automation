@@ -3047,7 +3047,9 @@ const renderMultiBot = () => {
                             key={item.nota}
                             onClick={() => setFeedbackRating(item.nota)}
                             style={{
-                                flex: 1,
+                                flex: '1 0 60px',
+                                minWidth: '60px',
+                                maxWidth: '100px',
                                 padding: '1rem 0.5rem',
                                 border: feedbackRating === item.nota ? '2px solid var(--primary)' : '2px solid #f1f5f9',
                                 background: feedbackRating === item.nota ? '#eef2ff' : '#fff',
