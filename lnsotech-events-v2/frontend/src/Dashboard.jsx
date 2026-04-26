@@ -1019,13 +1019,20 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 } else setFormTipo(e.target.value);
               }}>
                 <option value="">-- Seleccione o Tipo --</option>
-                <option value="casamento">💍 Casamento</option>
-                <option value="aniversario">🎂 Aniversário</option>
-                <option value="batizado">🕊️ Batizado</option>
-                {tiposEvento.filter(t => !['casamento','aniversario','batizado'].includes(t.nome)).map(t => (
-                  <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>
+                {isAdmin && (
+                  <>
+                    <option value="casamento">💍 Casamento</option>
+                    <option value="aniversario">🎂 Aniversário</option>
+                    <option value="batizado">🕊️ Batizado</option>
+                  </>
+                )}
+                {tiposEvento
+                  .filter(t => isAdmin || (user.tipos_permitidos?.length === 0 || user.tipos_permitidos.includes(t.nome)))
+                  .filter(t => isAdmin || !['casamento','aniversario','batizado'].includes(t.nome))
+                  .map(t => (
+                    <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>
                 ))}
-                <option value="__novo__">➕ Criar Novo Tipo...</option>
+                {isAdmin && <option value="__novo__">➕ Criar Novo Tipo...</option>}
               </select>
 
               {/* 2. O Nome adapta-se ao Tipo */}
@@ -1048,7 +1055,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
               <GrupoSelect value={formGrupo} onChange={async (e) => {
                 if (e.target.value === '__manual__') { const { value: id } = await Swal.fire({ title: 'ID do Grupo', input: 'text', inputLabel: 'Cole o ID do grupo WhatsApp:', showCancelButton: true }); if (id) setFormGrupo(id); }
                 else setFormGrupo(e.target.value);
-              }} />
+              }} grupos={grupos} filterByPermissions={!isAdmin} allowedGroups={user.grupos_permitidos} showManualOption={isAdmin} />
 
               <select className="inline-input" style={{flex:'0.2'}} value={formPrioridade} onChange={e=>setFormPrioridade(e.target.value)}>
                 <option value="normal">⚪ Normal</option>
@@ -1072,7 +1079,16 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
                 <thead><tr><th>Nomes</th><th>Tipo</th><th style={{textAlign:'right'}}>Data</th></tr></thead>
                 <tbody>
                 {dataLoading ? <tr><td colSpan="3">A carregar...</td></tr> : eventos.length === 0 ? <tr><td colSpan="3">Sem eventos.</td></tr> :
-                    eventos.slice(0,5).map(ev => (
+                    eventos
+                    .filter(ev => {
+                        if (isAdmin) return true;
+                        const hasTypeRest = user.tipos_permitidos?.length > 0;
+                        const hasGroupRest = user.grupos_permitidos?.length > 0;
+                        const tipoPermitido = !hasTypeRest || user.tipos_permitidos.includes(ev.tipo_evento);
+                        const grupoPermitido = !hasGroupRest || user.grupos_permitidos.includes(ev.grupo_id);
+                        return tipoPermitido && grupoPermitido;
+                    })
+                    .slice(0,5).map(ev => (
                     <tr key={ev.id}><td className="fw-bold">{ev.nomes_principais}</td><td><span className="badge-tipo">{ev.tipo_evento}</span></td><td style={{textAlign:'right'}}>{new Date(ev.data_evento).toLocaleDateString('pt-PT')}</td></tr>
                 ))}
                 </tbody>
@@ -1087,13 +1103,15 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
   /* ========== RENDER: EVENTOS ========== */
   const renderEventos = () => {
     let filtered = eventos.filter(ev => {
-      // 1. Filtro de Segurança para Leitores (se não for admin/editor, tem restrições)
-      if (!canEdit) {
+      // 1. Filtro de Segurança (se não for admin, verifica restrições se existirem)
+      if (!isAdmin) {
          const hasTypeRest = user.tipos_permitidos?.length > 0;
          const hasGroupRest = user.grupos_permitidos?.length > 0;
-         const tipoPermitido = !hasTypeRest || user.tipos_permitidos.includes(ev.tipo_evento);
-         const grupoPermitido = !hasGroupRest || user.grupos_permitidos.includes(ev.grupo_id);
-         if (!tipoPermitido || !grupoPermitido) return false;
+         if (hasTypeRest || hasGroupRest) {
+            const tipoPermitido = !hasTypeRest || user.tipos_permitidos.includes(ev.tipo_evento);
+            const grupoPermitido = !hasGroupRest || user.grupos_permitidos.includes(ev.grupo_id);
+            if (!tipoPermitido || !grupoPermitido) return false;
+         }
       }
 
       const matchesSearch = 
@@ -1189,7 +1207,7 @@ export default function Dashboard({ token, user: rawUser, onLogout }) {
           
           <input type="date" className="inline-input" style={{flex:'0.3'}} value={formData} onChange={e=>setFormData(e.target.value)} required />
           
-          <GrupoSelect value={formGrupo} onChange={async (e) => { if (e.target.value==='__manual__') { const { value: id } = await Swal.fire({ title: 'ID do Grupo', input: 'text', inputLabel: 'Cole o ID:', showCancelButton: true }); if(id) setFormGrupo(id); } else setFormGrupo(e.target.value); }} />
+          <GrupoSelect value={formGrupo} onChange={async (e) => { if (e.target.value==='__manual__') { const { value: id } = await Swal.fire({ title: 'ID do Grupo', input: 'text', inputLabel: 'Cole o ID:', showCancelButton: true }); if(id) setFormGrupo(id); } else setFormGrupo(e.target.value); }} grupos={grupos} filterByPermissions={!isAdmin} allowedGroups={user.grupos_permitidos} showManualOption={isAdmin} />
           <select className="inline-input" style={{flex:'0.22'}} value={formFrequencia} onChange={e=>setFormFrequencia(e.target.value)}>
             <option value="anual">📅 Anual</option>
             <option value="mensal">🔄 Mensal</option>
@@ -1638,7 +1656,7 @@ const renderMultiBot = () => {
                 {bots.filter(b=>b.status==='conectado').map(b=><option key={b.id} value={b.id}>{b.nome}</option>)}
             </select>
           </div>
-          {/* ... continuação da tabela de grupos ... */}
+          
         <div className={`panel-card ${tutorialStep === 4 ? 'tutorial-highlight' : ''}`} id="step-groups-list">
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem', flexWrap:'wrap', gap:'1rem'}}>
             <div className="panel-title" style={{margin:0}}>📋 Lista de Grupos Participados</div>
@@ -2476,7 +2494,7 @@ const renderMultiBot = () => {
                                                                     <option value="editor">EDITOR</option>
                                                                     <option value="admin">ADMIN</option>
                                                                 </select>
-                                                                {editUserForm.nivel_acesso === 'leitor' && (
+                                                                {(editUserForm.nivel_acesso === 'leitor' || editUserForm.nivel_acesso === 'editor') && (
                                                                     <div style={{display:'flex', gap:'0.4rem'}}>
                                                                         <select multiple className="inline-input" value={editUserForm.tipos_permitidos} onChange={e=>setEditUserForm({...editUserForm, tipos_permitidos: Array.from(e.target.selectedOptions, o=>o.value)})} style={{fontSize:'0.7rem', flex:1}} title="Tipos (Ctrl/Cmd para vários)">
                                                                             {tiposEvento.map(t => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}
@@ -2539,16 +2557,16 @@ const renderMultiBot = () => {
                                         <button onClick={handleCreateUsuario} className="btn-submit" style={{padding:'0.4rem 1rem'}}>Criar</button>
                                     </div>
                                     
-                                    {newUserRole === 'leitor' && (
+                                    {(newUserRole === 'leitor' || newUserRole === 'editor') && (
                                         <div style={{display:'flex', gap:'0.5rem', flexWrap:'wrap', marginTop:'0.5rem'}}>
                                             <div style={{flex:1}}>
-                                                <label style={{fontSize:'0.75rem', fontWeight:600}}>Tipos de Evento Permitidos (Ctrl/Cmd para múltipla seleção)</label>
+                                                <label style={{fontSize:'0.75rem', fontWeight:600}}>Restrições: Tipos Permitidos (Opcional p/ Editor)</label>
                                                 <select multiple className="inline-input" value={newUserTipos} onChange={e=>setNewUserTipos(Array.from(e.target.selectedOptions, o=>o.value))} style={{width:'100%', minHeight:'60px'}}>
                                                     {tiposEvento.map(t => <option key={t.id || t.nome} value={t.nome}>{t.nome}</option>)}
                                                 </select>
                                             </div>
                                             <div style={{flex:1}}>
-                                                <label style={{fontSize:'0.75rem', fontWeight:600}}>Grupos Permitidos (Ctrl/Cmd para múltipla seleção)</label>
+                                                <label style={{fontSize:'0.75rem', fontWeight:600}}>Restrições: Grupos Permitidos (Opcional p/ Editor)</label>
                                                 <select multiple className="inline-input" value={newUserGrupos} onChange={e=>setNewUserGrupos(Array.from(e.target.selectedOptions, o=>o.value))} style={{width:'100%', minHeight:'60px'}}>
                                                     {grupos.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
                                                 </select>
@@ -2831,8 +2849,7 @@ const renderMultiBot = () => {
           {canEdit && activeTab === 'eventos' && renderEventos()}
           {activeTab === 'calendario' && renderCalendario()}
           {activeTab === 'analytics' && renderAnalytics()}
-          {canEdit && activeTab === 'grupos' && 
-          renderMultiBot()}
+          {canEdit && activeTab === 'grupos' && renderMultiBot()}
           {canEdit && activeTab === 'logs' && renderLogs()}
           {(isAdmin || isEditor) && activeTab === 'configuracoes' && renderConfig()}
         </div>
@@ -2855,11 +2872,10 @@ const renderMultiBot = () => {
                     <div style={{flex:1}}>
                         <label style={{display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem', color:'#475569'}}>Tipo</label>
                         <select className="inline-input" style={{width:'100%'}} value={editEventoForm.tipo_evento} onChange={e=>setEditEventoForm({...editEventoForm, tipo_evento: e.target.value})}>
-                            <option value="casamento">💍 Casamento</option>
-                            <option value="aniversario">🎂 Aniversário</option>
-                            <option value="batizado">🕊️ Batizado</option>
-                            {tiposEvento.filter(t => !['casamento','aniversario','batizado'].includes(t.nome)).map(t => (
-                                <option key={t.id} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>
+                            {tiposEvento
+                                .filter(t => isAdmin || (user.tipos_permitidos?.length === 0 || user.tipos_permitidos.includes(t.nome)))
+                                .map(t => (
+                                    <option key={t.id || t.nome} value={t.nome}>{t.nome.charAt(0).toUpperCase() + t.nome.slice(1)}</option>
                             ))}
                         </select>
                     </div>
@@ -2933,3 +2949,19 @@ const Overlay = ({ children, onClose, title }) => (
         </div>
     </div>
 );
+
+const GrupoSelect = ({ value, onChange, grupos = [], filterByPermissions = false, allowedGroups = [], showManualOption = true }) => {
+    const filtered = filterByPermissions && allowedGroups && allowedGroups.length > 0
+        ? grupos.filter(g => allowedGroups.includes(g.id))
+        : grupos;
+
+    return (
+        <select className="inline-input" style={{flex:'1'}} value={value} onChange={onChange} required>
+            <option value="">-- Seleccione o Grupo --</option>
+            {filtered.map(g => (
+                <option key={g.id} value={g.id}>{g.nome}</option>
+            ))}
+            {showManualOption && <option value="__manual__">➕ Inserir ID Manual...</option>}
+        </select>
+    );
+};

@@ -14,8 +14,26 @@ class EventoController {
 
     async list(req, res) {
         try {
+            const user = req.usuarioLogado;
             const { search, exportCsv } = req.query;
-            const eventos = await EventoService.listarEventos(search);
+            let eventos = await EventoService.listarEventos(search);
+
+            // Filtro de Backend para utilizadores restritos
+            if (user && user.nivel_acesso !== 'admin') {
+                const hasTypeRest = user.tipos_permitidos && JSON.parse(user.tipos_permitidos).length > 0;
+                const hasGroupRest = user.grupos_permitidos && JSON.parse(user.grupos_permitidos).length > 0;
+                
+                if (hasTypeRest || hasGroupRest) {
+                    const tipos = hasTypeRest ? JSON.parse(user.tipos_permitidos) : [];
+                    const grupos = hasGroupRest ? JSON.parse(user.grupos_permitidos) : [];
+
+                    eventos = eventos.filter(ev => {
+                        const tipoPermitido = !hasTypeRest || tipos.includes(ev.tipo_evento);
+                        const grupoPermitido = !hasGroupRest || grupos.includes(ev.grupo_id);
+                        return tipoPermitido && grupoPermitido;
+                    });
+                }
+            }
 
             if (exportCsv === 'true') {
                 const csv = await EventoService.gerarCSV(eventos);
@@ -43,6 +61,28 @@ class EventoController {
 
     async create(req, res) {
         try {
+            const user = req.usuarioLogado;
+            const { grupo_id, tipo_evento } = req.body;
+            
+            // Verificação de permissões (Backend Security)
+            if (user && user.nivel_acesso !== 'admin') {
+                const hasTypeRest = user.tipos_permitidos && JSON.parse(user.tipos_permitidos).length > 0;
+                const hasGroupRest = user.grupos_permitidos && JSON.parse(user.grupos_permitidos).length > 0;
+                
+                if (hasTypeRest) {
+                    const tipos = JSON.parse(user.tipos_permitidos);
+                    if (!tipos.includes(tipo_evento)) {
+                        return res.status(403).json({ erro: 'Acesso Negado: Categoria não autorizada para o seu utilizador.' });
+                    }
+                }
+                if (hasGroupRest) {
+                    const gruposPerm = JSON.parse(user.grupos_permitidos);
+                    if (!gruposPerm.includes(grupo_id)) {
+                        return res.status(403).json({ erro: 'Acesso Negado: Grupo WhatsApp não autorizado para o seu utilizador.' });
+                    }
+                }
+            }
+
             const id = await EventoService.criarEvento(req.body);
             await AuditService.log(req.usuarioLogado?.id, req.usuarioLogado?.nome, 'CRIAR', 'Evento', `Criou evento de ${req.body.nomes_principais || 'N/A'}`);
             res.status(201).json({ mensagem: 'Evento criado com sucesso', id });
@@ -54,7 +94,28 @@ class EventoController {
     async update(req, res) {
         try {
             const { id } = req.params;
-            const { usuario_id } = req.body;
+            const { usuario_id, grupo_id, tipo_evento } = req.body;
+            const user = req.usuarioLogado;
+
+            // Verificação de permissões (Backend Security)
+            if (user && user.nivel_acesso !== 'admin') {
+                const hasTypeRest = user.tipos_permitidos && JSON.parse(user.tipos_permitidos).length > 0;
+                const hasGroupRest = user.grupos_permitidos && JSON.parse(user.grupos_permitidos).length > 0;
+                
+                if (hasTypeRest) {
+                    const tipos = JSON.parse(user.tipos_permitidos);
+                    if (tipo_evento && !tipos.includes(tipo_evento)) {
+                        return res.status(403).json({ erro: 'Acesso Negado: Categoria não autorizada.' });
+                    }
+                }
+                if (hasGroupRest) {
+                    const gruposPerm = JSON.parse(user.grupos_permitidos);
+                    if (grupo_id && !gruposPerm.includes(grupo_id)) {
+                        return res.status(403).json({ erro: 'Acesso Negado: Grupo WhatsApp não autorizado.' });
+                    }
+                }
+            }
+
             await EventoService.atualizarEvento(id, req.body, usuario_id);
             await AuditService.log(req.usuarioLogado?.id, req.usuarioLogado?.nome, 'ATUALIZAR', 'Evento', `Atualizou evento ID: ${id}`);
             res.json({ mensagem: 'Evento atualizado com sucesso' });
