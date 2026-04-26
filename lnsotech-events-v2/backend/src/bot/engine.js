@@ -168,7 +168,7 @@ class BotManager {
             const msg = m.messages[0];
             const msgId = msg.key.id;
 
-            if (processedMessages.has(msgId) || msg.key.fromMe) return;
+            if (processedMessages.has(msgId) || msg.key.fromMe || msg.key.remoteJid === 'status@broadcast') return;
             processedMessages.add(msgId);
             if (processedMessages.size > 200) processedMessages.delete(processedMessages.values().next().value);
 
