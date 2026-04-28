@@ -23,7 +23,7 @@ app.set('trust proxy', 1);
 // Configuração do Rate Limiter
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 500, // Limita a 500 pedidos por IP a cada 15 minutos
+    max: 3000, // Aumentado para 3000 para não bloquear o polling de 3 em 3 segundos do frontend
     message: { erro: 'Muitos pedidos efetuados a partir deste IP. Tente novamente mais tarde.' },
     standardHeaders: true,
     legacyHeaders: false,
