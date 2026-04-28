@@ -225,6 +225,11 @@ class BotManager {
                 if (triggers.some(t => textLower.includes(t))) {
                     console.log(`🎯 [Bot ${botId}] Trigger detectada em ${remoteJid}: "${textMessage.substring(0, 20)}..."`);
                     
+                    // Se for trigger de agradecimento/parabéns, a resposta base deixa de ser o Fallback
+                    // e passa a ser uma mensagem genérica de Reply, caso não encontre um evento específico.
+                    resposta = 'Muito obrigado pela sua mensagem! Ficamos felizes em partilhar estes momentos com a família e amigos.';
+                    encontrouTipo = true;
+
                     // Busca preferencial: último lembrete enviado. 
                     // Se for grupo, busca filtrado pelo grupo. Se for privado, busca o último global.
                     const queryLog = isGroup 
@@ -240,10 +245,9 @@ class BotManager {
                         const tipoObj = await pool.query("SELECT template_resposta FROM tipos_evento WHERE LOWER(nome) = LOWER($1)", [tipoEvento]);
                         if (tipoObj.rows[0]?.template_resposta) {
                             resposta = tipoObj.rows[0].template_resposta;
-                            encontrouTipo = true;
                         }
                     } else {
-                        console.log(`⚠️ [Bot ${botId}] Nenhum log de envio recente encontrado para associar tipo.`);
+                        console.log(`⚠️ [Bot ${botId}] Nenhum log de envio recente encontrado. Usando Agradecimento Genérico.`);
                     }
                 }
 
