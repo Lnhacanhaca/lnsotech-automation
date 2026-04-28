@@ -165,6 +165,7 @@ class BotManager {
         sock.ev.on('messages.upsert', async (m) => {
             if (!m.messages || m.messages.length === 0) return;
             const msg = m.messages[0];
+            const msgId = msg.key.id; // Correção: msgId não estava definido!
             const isStatus = msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid?.includes('@broadcast');
             if (m.type !== 'notify' || processedMessages.has(msgId) || msg.key.fromMe || isStatus) return;
             
@@ -190,11 +191,12 @@ class BotManager {
                                     textMessage.includes(myId);
             
             const isGroup = msg.key.remoteJid.endsWith('@g.us');
-            if (!isGroup) return; // Ignorar conversas privadas
-
-            // Verificar se o grupo está cadastrado e não está silenciado
-            const groupRes = await pool.query("SELECT is_muted FROM grupos_config WHERE grupo_id = $1", [msg.key.remoteJid]);
-            if (groupRes.rowCount === 0 || groupRes.rows[0].is_muted) return; 
+            
+            // Se for um grupo, verificar se está silenciado
+            if (isGroup) {
+                const groupRes = await pool.query("SELECT is_muted FROM grupos_config WHERE grupo_id = $1", [msg.key.remoteJid]);
+                if (groupRes.rowCount > 0 && groupRes.rows[0].is_muted) return; 
+            }
 
             const isDirectInteraction = isReplyToBot || isMentioningBot;
 
