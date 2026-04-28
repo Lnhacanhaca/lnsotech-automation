@@ -2,7 +2,11 @@ const UserRepository = require('../repositories/UserRepository');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'lnsotech_super_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error('❌ ERRO CRÍTICO: JWT_SECRET não definido no .env!');
+    process.exit(1);
+}
 
 class AuthService {
     async login(email, senha) {

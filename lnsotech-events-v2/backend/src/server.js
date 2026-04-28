@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 
@@ -15,8 +17,19 @@ const authRoutes = require('./routes/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Configuração do Rate Limiter
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 500, // Limita a 500 pedidos por IP a cada 15 minutos
+    message: { erro: 'Muitos pedidos efetuados a partir deste IP. Tente novamente mais tarde.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // Middlewares
+app.use(helmet({ crossOriginResourcePolicy: false })); // Proteção de cabeçalhos, permitindo imagens cross-origin
 app.use(cors());
+app.use('/api/', apiLimiter); // Aplica o limitador de tráfego a todas as rotas da API
 app.use(express.json());
 
 // Injetar Pool no Request (Manter compatibilidade legado se necessário, mas novos controllers usam singleton)
