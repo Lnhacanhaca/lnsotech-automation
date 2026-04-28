@@ -313,7 +313,7 @@ class BotManager {
             AND (g.is_muted IS FALSE OR g.is_muted IS NULL)
             AND (
                 -- DIARIO (Dispara todos os dias)
-                (LOWER(e.frequencia_lembrete) = 'diario')
+                (LOWER(e.frequencia_lembrete) LIKE 'diari%')
                 OR
                 -- SEMANAL
                 (LOWER(e.frequencia_lembrete) = 'semanal' AND TO_CHAR(e.data_evento, 'D') = TO_CHAR(CURRENT_DATE AT TIME ZONE 'Africa/Maputo', 'D'))
@@ -327,10 +327,14 @@ class BotManager {
         `;
         
         const res = await pool.query(query, [tipos.map(t => t.toLowerCase())]);
-        console.log(`📊 [Bot: ${config.nome}] Eventos encontrados para hoje: ${res.rowCount}`);
+        console.log(`📊 [Bot: ${config.nome}] Eventos que passaram no filtro SQL: ${res.rowCount}`);
         
+        res.rows.forEach(ev => {
+            console.log(`🔎 [Fila] Analisando Evento: ID=${ev.id}, Nome=${ev.nomes_principais}, Tipo=${ev.tipo_evento}, Freq=${ev.frequencia_lembrete}, Grupo=${ev.grupo_id}`);
+        });
+
         if (res.rowCount === 0) {
-            console.log(`ℹ️ [Bot: ${config.nome}] Nenhum evento para disparar hoje para os tipos permitidos.`);
+            console.log(`ℹ️ [Bot: ${config.nome}] Nenhum evento para disparar hoje para os tipos permitidos: ${tipos.join(', ')}`);
         }
         let enviados = 0;
 
@@ -339,10 +343,14 @@ class BotManager {
         const assinatura = globalRes.rows[0]?.valor || '';
         const templatesRes = await pool.query('SELECT * FROM templates_mensagem');
         const templates = {};
-        templatesRes.rows.forEach(t => templates[t.tipo_evento.toLowerCase()] = t.mensagem);
+        templatesRes.rows.forEach(t => {
+            templates[t.tipo_evento.toLowerCase()] = t.mensagem;
+            console.log(`📝 [Template] Carregado: ${t.tipo_evento}`);
+        });
 
         for (const evento of res.rows) {
             try {
+                console.log(`✉️ [Bot: ${config.nome}] Preparando mensagem para ${evento.nomes_principais}...`);
                 const template = templates[evento.tipo_evento.toLowerCase()] || 'Hoje celebramos {nomes}!';
                 const anos = new Date().getFullYear() - (evento.ano_origem || new Date().getFullYear());
                 let msgFinal = template
@@ -368,9 +376,10 @@ class BotManager {
                     1 // Prioridade de lembrete
                 );
 
+                console.log(`✅ [Bot: ${config.nome}] Evento enfileirado com sucesso.`);
                 enviados++;
             } catch (err) {
-                console.error(`Erro ao enfileirar bot ${config.nome}:`, err);
+                console.error(`❌ [Bot: ${config.nome}] Erro ao enfileirar:`, err);
                 await registarLog(evento.id, evento.grupo_id, 'queue_erro', err.message, 'erro');
             }
         }
