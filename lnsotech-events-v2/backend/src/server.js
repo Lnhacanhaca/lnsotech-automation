@@ -17,6 +17,9 @@ const authRoutes = require('./routes/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Confiar no Reverse Proxy (NGINX/Docker) para o Rate Limiter ler os IPs reais e não bloquear toda a gente
+app.set('trust proxy', 1);
+
 // Configuração do Rate Limiter
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
