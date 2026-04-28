@@ -17,18 +17,22 @@ const authRoutes = require('./routes/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Confiar no Reverse Proxy (NGINX/Docker) para o Rate Limiter ler os IPs reais e não bloquear toda a gente
-app.set('trust proxy', true); 
+// Confiar no Reverse Proxy (NGINX/Docker) - Essencial para o Rate Limiter ler o IP real do cliente
+app.set('trust proxy', 1); 
 
 // Configuração do Rate Limiter
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 15000, // Aumentado para 15000 para evitar bloqueios em uso intensivo ou polling
+    max: 15000, // Limite generoso para evitar falsos positivos
     message: { erro: 'Muitos pedidos efetuados a partir deste IP. Tente novamente mais tarde.' },
     standardHeaders: true,
     legacyHeaders: false,
+    // Key generator mais robusto para evitar o erro ERR_ERL_KEY_GEN_IPV6
     keyGenerator: (req) => {
-        return req.headers['x-forwarded-for'] || req.ip;
+        const clientIp = req.headers['x-forwarded-for'] || req.ip || req.socket.remoteAddress;
+        if (Array.isArray(clientIp)) return clientIp[0];
+        if (typeof clientIp === 'string') return clientIp.split(',')[0].trim();
+        return clientIp;
     }
 });
 

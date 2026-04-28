@@ -198,19 +198,22 @@ class BotManager {
                 if (groupRes.rowCount > 0 && groupRes.rows[0].is_muted) return; 
             }
 
-            const isDirectInteraction = isReplyToBot || isMentioningBot;
+            // Em privado (!isGroup), qualquer mensagem é uma interação direta. Em grupo, precisa de menção ou resposta.
+            const isDirectInteraction = !isGroup || isReplyToBot || isMentioningBot;
 
             if (isDirectInteraction) {
                 const remoteJid = msg.key.remoteJid;
                 const now = Date.now();
+                
+                // Anti-spam: 10 segundos entre respostas automáticas para o mesmo JID
                 if (now - (lastAutoReply.get(remoteJid) || 0) < 10000) return;
 
                 const textLower = textMessage.toLowerCase();
-                // Anti-Loop para si próprio
-                const selfTriggers = ['lnsotech', 'agradece', 'enviado via', 'assinalar'];
+                // Anti-Loop para si próprio e gatilhos de sistema
+                const selfTriggers = ['lnsotech', 'agradece', 'enviado via', 'assinalar', 'obrigado pelo contacto'];
                 if (selfTriggers.some(t => textLower.includes(t))) return;
                 
-                const triggers = ['muito obrigado', 'obrigado', 'obrigada', 'parabens', 'parabéns', 'obrg', 'amem', 'amém', 'feliz'];
+                const triggers = ['muito obrigado', 'obrigado', 'obrigada', 'parabens', 'parabéns', 'obrg', 'amem', 'amém', 'feliz', 'bom dia', 'boa tarde', 'boa noite', 'olá', 'ola'];
                 
                 // Buscar Assinatura e Fallback
                 const configRes = await pool.query("SELECT chave, valor FROM configuracoes WHERE chave IN ('resposta_padrao_bot', 'assinatura_bot')");
@@ -222,6 +225,7 @@ class BotManager {
                 let resposta = fallback;
                 let encontrouTipo = false;
 
+                // Tentar encontrar uma resposta mais específica baseada em gatilhos
                 if (triggers.some(t => textLower.includes(t))) {
                     console.log(`🎯 [Bot ${botId}] Trigger detectada em ${remoteJid}: "${textMessage.substring(0, 20)}..."`);
                     
@@ -233,10 +237,9 @@ class BotManager {
                         if (evRes.rowCount > 0) tipoEvento = evRes.rows[0].tipo_evento;
                     }
 
-                    // 2. Se não encontrar no grupo (ex: teste no privado), puxar o tipo associado ao Bot, 
-                    // MAS APENAS se o Bot for dedicado a UM ÚNICO tipo (para não adivinhar errado).
+                    // 2. Se não encontrar no grupo, puxar o tipo associado ao Bot
                     if (!tipoEvento) {
-                        const botRes = await pool.query("SELECT tipos_permitidos FROM bots WHERE id = $1", [botId]);
+                        const botRes = await pool.query("SELECT tipos_permitidos FROM whatsapp_bots WHERE id = $1", [botId]);
                         if (botRes.rowCount > 0 && botRes.rows[0].tipos_permitidos) {
                             let tipos = botRes.rows[0].tipos_permitidos;
                             if (typeof tipos === 'string') { try { tipos = JSON.parse(tipos); } catch(e) { tipos = []; } }
@@ -246,25 +249,28 @@ class BotManager {
                         }
                     }
 
-                    // Se encontrou o tipo com certeza, vai buscar o Reply
+                    // Se encontrou o tipo, vai buscar o Template de Resposta específico
                     if (tipoEvento) {
                         const tipoClean = tipoEvento.trim();
-                        console.log(`🔎 [Bot ${botId}] Associando resposta ao tipo: '${tipoClean}'`);
                         const tipoObj = await pool.query("SELECT template_resposta FROM tipos_evento WHERE TRIM(LOWER(nome)) = TRIM(LOWER($1))", [tipoClean]);
                         if (tipoObj.rowCount > 0 && tipoObj.rows[0].template_resposta) {
                             resposta = tipoObj.rows[0].template_resposta;
                             encontrouTipo = true;
-                            console.log(`✅ [Bot ${botId}] Reply encontrado e aplicado com sucesso!`);
-                        } else {
-                            console.log(`⚠️ [Bot ${botId}] Tipo '${tipoClean}' encontrado na BD de Eventos, mas não existe Template de Resposta registado para este tipo.`);
+                            console.log(`✅ [Bot ${botId}] Resposta personalizada para '${tipoClean}' aplicada.`);
                         }
                     }
                 }
 
                 const finalMessage = `${resposta}\n\n${assinatura}`.trim();
-                await sock.sendMessage(remoteJid, { text: finalMessage }, { quoted: msg });
-                lastAutoReply.set(remoteJid, now);
-                await registarLog(null, remoteJid, 'auto_resposta', `Bot ${botId} respondeu (${encontrouTipo ? 'Tipo' : 'Fallback'}): ${textMessage.substring(0,20)}`, 'sucesso');
+                
+                try {
+                    await sock.sendMessage(remoteJid, { text: finalMessage }, { quoted: msg });
+                    lastAutoReply.set(remoteJid, now);
+                    await registarLog(null, remoteJid, 'auto_resposta', `Bot ${botId} respondeu (${encontrouTipo ? 'Tipo' : 'Fallback'}): ${textMessage.substring(0,20)}`, 'sucesso');
+                    console.log(`✉️ [Bot ${botId}] Resposta automática enviada para ${remoteJid}`);
+                } catch (sendErr) {
+                    console.error(`❌ [Bot ${botId}] Erro ao enviar resposta automática:`, sendErr.message);
+                }
             }
         });
     }
@@ -327,14 +333,16 @@ class BotManager {
         `;
         
         const res = await pool.query(query, [tipos.map(t => t.toLowerCase())]);
-        console.log(`📊 [Bot: ${config.nome}] Eventos que passaram no filtro SQL: ${res.rowCount}`);
+        console.log(`📊 [Bot: ${config.nome}] Eventos encontrados no SQL: ${res.rowCount}`);
         
-        res.rows.forEach(ev => {
-            console.log(`🔎 [Fila] Analisando Evento: ID=${ev.id}, Nome=${ev.nomes_principais}, Tipo=${ev.tipo_evento}, Freq=${ev.frequencia_lembrete}, Grupo=${ev.grupo_id}`);
-        });
+        if (res.rows && res.rows.length > 0) {
+            res.rows.forEach(ev => {
+                if (ev) console.log(`🔎 [Fila] ID=${ev.id} | Nome=${ev.nomes_principais} | Tipo=${ev.tipo_evento}`);
+            });
+        }
 
         if (res.rowCount === 0) {
-            console.log(`ℹ️ [Bot: ${config.nome}] Nenhum evento para disparar hoje para os tipos permitidos: ${tipos.join(', ')}`);
+            console.log(`ℹ️ [Bot: ${config.nome}] Nenhum evento hoje para: ${tipos.join(', ')}`);
         }
         let enviados = 0;
 
