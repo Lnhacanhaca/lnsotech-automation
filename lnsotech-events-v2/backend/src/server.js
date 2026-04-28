@@ -18,15 +18,18 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Confiar no Reverse Proxy (NGINX/Docker) para o Rate Limiter ler os IPs reais e não bloquear toda a gente
-app.set('trust proxy', 1);
+app.set('trust proxy', true); 
 
 // Configuração do Rate Limiter
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 3000, // Aumentado para 3000 para não bloquear o polling de 3 em 3 segundos do frontend
+    max: 15000, // Aumentado para 15000 para evitar bloqueios em uso intensivo ou polling
     message: { erro: 'Muitos pedidos efetuados a partir deste IP. Tente novamente mais tarde.' },
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req) => {
+        return req.headers['x-forwarded-for'] || req.ip;
+    }
 });
 
 // Middlewares

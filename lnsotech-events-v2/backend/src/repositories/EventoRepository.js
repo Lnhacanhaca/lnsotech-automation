@@ -21,10 +21,10 @@ class EventoRepository {
     }
 
     async create(dados) {
-        const { nomes_principais, data_evento, tipo_evento, grupo_id, criado_por, frequencia_lembrete, prioridade } = dados;
+        const { nomes_principais, data_evento, tipo_evento, grupo_id, criado_por, frequencia_lembrete, prioridade, foto_url } = dados;
         const query = `
-            INSERT INTO eventos (nomes_principais, data_evento, tipo_evento, grupo_id, criado_por, frequencia_lembrete, prioridade)
-            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id
+            INSERT INTO eventos (nomes_principais, data_evento, tipo_evento, grupo_id, criado_por, frequencia_lembrete, prioridade, foto_url)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id
         `;
         const { rows } = await db.query(query, [
             nomes_principais, 
@@ -33,7 +33,8 @@ class EventoRepository {
             grupo_id, 
             criado_por, 
             frequencia_lembrete || 'anual',
-            prioridade || 'normal'
+            prioridade || 'normal',
+            foto_url || null
         ]);
         return rows[0].id;
     }
@@ -63,6 +64,7 @@ class EventoRepository {
             totalEventos: 'SELECT COUNT(*) FROM eventos',
             totalBodas: "SELECT COUNT(*) FROM eventos WHERE tipo_evento = 'casamento'",
             totalAniversarios: "SELECT COUNT(*) FROM eventos WHERE tipo_evento = 'aniversario'",
+            totalBatizados: "SELECT COUNT(*) FROM eventos WHERE tipo_evento = 'batizado'",
             gruposAtivos: `
                 SELECT COUNT(DISTINCT e.grupo_id) 
                 FROM eventos e

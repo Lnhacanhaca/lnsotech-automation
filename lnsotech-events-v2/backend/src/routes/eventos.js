@@ -17,7 +17,7 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } }); // Aumentado para 20MB para fotos de telemóveis modernos
 const uploadCSV = multer({ dest: path.join(__dirname, '../uploads/tmp/') });
 
 // ========== EVENTOS ========== //

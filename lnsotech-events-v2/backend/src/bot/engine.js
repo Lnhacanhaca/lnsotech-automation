@@ -248,11 +248,15 @@ class BotManager {
 
                     // Se encontrou o tipo com certeza, vai buscar o Reply
                     if (tipoEvento) {
-                        console.log(`🔎 [Bot ${botId}] Associando resposta ao tipo: ${tipoEvento}`);
-                        const tipoObj = await pool.query("SELECT template_resposta FROM tipos_evento WHERE LOWER(nome) = LOWER($1)", [tipoEvento]);
+                        const tipoClean = tipoEvento.trim();
+                        console.log(`🔎 [Bot ${botId}] Associando resposta ao tipo: '${tipoClean}'`);
+                        const tipoObj = await pool.query("SELECT template_resposta FROM tipos_evento WHERE TRIM(LOWER(nome)) = TRIM(LOWER($1))", [tipoClean]);
                         if (tipoObj.rowCount > 0 && tipoObj.rows[0].template_resposta) {
                             resposta = tipoObj.rows[0].template_resposta;
                             encontrouTipo = true;
+                            console.log(`✅ [Bot ${botId}] Reply encontrado e aplicado com sucesso!`);
+                        } else {
+                            console.log(`⚠️ [Bot ${botId}] Tipo '${tipoClean}' encontrado na BD de Eventos, mas não existe Template de Resposta registado para este tipo.`);
                         }
                     }
                 }
@@ -296,7 +300,8 @@ class BotManager {
             return 0;
         }
 
-        console.log(`🚀 [Bot: ${config.nome}] Disparando lembretes para: ${tipos.join(', ')}`);
+        const dataMaputoFiltro = new Date().toLocaleDateString("pt-PT", {timeZone: "Africa/Maputo"});
+        console.log(`🚀 [Bot: ${config.nome}] Disparando lembretes para: ${tipos.join(', ')} (Data Maputo: ${dataMaputoFiltro})`);
         
         // Filtro por tipos permitidos deste Bot (Case-Insensitive)
         const query = `
@@ -320,7 +325,13 @@ class BotManager {
                 ( (LOWER(e.frequencia_lembrete) = 'anual' OR e.frequencia_lembrete IS NULL) AND TO_CHAR(e.data_evento, 'DD-MM') = TO_CHAR(CURRENT_DATE AT TIME ZONE 'Africa/Maputo', 'DD-MM'))
             )
         `;
+        
         const res = await pool.query(query, [tipos.map(t => t.toLowerCase())]);
+        console.log(`📊 [Bot: ${config.nome}] Eventos encontrados para hoje: ${res.rowCount}`);
+        
+        if (res.rowCount === 0) {
+            console.log(`ℹ️ [Bot: ${config.nome}] Nenhum evento para disparar hoje para os tipos permitidos.`);
+        }
         let enviados = 0;
 
         // Buscar Assinatura e Templates
