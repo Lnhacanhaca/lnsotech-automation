@@ -210,7 +210,7 @@ class BotManager {
                 const selfTriggers = ['lnsotech', 'agradece', 'enviado via', 'assinalar'];
                 if (selfTriggers.some(t => textLower.includes(t))) return;
                 
-                const triggers = ['paraben', 'felicid', 'feliz', 'obrigad', 'obg', 'thanks', 'grato', 'amem', 'amém', 'viva', 'top', 'show', 'valeu', 'vlw'];
+                const triggers = ['muito obrigado', 'obrigado', 'obrigada', 'parabens', 'parabéns', 'obrg', 'amem', 'amém', 'feliz'];
                 
                 // Buscar Assinatura e Fallback
                 const configRes = await pool.query("SELECT chave, valor FROM configuracoes WHERE chave IN ('resposta_padrao_bot', 'assinatura_bot')");
@@ -225,29 +225,28 @@ class BotManager {
                 if (triggers.some(t => textLower.includes(t))) {
                     console.log(`🎯 [Bot ${botId}] Trigger detectada em ${remoteJid}: "${textMessage.substring(0, 20)}..."`);
                     
-                    // Se for trigger de agradecimento/parabéns, a resposta base deixa de ser o Fallback
-                    // e passa a ser uma mensagem genérica de Reply, caso não encontre um evento específico.
-                    resposta = 'Muito obrigado pela sua mensagem! Ficamos felizes em partilhar estes momentos com a família e amigos.';
-                    encontrouTipo = true;
+                    let tipoEvento = null;
 
-                    // Busca preferencial: último lembrete enviado. 
-                    // Se for grupo, busca filtrado pelo grupo. Se for privado, busca o último global.
-                    const queryLog = isGroup 
-                        ? `SELECT e.tipo_evento FROM logs_envio l JOIN eventos e ON l.evento_id = e.id WHERE l.grupo_id = $1 AND l.tipo_log = 'envio_sucesso' ORDER BY l.criado_em DESC LIMIT 1`
-                        : `SELECT e.tipo_evento FROM logs_envio l JOIN eventos e ON l.evento_id = e.id WHERE l.tipo_log = 'envio_sucesso' ORDER BY l.criado_em DESC LIMIT 1`;
-                    
-                    const params = isGroup ? [remoteJid] : [];
-                    const lastLog = await pool.query(queryLog, params);
-                    const tipoEvento = lastLog.rows[0]?.tipo_evento;
+                    // 1. Tentar descobrir o tipo de evento através do grupo atual
+                    if (isGroup) {
+                        const evRes = await pool.query("SELECT tipo_evento FROM eventos WHERE grupo_id = $1 ORDER BY id DESC LIMIT 1", [remoteJid]);
+                        if (evRes.rowCount > 0) tipoEvento = evRes.rows[0].tipo_evento;
+                    }
 
+                    // 2. Se não encontrar (ex: teste no privado ou grupo sem evento), usar o último evento criado no sistema
+                    if (!tipoEvento) {
+                        const fallbackRes = await pool.query("SELECT tipo_evento FROM eventos ORDER BY id DESC LIMIT 1");
+                        if (fallbackRes.rowCount > 0) tipoEvento = fallbackRes.rows[0].tipo_evento;
+                    }
+
+                    // 3. Ir à base de dados (tipos_evento) buscar a Resposta (Reply) registada
                     if (tipoEvento) {
                         console.log(`🔎 [Bot ${botId}] Associando resposta ao tipo: ${tipoEvento}`);
                         const tipoObj = await pool.query("SELECT template_resposta FROM tipos_evento WHERE LOWER(nome) = LOWER($1)", [tipoEvento]);
-                        if (tipoObj.rows[0]?.template_resposta) {
+                        if (tipoObj.rowCount > 0 && tipoObj.rows[0].template_resposta) {
                             resposta = tipoObj.rows[0].template_resposta;
+                            encontrouTipo = true;
                         }
-                    } else {
-                        console.log(`⚠️ [Bot ${botId}] Nenhum log de envio recente encontrado. Usando Agradecimento Genérico.`);
                     }
                 }
 
