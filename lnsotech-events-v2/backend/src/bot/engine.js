@@ -233,23 +233,20 @@ class BotManager {
                         if (evRes.rowCount > 0) tipoEvento = evRes.rows[0].tipo_evento;
                     }
 
-                    // 2. Se não encontrar (ex: teste no privado), puxar o tipo associado a este Bot!
+                    // 2. Se não encontrar no grupo (ex: teste no privado), puxar o tipo associado ao Bot, 
+                    // MAS APENAS se o Bot for dedicado a UM ÚNICO tipo (para não adivinhar errado).
                     if (!tipoEvento) {
                         const botRes = await pool.query("SELECT tipos_permitidos FROM bots WHERE id = $1", [botId]);
                         if (botRes.rowCount > 0 && botRes.rows[0].tipos_permitidos) {
                             let tipos = botRes.rows[0].tipos_permitidos;
                             if (typeof tipos === 'string') { try { tipos = JSON.parse(tipos); } catch(e) { tipos = []; } }
-                            if (Array.isArray(tipos) && tipos.length > 0) tipoEvento = tipos[0];
+                            if (Array.isArray(tipos) && tipos.length === 1) {
+                                tipoEvento = tipos[0];
+                            }
                         }
                     }
 
-                    // 3. Se o Bot não tiver tipos configurados, usar o último evento criado no sistema
-                    if (!tipoEvento) {
-                        const fallbackRes = await pool.query("SELECT tipo_evento FROM eventos ORDER BY id DESC LIMIT 1");
-                        if (fallbackRes.rowCount > 0) tipoEvento = fallbackRes.rows[0].tipo_evento;
-                    }
-
-                    // 3. Ir à base de dados (tipos_evento) buscar a Resposta (Reply) registada
+                    // Se encontrou o tipo com certeza, vai buscar o Reply
                     if (tipoEvento) {
                         console.log(`🔎 [Bot ${botId}] Associando resposta ao tipo: ${tipoEvento}`);
                         const tipoObj = await pool.query("SELECT template_resposta FROM tipos_evento WHERE LOWER(nome) = LOWER($1)", [tipoEvento]);
