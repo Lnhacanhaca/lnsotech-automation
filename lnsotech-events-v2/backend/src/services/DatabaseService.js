@@ -7,7 +7,7 @@ class DatabaseService {
         await db.query(`
             CREATE TABLE IF NOT EXISTS configuracoes (chave TEXT PRIMARY KEY, valor TEXT);
             CREATE TABLE IF NOT EXISTS tipos_evento (id SERIAL PRIMARY KEY, nome TEXT UNIQUE, cor TEXT, template_resposta TEXT);
-            CREATE TABLE IF NOT EXISTS grupos_config (grupo_id TEXT PRIMARY KEY, nome TEXT, is_muted BOOLEAN DEFAULT FALSE, atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+            CREATE TABLE IF NOT EXISTS grupos_config (grupo_id TEXT PRIMARY KEY, nome TEXT, is_muted BOOLEAN DEFAULT TRUE, atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             
             CREATE TABLE IF NOT EXISTS usuarios (
                 id SERIAL PRIMARY KEY,
@@ -147,7 +147,7 @@ class DatabaseService {
                 id SERIAL PRIMARY KEY,
                 grupo_id VARCHAR(255) UNIQUE NOT NULL,
                 nome VARCHAR(255),
-                is_muted BOOLEAN DEFAULT FALSE,
+                is_muted BOOLEAN DEFAULT TRUE,
                 last_seen_by_bot_id INTEGER,
                 atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );

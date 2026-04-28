@@ -131,7 +131,7 @@ class SystemRepository {
             );
             if (res.rowCount === 0) {
                 await db.query(
-                    'INSERT INTO grupos_config (grupo_id, nome, last_seen_by_bot_id) VALUES ($1, $2, $3)',
+                    'INSERT INTO grupos_config (grupo_id, nome, last_seen_by_bot_id, is_muted) VALUES ($1, $2, $3, TRUE)',
                     [g.id, g.nome, botId]
                 );
             }
