@@ -1,118 +1,182 @@
-# SGFS - Sistema de Gestão de Folhas Salariais (Curso Nocturno)
+# 🚀 LNSOTECH Automation CRM v2 (KUMBUKA CRM)
 
-O **SGFS** é um sistema web moderno e responsivo desenvolvido para o **Instituto Superior Politécnico de Tete (ISPT)**, Moçambique. Ele simplifica e centraliza a gestão, lançamento, auditoria e emissão de folhas de pagamento mensais para docentes do curso nocturno (pós-laboral).
+[![Docker](https://img.shields.io/badge/Docker-Enabled-blue.svg?logo=docker&logoColor=white)]()
+[![Node.js](https://img.shields.io/badge/Node.js-v20+-green.svg?logo=node.js&logoColor=white)]()
+[![React](https://img.shields.io/badge/React-18-cyan.svg?logo=react&logoColor=white)]()
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue.svg?logo=postgresql&logoColor=white)]()
+[![License](https://img.shields.io/badge/License-Proprietary-red.svg)]()
 
----
-
-## 🛠️ Tecnologias Utilizadas
-
-O sistema foi desenhado com foco em desempenho, segurança e experiência do utilizador:
-
-### Frontend
-- **React (Vite)**: Renderização rápida de componentes.
-- **Tailwind CSS v4**: Design moderno, adaptável e com suporte a variáveis CSS e temas nativos.
-- **Lucide React**: Biblioteca de ícones moderna.
-- **Recharts**: Visualização gráfica de indicadores e custos salariais.
-- **TanStack React Query**: Gerenciamento de estado de dados e chamadas à API com cache inteligente.
-
-### Backend
-- **Node.js (Express)**: API REST robusta e veloz.
-- **Knex.js**: Query Builder utilizado para migrações e sementes (seeds) de dados.
-- **SQLite3**: Banco de dados para o ambiente de desenvolvimento local.
-- **PostgreSQL**: Banco de dados robusto de nível de produção na VPS.
-
-### Infraestrutura & Deploy
-- **Docker & Docker Compose**: Empacotamento de containers para ambiente local e produção.
-- **Nginx Proxy Manager**: Proxy reverso de entrada e gerenciamento de certificados SSL/HTTPS na VPS.
-- **Bash Scripting**: Scripts automatizados de implantação local para a VPS.
+> Sistema corporativo moderno de automação e CRM com integração WhatsApp (Multi-Bot), projetado sob os mais rígidos padrões de engenharia de software para garantir alta resiliência, escalabilidade e segurança.
 
 ---
 
-## 👥 Perfis de Acesso (Funções)
+## 📌 Índice
 
-O sistema possui controle de acesso rigoroso baseado em papéis (RBAC):
-
-1. **Administrador Geral (ADMIN)**:
-   - Visão consolidada (Geral) de todas as folhas salariais.
-   - Gerenciamento completo de utilizadores (Diretores de Curso).
-   - Cadastro, edição e importação (via CSV) de Docentes e suas respectivas categorias e cargas de Aulas Programadas (AP).
-   - Definição de **Exceções de Prazo** para permitir que diretores específicos editem horas após o período regulamentar.
-   - Publicação de avisos críticos no mural do painel.
-   - Visualização de logs de auditoria e segurança.
-   - Criação de Cópias de Segurança (Backup) e Restauro completo do sistema em formato JSON.
-
-2. **Director de Curso (DIRETOR_CURSO)**:
-   - Acesso exclusivo aos docentes associados ao seu curso ou grupo de cursos (ex: *Almeida* para CA/CAP, *Lucas/Leandro* para Minas/Processamento).
-   - Lançamento manual semanal de Aulas Dadas (AD) e Vigias Dadas (VD - Modo Exame).
-   - Emissão e impressão de relatórios de folha salarial e notas de justificação individual.
-   - Edição de perfil próprio (Username e Senha).
+- [🏗️ Arquitetura do Sistema](#️-arquitetura-do-sistema)
+- [🛠️ Funcionalidades Principais](#️-funcionalidades-principais)
+- [⚡ Stack Tecnológica](#-stack-tecnológica)
+- [⚙️ Configuração e Variáveis de Ambiente](#️-configuração-e-variáveis-de-ambiente)
+- [🚀 Desenvolvimento Local (Modo Rápido)](#-desenvolvimento-local-modo-rápido)
+- [🌐 Guia de Deploy em Produção (VPS)](#-guia-de-deploy-em-produção-vps)
+- [🛡️ Resiliência, Segurança & Estabilização](#️-resiliência-segurança--estabilização)
+- [📁 Estrutura de Diretórios](#-estrutura-de-diretórios)
 
 ---
 
-## ✨ Principais Funcionalidades
+## 🏗️ Arquitetura do Sistema
 
-- **100% Responsivo**: Layout desenhado com técnica mobile-first, garantindo compatibilidade total com tablets e celulares sem quebra de tabelas.
-- **Modo Escuro Global**: Tema escuro premium controlado por um botão alternador (Sol/Lua) no topo superior direito, disponível para todos os utilizadores.
-- **Sincronização Automática de AP**: Alterações na carga horária semanal (AP) feitas no cadastro de docentes propagam-se instantaneamente para todas as tabelas de lançamento e relatórios.
-- **Quadro de Avisos**: Canal direto de comunicação da Direção com os Diretores.
-- **Alertas de Feriados Nacionais**: Exibição dinâmica de alertas de feriados no mês de referência para guiar o desconto de horas acadêmicas.
-- **Análise Anual de Custos**: Gráficos financeiros detalhados mostrando evolução de gastos por curso e o rácio entre aulas programadas vs dadas.
-- **Justificação de Atrasos**: Modal que gera documentos automatizados em conformidade com as exigências da administração pública moçambicana.
+O ecossistema é baseado numa arquitetura de **Microserviços Contenerizados** via Docker, dividida em três camadas principais estruturadas da seguinte forma:
 
----
+```mermaid
+graph TD
+    subgraph Cliente
+        SPA["React + Vite SPA"]
+        PWA["Smart PWA - Service Worker / Offline Sync"]
+    end
 
-## 🚀 Como Rodar o Projeto Localmente
+    subgraph Proxy Reverso
+        Nginx["Nginx Reverse Proxy (Port 80/443)"]
+    end
 
-### Pré-requisitos
-- [Docker](https://www.docker.com/) instalado em sua máquina.
-- [Node.js](https://nodejs.org/) (opcional, apenas para desenvolvimento nativo).
+    subgraph Backend
+        Express["Express API Server (Node.js)"]
+        BotEngine["Bot Engine (Baileys WhatsApp Socket)"]
+        BackupService["Backup Service (Plain SQL & Custom Binary)"]
+    end
 
-### Execução via Docker Compose (Recomendado)
+    subgraph Base de Dados
+        Postgres[("PostgreSQL 15 (Alpine)")]
+    end
 
-1. Certifique-se de que a rede compartilhada existe:
-   ```bash
-   docker network create lnso_network
-   ```
-
-2. Inicialize os containers locais:
-   ```bash
-   docker compose up -d --build
-   ```
-
-3. Acesse no navegador:
-   - **Frontend (SPA)**: `http://localhost:5173`
-   - **Backend API**: `http://localhost:3001`
-   - **Nginx Proxy Manager**: `http://localhost:81`
-
-### Utilizadores Padrão (Ambiente de Testes)
-- **Administrador**: `admin` / senha: `admin123`
-- **Director Almeida**: `almeida` / senha: `password`
-- **Director Lucas**: `lucas` / senha: `password`
-
----
-
-## 🌐 Deploy na VPS (Produção)
-
-O projeto está configurado para deploy automatizado via script SSH.
-
-### Configuração do Script
-O script `deploy_local.sh` compacta as pastas de código, transfere para a VPS usando SSH, reconstrói os containers do Docker Compose produtivo e roda as migrações mais recentes no banco de dados Postgres:
-
-```bash
-# Executar deploy
-./deploy_local.sh
+    SPA -->|HTTPS / WSS| Nginx
+    Nginx -->|Proxy Pass| Express
+    Express -->|Repository Pattern| Postgres
+    BotEngine -->|Event-Driven Socket| Nginx
+    BotEngine -->|Queries| Postgres
 ```
 
-### Configurações de Payload (Envio de Backups Grandes)
-Para evitar o erro **HTTP 413 (Payload Too Large)** ao restaurar backups grandes via JSON, as seguintes definições estão configuradas:
-1. **Express Backend**: Configurado no `index.js` para aceitar payloads de até **50MB** (`express.json({ limit: '50mb' })`).
-2. **Nginx Proxy Manager (VPS)**: Caso envie arquivos maiores que 1MB em produção, vá nas configurações do host no painel do Nginx Proxy Manager, aceda à aba **Advanced** e insira:
-   ```nginx
-   client_max_body_size 50m;
-   ```
+### Detalhamento das Camadas
+
+*   **Backend (Node.js + Express):** Segue o padrão arquitetural **MVC (Model-View-Controller)** com uma **Service Layer** acoplada para execução de lógica pesada de negócio (ex: backups) e um padrão **Repository** para o isolamento de queries SQL do banco.
+*   **Frontend (React 18 + Vite):** Uma Single Page Application (SPA) moderna, reativa, que utiliza **Custom Hooks** para abstração de lógica de estado (Auth, BotStatus, OfflineSync, Eventos, Temas) e componentes limpos.
+*   **Infraestrutura (Docker + Nginx):** O Nginx atua como proxy reverso gerenciando o tráfego HTTP e conexões WebSocket para o Bot Engine de forma totalmente isolada em rede docker bridge.
 
 ---
 
-## 📄 Licença
+## 🛠️ Funcionalidades Principais
 
-Este projeto é desenvolvido para uso interno exclusivo do **Instituto Superior Politécnico de Tete (ISPT)**. Todos os direitos reservados.
+| Funcionalidade | Descrição | Tecnologia Utilizada |
+| :--- | :--- | :--- |
+| **Multi-Bot WhatsApp** | Conexão simultânea de múltiplos números e tratamento reativo de conexões. | Baileys Engine (Socket) |
+| **Live Template Editor** | Editor de mensagens avançado com visualização simulada de smartphone e variáveis. | React + SweetAlert2 |
+| **Smart PWA** | Web App instalável com cache offline completo de estatísticas e eventos. | Service Worker + Workbox |
+| **Fila de Envio Inteligente** | Processamento com *Rate Limiting* e delay dinâmico para evitar banimentos. | PostgreSQL Queue + Sleep Helper |
+| **Autenticação 2FA** | Segurança robusta baseada no protocolo TOTP (RFC 6238). | `otplib` + JWT |
+| **Backups Compatíveis** | Exportações Plain SQL e Binary para migrações flexíveis entre versões do BD. | Custom SQL Generators |
+| **Logs de Auditoria** | Histórico imutável de todas as modificações críticas do sistema por usuário. | Audit Log Repository |
+
+---
+
+## ⚡ Stack Tecnológica
+
+*   **Linguagens & Frameworks:** Node.js v20+, Express, React 18, Vite.
+*   **Banco de Dados:** PostgreSQL 15-alpine (com volumes persistentes locais).
+*   **Estilização & Iconografia:** Vanilla CSS premium (harmonia HSL, dark/light mode nativo) e Lucide React.
+*   **Proxy & Servidor Web:** Nginx Alpine.
+*   **Containers:** Docker & Docker Compose.
+
+---
+
+## ⚙️ Configuração e Variáveis de Ambiente
+
+Crie um arquivo `.env` no diretório raiz com as seguintes configurações básicas:
+
+```env
+# Banco de Dados
+DB_USER=seu_usuario
+DB_PASSWORD=sua_senha
+DB_NAME=lnsotech_db
+DB_HOST=database
+DB_PORT=5432
+
+# Segurança
+JWT_SECRET=sua_chave_secreta_jwt
+TWO_FACTOR_SECRET_KEY=sua_chave_secreta_totp
+
+# Configurações do Bot
+PORT=3000
+NODE_ENV=production
+```
+
+---
+
+## 🚀 Desenvolvimento Local (Modo Rápido)
+
+Para iniciar o sistema em modo de desenvolvimento com suporte a **Hot-Reload** no frontend e backend:
+
+1. Garanta que tem o Docker instalado na sua máquina.
+2. Execute o comando:
+   ```bash
+   docker-compose up --build
+   ```
+3. O frontend estará disponível em [http://localhost:3001](http://localhost:3001).
+4. O painel de administração de banco de dados **pgAdmin** estará ativo em [http://localhost:5050](http://localhost:5050).
+
+---
+
+## 🌐 Guia de Deploy em Produção (VPS)
+
+O deploy é projetado em **3 passos profissionais** para validação segura:
+
+### 1. Desenvolvimento e Testes Locais
+Execute e valide as novas implementações localmente:
+```bash
+docker-compose up --build
+```
+
+### 2. Validação Homologada (Simulação Real da VPS)
+Rode a stack configurada exatamente como rodará em nuvem (sem ferramentas adicionais de debug e sob otimização de Nginx de produção):
+```bash
+docker-compose -f docker-compose.yml up --build
+```
+Se a aplicação abrir com sucesso, ela está pronta e livre de erros ambientais para ir à VPS (ex: Contabo).
+
+### 3. Deploy Automático via CI/CD
+Envie as alterações para a branch principal:
+```bash
+git push origin main
+```
+O **GitHub Actions** assumirá o fluxo:
+* Conecta-se à VPS via SSH.
+* Executa um backup de segurança preventivo da base PostgreSQL.
+* Realiza o `git pull` e faz o rebuild inteligente dos containers em produção.
+
+---
+
+## 🛡️ Resiliência, Segurança & Estabilização
+
+*   **Anti-Spam & Throttling:** Algoritmo sequencial de envio que respeita pausas assíncronas calculadas (`sleep`) e ignora auto-mensagens (`fromMe`) para proteger o chip de suspensões no WhatsApp.
+*   **TOTP 2FA:** Segurança adicional de login que exige verificação física no dispositivo gerador de código sem depender de conexões de internet.
+*   **Robustez de Dados:** Rotinas automatizadas de migração de dados e compatibilidade assegurada de exportações.
+
+---
+
+## 📁 Estrutura de Diretórios
+
+```text
+lnsotech-automation/
+├── .github/                   # Workflows do GitHub Actions
+├── Bot/                       # Microsserviço do motor de bots auxiliar
+├── docker/                    # Configurações de serviços (Nginx, etc.)
+├── lnsotech-events-v2/        # Core do Ecossistema CRM
+│   ├── backend/               # Servidor Express, Controladores e Repositórios
+│   │   └── src/               # Código fonte (MVC + Services)
+│   └── frontend/              # Single Page Application React
+│       └── src/               # Componentes, Páginas, Hooks e Assets
+├── postgres/                  # Scripts SQL de inicialização e migrações
+├── docker-compose.yml         # Orquestrador de serviços
+└── README.md                  # Este documento
+```
+
+---
+*LNSOTECH Automation CRM - Projetado com dedicação e engenharia de precisão.*
